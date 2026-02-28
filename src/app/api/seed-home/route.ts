@@ -79,7 +79,6 @@ export async function GET() {
             style: 'primary',
           },
         ],
-        _status: 'published',
       },
     });
 

@@ -6,7 +6,7 @@ import type { Metadata } from 'next';
 
 type Args = {
   params: Promise<{
-    [key: string]: string | string[];
+    segments: string[];
   }>;
   searchParams: Promise<{
     [key: string]: string | string[];

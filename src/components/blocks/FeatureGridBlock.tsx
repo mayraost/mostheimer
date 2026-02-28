@@ -21,7 +21,7 @@ export function FeatureGridBlock({ block }: { block: FeatureGridBlockData }) {
             className="p-6 rounded-2xl bg-header border border-border text-center flex flex-col items-center hover:-translate-y-1 transition-transform"
           >
             <div className="w-16 h-16 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-6">
-              <Icon name={feature.iconName} className="w-8 h-8" />
+              <Icon name={feature.iconName ?? 'HelpCircle'} className="w-8 h-8" />
             </div>
             <h3 className="text-xl font-bold font-averia mb-2">{feature.title}</h3>
             <p className="opacity-80 font-geist-mono">{feature.description}</p>
