@@ -296,11 +296,97 @@ await payload.delete({ collection: 'posts', id: '123' })
 
 ## Theming & UI
 
-- Light / Dark / System-Theme via CSS Custom Properties
-- Font-Size-Einstellung (normal/large)
-- Animations-Toggle (on/off/system)
+### Theme-System
+
+- Light / Dark / System-Theme via CSS Custom Properties (`globals.css`)
+- Font-Size-Einstellung (normal/large) via `html.large-font`
+- Animations-Toggle (on/off/system) via `body.no-animations`
 - User-Einstellungen werden in `localStorage` gespeichert
-- Primärfarbe: `#C2185B` (Light) / `#F06292` (Dark)
+- Theme-Klassen `.dark` / `.light` werden auf `<html>` gesetzt
+
+### Design Tokens (`src/app/globals.css`)
+
+Alle Tokens sind als Tailwind CSS v4 `@theme`-Variablen definiert und stehen als Utilities zur Verfügung (z. B. `bg-primary`, `text-muted-foreground`).
+
+#### Primary (Rose/Pink)
+
+| Token                    | Light       | Dark        | Verwendung                        |
+| ------------------------ | ----------- | ----------- | --------------------------------- |
+| `primary`                | `#C2185B`   | `#F06292`   | Brand-Farbe, CTAs, Akzente        |
+| `primary-hover`          | `#AD1457`   | `#EC407A`   | Hover-Zustand auf Primary-Flächen |
+| `primary-foreground`     | `#ffffff`   | `#ffffff`   | Text auf Primary-Hintergrund      |
+| `primary-muted`          | `#FCE4EC`   | `#3D1A26`   | Subtile Primary-Hintergründe      |
+
+#### Secondary (Violet)
+
+| Token                    | Light       | Dark        | Verwendung                        |
+| ------------------------ | ----------- | ----------- | --------------------------------- |
+| `secondary`              | `#6D28D9`   | `#A78BFA`   | Sekundäre Aktionen, Badges        |
+| `secondary-hover`        | `#5B21B6`   | `#8B5CF6`   | Hover auf Secondary               |
+| `secondary-foreground`   | `#ffffff`   | `#ffffff`   | Text auf Secondary-Hintergrund    |
+
+#### Accent (Amber)
+
+| Token                    | Light       | Dark        | Verwendung                        |
+| ------------------------ | ----------- | ----------- | --------------------------------- |
+| `accent`                 | `#F59E0B`   | `#FBBF24`   | Highlights, Tags, Badges          |
+| `accent-foreground`      | `#1A1A1A`   | `#1A1A1A`   | Text auf Accent-Hintergrund       |
+
+#### Backgrounds & Surfaces
+
+| Token                    | Light       | Dark        | Verwendung                        |
+| ------------------------ | ----------- | ----------- | --------------------------------- |
+| `background`             | `#FFFFFF`   | `#121212`   | Seitenhintergrund                 |
+| `surface`                | `#F8F8F8`   | `#1E1E1E`   | Cards, Panels                     |
+| `surface-raised`         | `#F0F0F0`   | `#252525`   | Elevated Cards, Modals            |
+| `header`                 | `#F8F8F8`   | `#1E1E1E`   | Header-Hintergrund (legacy alias) |
+
+#### Text
+
+| Token                    | Light       | Dark        | Verwendung                        |
+| ------------------------ | ----------- | ----------- | --------------------------------- |
+| `foreground` / `text`    | `#1A1A1A`   | `#EDEDED`   | Primärer Fließtext                |
+| `muted-foreground`       | `#6B6B6B`   | `#9E9E9E`   | Sekundärer Text, Platzhalter      |
+
+#### Border
+
+| Token                    | Light       | Dark        | Verwendung                        |
+| ------------------------ | ----------- | ----------- | --------------------------------- |
+| `border`                 | `#E5E5E5`   | `#333333`   | Standard-Trennlinien              |
+| `border-strong`          | `#CCCCCC`   | `#444444`   | Betonte Rahmen                    |
+
+#### Feedback
+
+| Token               | Light       | Dark        |
+| ------------------- | ----------- | ----------- |
+| `success`           | `#16A34A`   | `#4ADE80`   |
+| `warning`           | `#D97706`   | `#FBBF24`   |
+| `error`             | `#DC2626`   | `#F87171`   |
+| `info`              | `#2563EB`   | `#60A5FA`   |
+
+Jeder Feedback-Token hat einen passenden `*-foreground`-Token für Text auf dem jeweiligen Hintergrund.
+
+### Nutzung in Komponenten
+
+```tsx
+// Hintergründe
+<div className="bg-surface border border-border rounded-lg">
+<div className="bg-primary text-primary-foreground">
+
+// Text
+<p className="text-foreground">Primärtext</p>
+<p className="text-muted-foreground">Sekundärtext</p>
+
+// Feedback
+<span className="bg-error text-error-foreground">Fehler</span>
+<span className="bg-success text-success-foreground">Erfolg</span>
+
+// Glow-Effekte (Primary-Farbe hardcoded für drop-shadow/text-shadow)
+className="drop-shadow-[0_0_6px_rgba(194,24,91,0.4)]"         // Light
+className="[text-shadow:0_0_10px_rgba(194,24,91,0.25)]"        // Light
+```
+
+> **Hinweis:** Für `drop-shadow` und `text-shadow` müssen die RGBA-Werte der Primary-Farbe hardcoded werden (`194,24,91` für Light, `240,98,146` für Dark), da Tailwind diese nicht automatisch interpoliert.
 
 ## Workflow-Regeln
 
