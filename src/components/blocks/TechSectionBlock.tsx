@@ -28,10 +28,7 @@ export function TechSectionBlock({ block }: { block: TechSectionBlockData }) {
 
         <div className="space-y-4 mb-8">
           {paragraphs.map((para, i) => (
-            <p
-              key={i}
-              className="font-geist-mono text-sm lg:text-base opacity-80 leading-relaxed"
-            >
+            <p key={i} className="font-geist-mono text-sm lg:text-base opacity-80 leading-relaxed">
               {para}
             </p>
           ))}
@@ -44,9 +41,7 @@ export function TechSectionBlock({ block }: { block: TechSectionBlockData }) {
                 <dt className="font-geist-mono text-xs text-muted-foreground uppercase tracking-wider mb-1">
                   {fact.label}
                 </dt>
-                <dd className="font-geist-mono text-sm font-semibold text-primary">
-                  {fact.value}
-                </dd>
+                <dd className="font-geist-mono text-sm font-semibold text-primary">{fact.value}</dd>
               </div>
             ))}
           </dl>

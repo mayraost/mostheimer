@@ -310,7 +310,7 @@ Hosting & protocols – Vercel for Next.js deployments where the platform aligns
           {
             blockType: 'techSection',
             sectionLabel: 'Quality Assurance & Accessibility',
-            heading: 'Code without tests is tomorrow\'s legacy code. Accessibility is not optional.',
+            heading: "Code without tests is tomorrow's legacy code. Accessibility is not optional.",
             body: `Testing – Cypress for end-to-end test coverage of critical user paths. Jest for unit tests at the component and logic level. Visual regression testing to catch unintended UI changes before users do. Test coverage is a discipline, not a metric to game.
 
 Accessibility is an architecture standard, not a last-mile checklist. I have delivered WCAG 2.0 AA and BITV AAA compliant systems for public-sector clients with legal obligations around non-compliance. Screen reader testing with NVDA, VoiceOver, and JAWS is part of the delivery process, not a QA afterthought.
@@ -421,7 +421,8 @@ Echtzeit – WebSockets für persistente bidirektionale Kommunikation. WebRTC f�
           {
             blockType: 'techSection',
             sectionLabel: 'Infrastructure, Performance & DevOps',
-            heading: 'Code ist wertlos, wenn er nicht performant ausgeliefert wird. Latenz ist der Feind.',
+            heading:
+              'Code ist wertlos, wenn er nicht performant ausgeliefert wird. Latenz ist der Feind.',
             body: `Caching – Varnish für Reverse-Proxy-Caching in PHP-Umgebungen. Cloudflare für Edge-Caching, Workers, KV, R2 und die vollständige programmierbare Schicht. Der Unterschied zwischen einem CDN und einem programmierbaren Edge ist der Unterschied zwischen einem Cache und einer Architekturentscheidung.
 
 CI/CD – Jenkins, GitLab CI, GitHub Actions. Pipeline-Design, Parallelisierung, Dependency-Caching, Deployment-Strategien (Blue-Green, Canary). Automatisierung geht nicht nur um Geschwindigkeit – es geht darum, das Richtige zur einfachen Option zu machen.
@@ -437,7 +438,8 @@ Hosting & Protokolle – Vercel für Next.js-Deployments, wo die Plattform mit d
           {
             blockType: 'techSection',
             sectionLabel: 'Quality Assurance & Accessibility',
-            heading: 'Code ohne Tests ist Legacy-Code von morgen. Barrierefreiheit ist kein Opt-in.',
+            heading:
+              'Code ohne Tests ist Legacy-Code von morgen. Barrierefreiheit ist kein Opt-in.',
             body: `Testing – Cypress für End-to-End-Testabdeckung kritischer User Paths. Jest für Unit-Tests auf Komponenten- und Logik-Ebene. Visual-Regression-Testing, um unbeabsichtigte UI-Änderungen zu erkennen, bevor es Nutzer tun. Test-Coverage ist eine Disziplin, keine Metrik zum Optimieren.
 
 Barrierefreiheit ist ein Architekturstandard, keine Last-Mile-Checkliste. Ich habe WCAG 2.0 AA und BITV AAA konforme Systeme für Auftraggeber im öffentlichen Sektor mit gesetzlichen Verpflichtungen bei Nicht-Konformität geliefert. Screen-Reader-Tests mit NVDA, VoiceOver und JAWS sind Teil des Lieferprozesses, kein QA-Nachgedanke.
@@ -479,55 +481,103 @@ Die praktische Implikation: Accessible Components werden vom DOM aufwärts desig
             blockType: 'hero',
             heading: 'Track Record.',
             subheading:
-              "Numbers, decisions, outcomes. The unglamorous reality of shipping production software at scale.",
+              'This is not a CV. It is an honest account of the contexts where I carried real responsibility – for architecture, team, and outcome.',
             showStackBadge: false,
           },
+          // --- Intro ---
           {
-            blockType: 'featureGrid',
-            heading: 'Selected Projects',
-            features: [
-              {
-                title: 'ZDF Relaunch 2025',
-                description:
-                  'Frontend architecture for one of Germany\'s largest public broadcasting platforms. Millions of daily users. Live sports data, streaming, real-time updates. Latency is a product decision.',
-                iconName: 'Tv',
-              },
-              {
-                title: 'Team Lead @ valantic DXA',
-                description:
-                  'Leading a cross-functional team of engineers. Responsible for technical direction, code quality standards, and making sure juniors actually grow.',
-                iconName: 'Users',
-              },
-              {
-                title: 'Edge Caching Architecture',
-                description:
-                  'Designed and implemented Cloudflare-based caching strategies that reduced origin load by over 70% while keeping content fresh for editorial teams.',
-                iconName: 'Zap',
-              },
-              {
-                title: 'Legacy PHP Modernisation',
-                description:
-                  'Incremental migration of a decade-old PHP monolith to a modern, decoupled architecture. Zero downtime. Business continuity first.',
-                iconName: 'RefreshCw',
-              },
-              {
-                title: 'Accessibility Overhaul',
-                description:
-                  'WCAG 2.1 AA compliance for high-traffic editorial systems. Not checkbox compliance – actual usability for screen reader users.',
-                iconName: 'Accessibility',
-              },
-              {
-                title: 'CI/CD & Developer Experience',
-                description:
-                  'Reduced average PR-to-production cycle from 3 days to under 4 hours through pipeline automation, review tooling, and removing unnecessary gates.',
-                iconName: 'GitBranch',
-              },
+            blockType: 'techSection',
+            sectionLabel: 'The Short Version',
+            heading: 'Impact over attendance.',
+            body: `15+ years of professional web development. Starting from a Beepworld site at age 10. Almost lost the joy of it during a computer science degree that cared more about algorithms on paper than software that runs in production.
+
+Then came Costa Rica. A deliberate reset. Followed by an apprenticeship I passed with a 1.0 grade. Followed by 4.5 years of enterprise frontend architecture. Followed by a year owning a SaaS product from conception to rollout. Followed by where I am now.
+
+This is not a timeline of 3-month stints and certificate collections. These are the contexts where I carried end responsibility – for the architecture, for the team, for the outcome.`,
+            keyFacts: [
+              { label: 'Started', value: 'Beepworld, ~2002' },
+              { label: 'Professional', value: '15+ years' },
+              { label: 'Current', value: 'valantic DXA' },
+            ],
+          },
+          // --- valantic DXA ---
+          {
+            blockType: 'techSection',
+            sectionLabel: 'Aug 2024 – Present',
+            heading: 'valantic DXA – Senior Full Stack Engineer & Team Manager',
+            body: `Leading a cross-functional engineering team while staying hands-on in the code. That duality is intentional. I don't believe in managers who stopped being engineers two years into leadership.
+
+Active projects: ZDFheute as a hybrid PWA (iOS & Android delivery on a single Next.js codebase), Hörzu (high-traffic media and TV guide portal), BORA (premium kitchen manufacturer), and Allianz insurance portal. Plus DBT-based data tracking pipelines for analytics teams who need reliable event data to make product decisions.
+
+The management layer adds: hiring screens, sprint planning, technical decisions that land on me, escalation ownership, and making sure the team actually grows rather than just ships.`,
+            keyFacts: [
+              { label: 'Role', value: 'Senior FSE · Team Manager' },
+              { label: 'Clients', value: 'ZDF · Hörzu · BORA · Allianz' },
+              { label: 'Stack', value: 'Next.js · Node · DBT · Payload' },
+              { label: 'Also', value: 'Hiring · Sprint Planning' },
+            ],
+          },
+          // --- Lehnert & Wieners / New Digitals ---
+          {
+            blockType: 'techSection',
+            sectionLabel: 'Aug 2023 – Jul 2024',
+            heading: 'Lehnert & Wieners / New Digitals – SaaS from Zero',
+            body: `One year. Complete ownership of a SaaS product from inception to rollout.
+
+Aduardo is a marketing automation and CRM platform – campaign management, contact segmentation, automated workflows. Built on Next.js, GraphQL, and NestJS. I made the architecture calls, wrote the core, and shipped it.
+
+One year is short. Full product ownership is not. The architecture has to survive without you. The decisions have to hold. This is what separates owning a product from being embedded in one.`,
+            keyFacts: [
+              { label: 'Product', value: 'Aduardo SaaS' },
+              { label: 'Stack', value: 'Next.js · GraphQL · NestJS' },
+              { label: 'Scope', value: 'CRM · Marketing Automation' },
+              { label: 'Ownership', value: '100% – concept to rollout' },
+            ],
+          },
+          // --- FFW Germany / Cellular ---
+          {
+            blockType: 'techSection',
+            sectionLabel: 'Dec 2018 – May 2023',
+            heading: 'FFW Germany / Cellular – 4.5 Years of Enterprise Frontend',
+            body: `This is where junior became senior. Four and a half years of enterprise-scale projects with real production consequences.
+
+ZDF / ZDFheute – The flagship project. Full migration from a Pimcore monolith to a Next.js frontend with a GraphQL BFF. Went live in 2022. Millions of daily users. ZDF is Germany's second-largest public broadcaster. You don't get to have a bad day.
+
+TUI Cruises, TV Spielfilm, Budni – Three very different clients, three very different problems. Cruise booking flows under real booking pressure. TV guide with live schedule data and editorial CMS workflows. A Hamburg retail chain migrating away from legacy infrastructure.
+
+Cotype – An internal CMS system built in-house. I was part of the team that built it and used it in client projects. Owning a tool you also rely on creates a useful feedback loop.
+
+2020: Promoted to Senior Full Stack Engineer. Not because of tenure. Because of output and ownership.`,
+            keyFacts: [
+              { label: 'Anchor project', value: 'ZDF/ZDFheute Relaunch' },
+              { label: 'Other clients', value: 'TUI · TV Spielfilm · Budni' },
+              { label: 'Senior from', value: '2020' },
+              { label: 'Stack', value: 'React · Next.js · GraphQL · Pimcore' },
+            ],
+          },
+          // --- Foundation ---
+          {
+            blockType: 'techSection',
+            sectionLabel: '2012 – 2018',
+            heading: 'The Long Way Around Was the Right Way.',
+            body: `University of Hamburg, Computer Science, 2012–2014. I enrolled because it seemed like the logical path. I left because lecture halls that never touched a running system nearly killed my interest in the craft.
+
+Costa Rica was not a gap year. It was a recalibration. Coming back with a clear decision: learn to build things by actually building things, not by passing exams about theoretical models.
+
+Satzmedia, 2016–2018. Apprenticeship as a Media Designer for Digital and Print. Final grade: 1.0. Written exam: 94 out of 100. This wasn't a consolation prize for dropping out of university. This was proof that the right environment changes everything. Satzmedia gave me a foundation in craft: typography, visual communication, production workflows. Understanding design from the production side makes you a better frontend engineer than four years of algorithms.
+
+What Beepworld started in 2002, the apprenticeship made into a profession. Everything after that was execution.`,
+            keyFacts: [
+              { label: 'Uni Hamburg', value: '2012–2014, dropped out' },
+              { label: 'Costa Rica', value: '2014, reset' },
+              { label: 'Satzmedia', value: '2016–2018, grade 1.0' },
+              { label: 'Exam score', value: '94 / 100' },
             ],
           },
           {
             blockType: 'callToAction',
             heading: 'Want to talk specifics?',
-            text: "I can elaborate on any of these in a 30-minute conversation. No pitch deck, no sales process. Technical peer review, if you're into that.",
+            text: "I can elaborate on any of this in a 30-minute conversation. No pitch deck, no sales process. Technical peer review, if you're into that.",
             buttonLabel: 'Send a message',
             buttonLink: 'mailto:mail@mostheimer.de',
             style: 'primary',
@@ -547,49 +597,97 @@ Die praktische Implikation: Accessible Components werden vom DOM aufwärts desig
             blockType: 'hero',
             heading: 'Track Record.',
             subheading:
-              'Zahlen, Entscheidungen, Ergebnisse. Die unglamouröse Realität des Shippens von Produktionssoftware im großen Maßstab.',
+              'Das ist kein Lebenslauf. Es ist eine ehrliche Darstellung der Kontexte, in denen ich echte Verantwortung getragen habe – für Architektur, Team und Ergebnis.',
             showStackBadge: false,
           },
+          // --- Intro ---
           {
-            blockType: 'featureGrid',
-            heading: 'Ausgewählte Projekte',
-            features: [
-              {
-                title: 'ZDF Relaunch 2025',
-                description:
-                  'Frontend-Architektur für eine der größten öffentlich-rechtlichen Rundfunkplattformen Deutschlands. Millionen täglicher Nutzer. Live-Sportdaten, Streaming, Echtzeit-Updates. Latenz ist eine Produktentscheidung.',
-                iconName: 'Tv',
-              },
-              {
-                title: 'Team Lead @ valantic DXA',
-                description:
-                  'Leitung eines cross-funktionalen Engineering-Teams. Verantwortlich für technische Ausrichtung, Code-Qualitätsstandards und dafür, dass Juniors wirklich wachsen.',
-                iconName: 'Users',
-              },
-              {
-                title: 'Edge Caching Architektur',
-                description:
-                  'Cloudflare-basierte Caching-Strategien entworfen und implementiert, die die Origin-Last um über 70% reduzierten und dabei Inhalte für Redaktionsteams frisch hielten.',
-                iconName: 'Zap',
-              },
-              {
-                title: 'Legacy PHP Modernisierung',
-                description:
-                  'Inkrementelle Migration eines jahrzehntealten PHP-Monolithen zu einer modernen, entkoppelten Architektur. Zero Downtime. Business Continuity first.',
-                iconName: 'RefreshCw',
-              },
-              {
-                title: 'Accessibility Overhaul',
-                description:
-                  'WCAG 2.1 AA Konformität für hochfrequentierte Redaktionssysteme. Kein Checkbox-Compliance – echte Nutzbarkeit für Screen-Reader-Nutzer.',
-                iconName: 'Accessibility',
-              },
-              {
-                title: 'CI/CD & Developer Experience',
-                description:
-                  'Durchschnittlichen PR-zu-Produktion-Zyklus von 3 Tagen auf unter 4 Stunden reduziert durch Pipeline-Automatisierung, Review-Tooling und Entfernung unnötiger Gates.',
-                iconName: 'GitBranch',
-              },
+            blockType: 'techSection',
+            sectionLabel: 'Die Kurzversion',
+            heading: 'Impact statt Anwesenheit.',
+            body: `15+ Jahre professionelle Webentwicklung. Angefangen mit einer Beepworld-Seite mit 10 Jahren. Fast die Freude daran verloren während eines Informatikstudiums, das sich mehr für Algorithmen auf Papier interessierte als für Software, die in Produktion läuft.
+
+Dann Costa Rica. Ein bewusster Reset. Gefolgt von einer Ausbildung mit 1,0. Gefolgt von 4,5 Jahren Enterprise-Frontend-Architektur. Gefolgt von einem Jahr vollständiger SaaS-Produktverantwortung von der Konzeption bis zum Rollout. Gefolgt von der aktuellen Position.
+
+Das ist keine Timeline von 3-Monats-Engagements und Zertifikatsammlungen. Das sind die Kontexte, in denen ich Endverantwortung getragen habe – für die Architektur, das Team, das Ergebnis.`,
+            keyFacts: [
+              { label: 'Start', value: 'Beepworld, ~2002' },
+              { label: 'Professionell', value: '15+ Jahre' },
+              { label: 'Aktuell', value: 'valantic DXA' },
+            ],
+          },
+          // --- valantic DXA ---
+          {
+            blockType: 'techSection',
+            sectionLabel: 'Aug 2024 – heute',
+            heading: 'valantic DXA – Senior Full Stack Engineer & Team Manager',
+            body: `Leitung eines cross-funktionalen Engineering-Teams bei gleichzeitigem Hands-on-Einsatz im Code. Diese Dualität ist absichtlich. Ich glaube nicht an Manager, die zwei Jahre nach dem Einstieg ins Leadership aufgehört haben, Engineers zu sein.
+
+Aktuelle Projekte: ZDFheute als Hybrid-PWA (iOS & Android Auslieferung auf einer einzigen Next.js-Codebasis), Hörzu (hochfrequentiertes Medien- und TV-Guide-Portal), BORA (Premium-Küchenhersteller) und Allianz Insurance Portal. Dazu DBT-basierte Data-Tracking-Pipelines für Analytics-Teams, die verlässliche Event-Daten für Produktentscheidungen brauchen.
+
+Die Management-Ebene ergänzt: Hiring-Screens, Sprint-Planning, technische Entscheidungen, die an mir landen, Eskalationsverantwortung und dafür sorgen, dass das Team wirklich wächst statt nur shippt.`,
+            keyFacts: [
+              { label: 'Rolle', value: 'Senior FSE · Team Manager' },
+              { label: 'Kunden', value: 'ZDF · Hörzu · BORA · Allianz' },
+              { label: 'Stack', value: 'Next.js · Node · DBT · Payload' },
+              { label: 'Auch', value: 'Hiring · Sprint Planning' },
+            ],
+          },
+          // --- Lehnert & Wieners / New Digitals ---
+          {
+            blockType: 'techSection',
+            sectionLabel: 'Aug 2023 – Jul 2024',
+            heading: 'Lehnert & Wieners / New Digitals – SaaS von null',
+            body: `Ein Jahr. Vollständige Ownership eines SaaS-Produkts von der Konzeption bis zum Rollout.
+
+Aduardo ist eine Marketing-Automation- und CRM-Plattform – Kampagnen-Management, Kontaktsegmentierung, automatisierte Workflows. Gebaut auf Next.js, GraphQL und NestJS. Ich habe die Architekturentscheidungen getroffen, den Core geschrieben und das Produkt ausgeliefert.
+
+Ein Jahr ist kurz. Vollständige Produktverantwortung ist es nicht. Die Architektur muss ohne einen selbst funktionieren. Die Entscheidungen müssen Bestand haben. Das ist der Unterschied zwischen einem Produkt besitzen und in einem eingebettet sein.`,
+            keyFacts: [
+              { label: 'Produkt', value: 'Aduardo SaaS' },
+              { label: 'Stack', value: 'Next.js · GraphQL · NestJS' },
+              { label: 'Scope', value: 'CRM · Marketing Automation' },
+              { label: 'Ownership', value: '100% – Konzept bis Rollout' },
+            ],
+          },
+          // --- FFW Germany / Cellular ---
+          {
+            blockType: 'techSection',
+            sectionLabel: 'Dez 2018 – Mai 2023',
+            heading: 'FFW Germany / Cellular – 4,5 Jahre Enterprise Frontend',
+            body: `Hier wurde Junior zu Senior. Viereinhalb Jahre Enterprise-Projekte mit echten Produktionskonsequenzen.
+
+ZDF / ZDFheute – Das Anker-Projekt. Vollständige Migration von einem Pimcore-Monolithen zu einem Next.js-Frontend mit GraphQL-BFF. Live gegangen 2022. Millionen tägliche Nutzer. ZDF ist Deutschlands zweitgrößter öffentlich-rechtlicher Sender. Einen schlechten Tag hatte man nicht.
+
+TUI Cruises, TV Spielfilm, Budni – Drei sehr unterschiedliche Kunden, drei sehr unterschiedliche Probleme. Kreuzfahrtbuchungsflows unter echtem Buchungsdruck. TV-Guide mit Live-Sendungsdaten und redaktionellen CMS-Workflows. Hamburgische Einzelhandelskette im Abkopplungsprozess von Legacy-Infrastruktur.
+
+Cotype – Ein intern entwickeltes CMS-System. Ich war Teil des Teams, das es baute und in Kundenprojekten einsetzte. Ein Tool zu besitzen, auf das man selbst angewiesen ist, schafft eine nützliche Feedbackschleife.
+
+2020: Beförderung zum Senior Full Stack Engineer. Nicht wegen Betriebszugehörigkeit. Wegen Output und Ownership.`,
+            keyFacts: [
+              { label: 'Ankerprojekt', value: 'ZDF/ZDFheute Relaunch' },
+              { label: 'Weitere Kunden', value: 'TUI · TV Spielfilm · Budni' },
+              { label: 'Senior ab', value: '2020' },
+              { label: 'Stack', value: 'React · Next.js · GraphQL · Pimcore' },
+            ],
+          },
+          // --- Foundation ---
+          {
+            blockType: 'techSection',
+            sectionLabel: '2012 – 2018',
+            heading: 'Der lange Weg war der richtige.',
+            body: `Universität Hamburg, Informatik, 2012–2014. Eingeschrieben, weil es der logische Weg schien. Abgebrochen, weil Hörsäle, die nie ein laufendes System anfassten, fast das Interesse am Handwerk zerstört hätten.
+
+Costa Rica war kein Gap Year. Es war eine Rekalibrierung. Mit einer klaren Entscheidung zurückgekommen: Bauen durch wirklich bauen lernen, nicht durch Klausuren über theoretische Modelle bestehen.
+
+Satzmedia, 2016–2018. Ausbildung zur Mediengestalterin Digital und Print. Abschlussnote: 1,0. Schriftliche Prüfung: 94 von 100. Das war kein Trostpflaster für den Studiumsabbruch. Das war der Beweis, dass das richtige Umfeld alles verändert. Satzmedia hat mir eine Grundlage im Handwerk gegeben: Typografie, visuelle Kommunikation, Produktionsworkflows. Design von der Produktionsseite zu verstehen macht einen besseren Frontend-Engineer als vier Jahre Algorithmen.
+
+Was Beepworld 2002 gestartet hat, hat die Ausbildung zum Beruf gemacht. Alles danach war Ausführung.`,
+            keyFacts: [
+              { label: 'Uni Hamburg', value: '2012–2014, abgebrochen' },
+              { label: 'Costa Rica', value: '2014, Reset' },
+              { label: 'Satzmedia', value: '2016–2018, Note 1,0' },
+              { label: 'Prüfungsergebnis', value: '94 / 100' },
             ],
           },
           {
@@ -797,7 +895,7 @@ Die praktische Implikation: Accessible Components werden vom DOM aufwärts desig
               {
                 title: 'Costa Rica Chapter',
                 description:
-                  "Dropped out of university. Moved to Costa Rica for a year. Came back with better Spanish, a deep appreciation for working remotely, and zero regrets.",
+                  'Dropped out of university. Moved to Costa Rica for a year. Came back with better Spanish, a deep appreciation for working remotely, and zero regrets.',
                 iconName: 'Plane',
               },
               {
@@ -811,7 +909,7 @@ Die praktische Implikation: Accessible Components werden vom DOM aufwärts desig
           {
             blockType: 'callToAction',
             heading: 'Still here?',
-            text: "If you have read this far, we are probably compatible. Whether that means a technical conversation, a networking coffee, or just following the GitHub repo – welcome.",
+            text: 'If you have read this far, we are probably compatible. Whether that means a technical conversation, a networking coffee, or just following the GitHub repo – welcome.',
             buttonLabel: 'Get in touch',
             buttonLink: 'mailto:mail@mostheimer.de',
             style: 'primary',

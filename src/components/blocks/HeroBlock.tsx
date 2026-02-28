@@ -41,9 +41,7 @@ export function HeroBlock({ block }: { block: HeroBlockData }) {
                 <span className="font-geist-mono text-xs text-primary/80 bg-primary/10 border border-primary/20 px-2.5 py-1 rounded-full">
                   {item}
                 </span>
-                {i < STACK_ITEMS.length - 1 && (
-                  <span className="text-border select-none">·</span>
-                )}
+                {i < STACK_ITEMS.length - 1 && <span className="text-border select-none">·</span>}
               </React.Fragment>
             ))}
           </div>

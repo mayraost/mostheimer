@@ -22,7 +22,8 @@ export const Hero: Block = {
       type: 'checkbox',
       defaultValue: true,
       admin: {
-        description: 'Display the live tech-stack badge (Node 24 | Next.js 16 | Tailwind 4 | PayloadCMS 3)',
+        description:
+          'Display the live tech-stack badge (Node 24 | Next.js 16 | Tailwind 4 | PayloadCMS 3)',
       },
     },
     {
