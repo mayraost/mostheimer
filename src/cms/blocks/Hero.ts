@@ -10,7 +10,7 @@ export const Hero: Block = {
     },
     {
       name: 'subheading',
-      type: 'text',
+      type: 'textarea',
     },
     {
       name: 'backgroundImage',
@@ -18,11 +18,30 @@ export const Hero: Block = {
       relationTo: 'media',
     },
     {
+      name: 'showStackBadge',
+      type: 'checkbox',
+      defaultValue: true,
+      admin: {
+        description: 'Display the live tech-stack badge (Node 24 | Next.js 16 | Tailwind 4 | PayloadCMS 3)',
+      },
+    },
+    {
       name: 'ctaLabel',
       type: 'text',
     },
     {
       name: 'ctaLink',
+      type: 'text',
+    },
+    {
+      name: 'ctaLabel2',
+      type: 'text',
+      admin: {
+        description: 'Optional second CTA button (ghost style)',
+      },
+    },
+    {
+      name: 'ctaLink2',
       type: 'text',
     },
   ],

@@ -5,6 +5,8 @@ import { TypingHeading } from '../TypingHeading';
 
 type HeroBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'hero' }>;
 
+const STACK_ITEMS = ['Node 24', 'Next.js 16', 'Tailwind 4', 'PayloadCMS 3'];
+
 export function HeroBlock({ block }: { block: HeroBlockData }) {
   const bgImage =
     block.backgroundImage !== null &&
@@ -32,6 +34,21 @@ export function HeroBlock({ block }: { block: HeroBlockData }) {
       )}
 
       <div className="relative z-10 w-full max-w-4xl mx-auto px-4 flex flex-col items-center">
+        {block.showStackBadge !== false && (
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
+            {STACK_ITEMS.map((item, i) => (
+              <React.Fragment key={item}>
+                <span className="font-geist-mono text-xs text-primary/80 bg-primary/10 border border-primary/20 px-2.5 py-1 rounded-full">
+                  {item}
+                </span>
+                {i < STACK_ITEMS.length - 1 && (
+                  <span className="text-border select-none">·</span>
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+        )}
+
         <h1 className="text-5xl lg:text-7xl font-averia font-bold text-primary mb-6 drop-shadow-sm flex items-center justify-center w-full">
           <TypingHeading text={block.heading} />
         </h1>
@@ -42,14 +59,24 @@ export function HeroBlock({ block }: { block: HeroBlockData }) {
           </p>
         )}
 
-        {block.ctaLabel && block.ctaLink && (
-          <div className="mt-8">
-            <a
-              href={block.ctaLink}
-              className="inline-block bg-primary text-white border-2 border-primary px-8 py-4 rounded-full font-semibold hover:bg-transparent hover:text-primary transition-all duration-300 font-geist-mono shadow-md hover:shadow-lg transform hover:-translate-y-1"
-            >
-              {block.ctaLabel}
-            </a>
+        {(block.ctaLabel || block.ctaLabel2) && (
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+            {block.ctaLabel && block.ctaLink && (
+              <a
+                href={block.ctaLink}
+                className="inline-block bg-primary text-white border-2 border-primary px-8 py-4 rounded-full font-semibold hover:bg-transparent hover:text-primary transition-all duration-300 font-geist-mono shadow-md hover:shadow-lg transform hover:-translate-y-1"
+              >
+                {block.ctaLabel}
+              </a>
+            )}
+            {block.ctaLabel2 && block.ctaLink2 && (
+              <a
+                href={block.ctaLink2}
+                className="inline-block bg-transparent text-primary border-2 border-primary px-8 py-4 rounded-full font-semibold hover:bg-primary hover:text-white transition-all duration-300 font-geist-mono hover:shadow-lg transform hover:-translate-y-1"
+              >
+                {block.ctaLabel2}
+              </a>
+            )}
           </div>
         )}
       </div>
