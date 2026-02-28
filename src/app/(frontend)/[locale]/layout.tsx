@@ -25,13 +25,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'),
 };
 
-export default async function RootLayout({
-  children,
-  params,
-}: Readonly<{
-  children: React.ReactNode;
-  params: Promise<{ locale: string }>;
-}>) {
+export default async function RootLayout({ children, params }: LayoutProps<'/[locale]'>) {
   const resolvedParams = await params;
   const locale = (resolvedParams.locale as 'en' | 'de') || 'en';
 
