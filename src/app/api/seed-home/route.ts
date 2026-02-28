@@ -213,86 +213,120 @@ export async function GET() {
             blockType: 'hero',
             heading: 'The Stack.',
             subheading:
-              'No hype-driven decisions. Every technology here is battle-tested, contextually chosen, and understood down to the runtime.',
+              'No skill bars. No percentage ratings. Either a technology has been in production at scale and I can debug it at 2am, or it is not on this page.',
             showStackBadge: true,
           },
+          // --- Intro: End of skill bars ---
           {
-            blockType: 'featureGrid',
-            heading: 'Current Weapons of Choice',
-            features: [
-              {
-                title: 'Next.js 16 (App Router)',
-                description:
-                  'RSC, streaming, granular caching. The App Router is production-ready if you understand what you\'re doing with it.',
-                iconName: 'Triangle',
-              },
-              {
-                title: 'TypeScript – strict mode, always',
-                description:
-                  'Any is a code smell. Strict mode is the baseline. Type inference is your friend if you stop fighting it.',
-                iconName: 'Code',
-              },
-              {
-                title: 'Payload CMS v3',
-                description:
-                  'TypeScript-first, Local API, no headless tax. When the client needs a CMS, this is where I start in 2025.',
-                iconName: 'Database',
-              },
-              {
-                title: 'Cloudflare (Workers, KV, R2, Cache)',
-                description:
-                  'Granular caching at the edge. Not just a CDN – a programmable layer between your origin and the world.',
-                iconName: 'Globe',
-              },
-              {
-                title: 'PHP & Legacy Systems',
-                description:
-                  'Half the internet runs on PHP. Rewriting working legacy for sport is expensive. Strangler Fig pattern, incremental modernisation – that\'s the move.',
-                iconName: 'Server',
-              },
-              {
-                title: 'Tailwind CSS v4',
-                description:
-                  'CSS-first config, no PostCSS overhead. The logical successor. If you\'re still arguing about utility classes in 2025, I can\'t help you.',
-                iconName: 'Paintbrush',
-              },
+            blockType: 'techSection',
+            sectionLabel: 'Philosophy',
+            heading: 'Skill bars are junior thinking.',
+            body: `A progress bar on a portfolio tells you nothing. "JavaScript: 80%" – 80% of what? The spec? The ecosystem? The footguns? Percentage ratings are a UX pattern for people who have never had to explain a production incident to an angry client.
+
+Here is the actual measure: everything on this page has been deployed to real systems serving real users or running critical B2B processes. I own it when it breaks. I have debugged it under load. I know the failure modes.
+
+If a technology is not on this list, one of two things is true: I have not used it enough to take responsibility for it in production, or it does not deserve to be there. Both are honest answers.`,
+            keyFacts: [
+              { label: 'Principle', value: 'Production or nothing' },
+              { label: 'Scope', value: 'Enterprise & high-traffic' },
+              { label: 'Attitude', value: 'Own the failure modes' },
+            ],
+          },
+          // --- Section 1: Core / Frontend ---
+          {
+            blockType: 'techSection',
+            sectionLabel: 'Core Architecture & Frontend',
+            heading: 'The sharp end.',
+            body: `State-of-the-art is not a buzzword. It is a performance and developer-experience requirement. These are the tools I reach for first in 2025.
+
+React & Next.js 14/16 – I work in the App Router, not around it. Server Components, Actions, streaming, granular caching per segment. I understand the hydration model and where it will betray you if you are not careful. Hooks, composition patterns, avoiding the stale closure trap – the fundamentals that junior tutorials skip.
+
+TypeScript (ES6 through ES2023) – strict mode is not optional. Complex generics, conditional types, mapped types, template literal types. I use the type system as a design tool, not as a checkbox. If the types lie, the code lies.
+
+JS Performance – memory leak identification, virtualization for large lists, Web Workers for CPU-heavy tasks, avoiding layout thrash. Performance is not a final pass, it is a constraint from the start.
+
+Progressive Web Apps & Hybrid – Ionic and Capacitor for cross-platform delivery when a native shell is required. Not always the right answer; often the pragmatic one.`,
+            keyFacts: [
+              { label: 'Framework', value: 'React · Next.js 14/16' },
+              { label: 'Language', value: 'TypeScript strict · ES2023' },
+              { label: 'Cross-platform', value: 'Ionic · Capacitor' },
+              { label: 'Performance', value: 'Workers · Virtualization' },
+            ],
+          },
+          // --- Section 2: Legacy Bridge ---
+          {
+            blockType: 'techSection',
+            sectionLabel: 'The Legacy Bridge',
+            heading: 'Backend & PHP pragmatism. Because the real world is not a greenfield.',
+            body: `Enterprise means legacy. Anyone who tells you otherwise has not worked at enterprise scale. The correct response to a mature PHP codebase is not contempt – it is a migration strategy and the patience to execute it without killing the business in the process.
+
+PHP & Symfony – I know the framework, the Composer ecosystem, the event dispatcher, the DI container. I can onboard, extend, and incrementally modernize without a big-bang rewrite that gets cancelled six months in.
+
+Pimcore – CMS, DAM, MDM, eCommerce. I have built and maintained Pimcore implementations for clients with complex content models. Twig, Mustache, Smarty – the templating layer is not glamorous, and it works.
+
+Node.js – for high-performance server-side JS where the event loop model is genuinely advantageous: real-time services, BFF layers, stream processing. Not as a replacement for everything.`,
+            keyFacts: [
+              { label: 'PHP', value: 'Symfony · Composer' },
+              { label: 'CMS', value: 'Pimcore · Twig · Smarty' },
+              { label: 'Runtime', value: 'Node.js' },
+              { label: 'Strategy', value: 'Strangler Fig · Incremental' },
+            ],
+          },
+          // --- Section 3: Data / State / Communication ---
+          {
+            blockType: 'techSection',
+            sectionLabel: 'Data, State & Communication',
+            heading: 'Data must flow – synchronous, asynchronous, and in real time.',
+            body: `APIs – GraphQL for complex, interconnected data models where the client drives the query shape. REST with OpenAPI for the 80% of cases where GraphQL's overhead is not justified. End-to-end type safety via generated clients so the contract between frontend and backend is enforced by the compiler, not by hope.
+
+Databases – SQL (MySQL, PostgreSQL) with a genuine understanding of indexes, query planning, and transaction isolation. ORMs as a tool, not as an abstraction that hides what the database is actually doing. NoSQL (MongoDB) for document-oriented use cases where it is genuinely the right fit. DBT for data transformation pipelines and analytics tracking.
+
+Real-time – WebSockets for persistent bidirectional communication. WebRTC for peer-to-peer audio and video where latency is a product requirement, not a nice-to-have.`,
+            keyFacts: [
+              { label: 'APIs', value: 'GraphQL · REST · OpenAPI' },
+              { label: 'SQL', value: 'MySQL · PostgreSQL · ORMs' },
+              { label: 'NoSQL', value: 'MongoDB · DBT' },
+              { label: 'Real-time', value: 'WebSockets · WebRTC' },
+            ],
+          },
+          // --- Section 4: Infrastructure / DevOps ---
+          {
+            blockType: 'techSection',
+            sectionLabel: 'Infrastructure, Performance & DevOps',
+            heading: 'Code is worthless if it is not delivered performantly. Latency is the enemy.',
+            body: `Caching – Varnish for reverse proxy caching in PHP environments. Cloudflare for edge caching, Workers, KV, R2, and the full programmable layer. The difference between a CDN and a programmable edge is the difference between a cache and an architecture decision.
+
+CI/CD – Jenkins, GitLab CI, GitHub Actions. Pipeline design, parallelization, caching dependencies, deployment strategies (blue-green, canary). Automation is not about speed alone; it is about making the correct thing the easy thing.
+
+Hosting & protocols – Vercel for Next.js deployments where the platform aligns with the architecture. Linux server management, Apache and Nginx configuration, SSL/TLS, HTTP headers (security headers, cache-control, CORS). The protocol layer is not someone else's problem.`,
+            keyFacts: [
+              { label: 'Edge', value: 'Cloudflare Workers · KV · R2' },
+              { label: 'Cache', value: 'Varnish · Cloudflare' },
+              { label: 'CI/CD', value: 'Jenkins · GitLab · GitHub Actions' },
+              { label: 'Hosting', value: 'Vercel · Linux · Nginx' },
+            ],
+          },
+          // --- Section 5: QA & Accessibility ---
+          {
+            blockType: 'techSection',
+            sectionLabel: 'Quality Assurance & Accessibility',
+            heading: 'Code without tests is tomorrow\'s legacy code. Accessibility is not optional.',
+            body: `Testing – Cypress for end-to-end test coverage of critical user paths. Jest for unit tests at the component and logic level. Visual regression testing to catch unintended UI changes before users do. Test coverage is a discipline, not a metric to game.
+
+Accessibility is an architecture standard, not a last-mile checklist. I have delivered WCAG 2.0 AA and BITV AAA compliant systems for public-sector clients with legal obligations around non-compliance. Screen reader testing with NVDA, VoiceOver, and JAWS is part of the delivery process, not a QA afterthought.
+
+The practical implication: accessible components are designed from the DOM up. Keyboard navigation, focus management, semantic structure, and ARIA contracts are established at component design time. A retrofitted accessibility pass always costs more and delivers less than getting it right from the start.`,
+            keyFacts: [
+              { label: 'E2E', value: 'Cypress' },
+              { label: 'Unit', value: 'Jest' },
+              { label: 'Visual', value: 'Regression testing' },
+              { label: 'A11y', value: 'WCAG 2.0 AA · BITV AAA' },
             ],
           },
           {
-            blockType: 'richText',
-            content: {
-              root: {
-                type: 'root',
-                version: 1,
-                children: [
-                  {
-                    type: 'heading',
-                    tag: 'h2',
-                    version: 1,
-                    children: [{ type: 'text', version: 1, text: 'On choosing technology' }],
-                  },
-                  {
-                    type: 'paragraph',
-                    version: 1,
-                    children: [
-                      {
-                        type: 'text',
-                        version: 1,
-                        text: 'The right tool for the right job. Not the trending tool. Not the tool that looks great on a conference slide. The tool that solves the actual problem, can be maintained by the team, and does not introduce hidden complexity you will be debugging at 2am in six months.',
-                      },
-                    ],
-                  },
-                ],
-                direction: null,
-                format: '',
-                indent: 0,
-              },
-            },
-          },
-          {
             blockType: 'callToAction',
-            heading: 'See it in action.',
-            text: "This site runs the stack I preach. Node 24, Next.js 16, PayloadCMS 3, Tailwind 4 – and the source code is public on GitHub. Proof of work.",
+            heading: 'See it running.',
+            text: 'This site is built on the stack I stand behind. Node 24, Next.js 16, PayloadCMS 3, Tailwind 4. Source code is public. Not for show – because open code is the only honest proof of work.',
             buttonLabel: 'GitHub Repository',
             buttonLink: 'https://github.com/mayraost/mostheimer',
             style: 'primary',
@@ -312,86 +346,114 @@ export async function GET() {
             blockType: 'hero',
             heading: 'Der Stack.',
             subheading:
-              'Keine Hype-getriebenen Entscheidungen. Jede Technologie hier ist battle-tested, kontextuell gewählt und bis zum Runtime verstanden.',
+              'Keine Skill-Balken. Keine Prozentangaben. Entweder eine Technologie war im Produktionsbetrieb im großen Maßstab und ich kann sie um 2 Uhr nachts debuggen – oder sie ist nicht auf dieser Seite.',
             showStackBadge: true,
           },
           {
-            blockType: 'featureGrid',
-            heading: 'Aktuelle Lieblingswaffen',
-            features: [
-              {
-                title: 'Next.js 16 (App Router)',
-                description:
-                  'RSC, Streaming, granulares Caching. Der App Router ist produktionsreif – wenn man weiß, was man damit macht.',
-                iconName: 'Triangle',
-              },
-              {
-                title: 'TypeScript – strict mode, immer',
-                description:
-                  'Any ist ein Code Smell. Strict Mode ist der Baseline. Type Inference ist dein Freund, wenn du aufhörst, gegen ihn anzukämpfen.',
-                iconName: 'Code',
-              },
-              {
-                title: 'Payload CMS v3',
-                description:
-                  'TypeScript-first, Local API, kein Headless-Aufschlag. Wenn ein Kunde ein CMS braucht, fange ich hier an.',
-                iconName: 'Database',
-              },
-              {
-                title: 'Cloudflare (Workers, KV, R2, Cache)',
-                description:
-                  'Granulares Caching am Edge. Kein reines CDN – eine programmierbare Schicht zwischen Origin und der Welt.',
-                iconName: 'Globe',
-              },
-              {
-                title: 'PHP & Legacy-Systeme',
-                description:
-                  'Die Hälfte des Internets läuft auf PHP. Funktionierendes Legacy-System aus Spaß neu schreiben ist teuer. Strangler-Fig-Pattern, inkrementelle Modernisierung – das ist der Move.',
-                iconName: 'Server',
-              },
-              {
-                title: 'Tailwind CSS v4',
-                description:
-                  'CSS-first-Konfiguration, kein PostCSS-Overhead. Der logische Nachfolger. Wenn du 2025 noch über Utility-Klassen diskutierst, kann ich dir nicht helfen.',
-                iconName: 'Paintbrush',
-              },
+            blockType: 'techSection',
+            sectionLabel: 'Philosophie',
+            heading: 'Skill-Balken sind Junior-Denken.',
+            body: `Ein Progress-Bar auf einem Portfolio sagt nichts aus. "JavaScript: 80%" – 80% von was? Der Spec? Dem Ökosystem? Den Footguns? Prozentwertungen sind ein UX-Pattern für Menschen, die noch nie einem wütenden Kunden einen Produktionsvorfall erklären mussten.
+
+Das ist die echte Messgröße: Alles auf dieser Seite wurde auf echten Systemen für echte Nutzer oder kritische B2B-Prozesse eingesetzt. Ich besitze es, wenn es bricht. Ich habe es unter Last debuggt. Ich kenne die Failure-Modes.
+
+Wenn eine Technologie nicht auf dieser Liste steht, trifft eines von zwei Dingen zu: Ich habe sie nicht genug eingesetzt, um die Verantwortung dafür in Produktion zu übernehmen – oder sie verdient es nicht, hier zu stehen. Beide Antworten sind ehrlich.`,
+            keyFacts: [
+              { label: 'Prinzip', value: 'Produktion oder gar nicht' },
+              { label: 'Scope', value: 'Enterprise & High-Traffic' },
+              { label: 'Haltung', value: 'Failure-Modes kennen' },
             ],
           },
           {
-            blockType: 'richText',
-            content: {
-              root: {
-                type: 'root',
-                version: 1,
-                children: [
-                  {
-                    type: 'heading',
-                    tag: 'h2',
-                    version: 1,
-                    children: [{ type: 'text', version: 1, text: 'Über Technologieauswahl' }],
-                  },
-                  {
-                    type: 'paragraph',
-                    version: 1,
-                    children: [
-                      {
-                        type: 'text',
-                        version: 1,
-                        text: 'Das richtige Werkzeug für den richtigen Job. Nicht das trendige. Nicht das, das auf einer Conference-Folie toll aussieht. Das Werkzeug, das das eigentliche Problem löst, vom Team maintaint werden kann und keine versteckte Komplexität einführt, die man in sechs Monaten um 2 Uhr nachts debuggt.',
-                      },
-                    ],
-                  },
-                ],
-                direction: null,
-                format: '',
-                indent: 0,
-              },
-            },
+            blockType: 'techSection',
+            sectionLabel: 'Core Architecture & Frontend',
+            heading: 'Die scharfe Seite.',
+            body: `State-of-the-Art ist kein Buzzword. Es ist eine Performance- und Developer-Experience-Anforderung. Das sind die Tools, zu denen ich 2025 zuerst greife.
+
+React & Next.js 14/16 – Ich arbeite im App Router, nicht um ihn herum. Server Components, Actions, Streaming, granulares Caching pro Segment. Ich verstehe das Hydration-Modell und wo es dich verrät, wenn du nicht aufpasst. Hooks, Composition-Patterns, stale-Closure-Falle vermeiden – die Grundlagen, die Junior-Tutorials überspringen.
+
+TypeScript (ES6 bis ES2023) – Strict Mode ist nicht optional. Komplexe Generics, Conditional Types, Mapped Types, Template-Literal-Types. Ich nutze das Typsystem als Designwerkzeug, nicht als Checkbox. Wenn die Typen lügen, lügt der Code.
+
+JS Performance – Memory-Leak-Identifikation, Virtualisierung für große Listen, Web Worker für CPU-intensive Tasks, Layout Thrash vermeiden. Performance ist kein finaler Durchgang, es ist eine Anforderung von Anfang an.
+
+Progressive Web Apps & Hybrid – Ionic und Capacitor für Cross-Platform-Delivery, wenn eine native Shell benötigt wird. Nicht immer die richtige Antwort; oft die pragmatische.`,
+            keyFacts: [
+              { label: 'Framework', value: 'React · Next.js 14/16' },
+              { label: 'Sprache', value: 'TypeScript strict · ES2023' },
+              { label: 'Cross-Platform', value: 'Ionic · Capacitor' },
+              { label: 'Performance', value: 'Workers · Virtualisierung' },
+            ],
+          },
+          {
+            blockType: 'techSection',
+            sectionLabel: 'The Legacy Bridge',
+            heading: 'Backend & PHP-Pragmatismus. Weil die echte Welt kein Greenfield ist.',
+            body: `Enterprise bedeutet Legacy. Wer das Gegenteil behauptet, hat nicht auf Enterprise-Ebene gearbeitet. Die korrekte Reaktion auf eine ausgereifte PHP-Codebasis ist kein Verachtung – es ist eine Migrationsstrategie und die Geduld, sie auszuführen, ohne das Geschäft im Prozess zu zerstören.
+
+PHP & Symfony – Ich kenne das Framework, das Composer-Ökosystem, den Event Dispatcher, den DI-Container. Ich kann onboarden, erweitern und inkrementell modernisieren – ohne einen Big-Bang-Rewrite, der sechs Monate später gecancelt wird.
+
+Pimcore – CMS, DAM, MDM, eCommerce. Ich habe Pimcore-Implementierungen für Kunden mit komplexen Content-Modellen gebaut und gewartet. Twig, Mustache, Smarty – die Templating-Schicht ist nicht glamourös, und sie funktioniert.
+
+Node.js – für hochperformantes serverseitiges JS, wo das Event-Loop-Modell genuinen Vorteil bietet: Echtzeit-Services, BFF-Layer, Stream-Processing. Nicht als Ersatz für alles.`,
+            keyFacts: [
+              { label: 'PHP', value: 'Symfony · Composer' },
+              { label: 'CMS', value: 'Pimcore · Twig · Smarty' },
+              { label: 'Runtime', value: 'Node.js' },
+              { label: 'Strategie', value: 'Strangler Fig · Inkrementell' },
+            ],
+          },
+          {
+            blockType: 'techSection',
+            sectionLabel: 'Daten, State & Kommunikation',
+            heading: 'Daten müssen fließen – synchron, asynchron und in Echtzeit.',
+            body: `APIs – GraphQL für komplexe, vernetzte Datenmodelle, bei denen der Client die Query-Form vorgibt. REST mit OpenAPI für die 80% der Fälle, bei denen der Overhead von GraphQL nicht gerechtfertigt ist. End-to-End-Typsicherheit über generierte Clients, damit der Vertrag zwischen Frontend und Backend vom Compiler erzwungen wird, nicht durch Hoffnung.
+
+Datenbanken – SQL (MySQL, PostgreSQL) mit echtem Verständnis von Indexen, Query-Planning und Transaktions-Isolation. ORMs als Werkzeug, nicht als Abstraktion, die versteckt, was die Datenbank tatsächlich tut. NoSQL (MongoDB) für dokumentenorientierte Anwendungsfälle. DBT für Datentransformations-Pipelines und Analytics-Tracking.
+
+Echtzeit – WebSockets für persistente bidirektionale Kommunikation. WebRTC für Peer-to-Peer-Audio und -Video, wo Latenz eine Produktanforderung ist, kein Nice-to-have.`,
+            keyFacts: [
+              { label: 'APIs', value: 'GraphQL · REST · OpenAPI' },
+              { label: 'SQL', value: 'MySQL · PostgreSQL · ORMs' },
+              { label: 'NoSQL', value: 'MongoDB · DBT' },
+              { label: 'Echtzeit', value: 'WebSockets · WebRTC' },
+            ],
+          },
+          {
+            blockType: 'techSection',
+            sectionLabel: 'Infrastructure, Performance & DevOps',
+            heading: 'Code ist wertlos, wenn er nicht performant ausgeliefert wird. Latenz ist der Feind.',
+            body: `Caching – Varnish für Reverse-Proxy-Caching in PHP-Umgebungen. Cloudflare für Edge-Caching, Workers, KV, R2 und die vollständige programmierbare Schicht. Der Unterschied zwischen einem CDN und einem programmierbaren Edge ist der Unterschied zwischen einem Cache und einer Architekturentscheidung.
+
+CI/CD – Jenkins, GitLab CI, GitHub Actions. Pipeline-Design, Parallelisierung, Dependency-Caching, Deployment-Strategien (Blue-Green, Canary). Automatisierung geht nicht nur um Geschwindigkeit – es geht darum, das Richtige zur einfachen Option zu machen.
+
+Hosting & Protokolle – Vercel für Next.js-Deployments, wo die Plattform mit der Architektur übereinstimmt. Linux-Server-Management, Apache- und Nginx-Konfiguration, SSL/TLS, HTTP-Header (Security-Header, Cache-Control, CORS). Die Protokollschicht ist nicht jemand anderes Problem.`,
+            keyFacts: [
+              { label: 'Edge', value: 'Cloudflare Workers · KV · R2' },
+              { label: 'Cache', value: 'Varnish · Cloudflare' },
+              { label: 'CI/CD', value: 'Jenkins · GitLab · GitHub Actions' },
+              { label: 'Hosting', value: 'Vercel · Linux · Nginx' },
+            ],
+          },
+          {
+            blockType: 'techSection',
+            sectionLabel: 'Quality Assurance & Accessibility',
+            heading: 'Code ohne Tests ist Legacy-Code von morgen. Barrierefreiheit ist kein Opt-in.',
+            body: `Testing – Cypress für End-to-End-Testabdeckung kritischer User Paths. Jest für Unit-Tests auf Komponenten- und Logik-Ebene. Visual-Regression-Testing, um unbeabsichtigte UI-Änderungen zu erkennen, bevor es Nutzer tun. Test-Coverage ist eine Disziplin, keine Metrik zum Optimieren.
+
+Barrierefreiheit ist ein Architekturstandard, keine Last-Mile-Checkliste. Ich habe WCAG 2.0 AA und BITV AAA konforme Systeme für Auftraggeber im öffentlichen Sektor mit gesetzlichen Verpflichtungen bei Nicht-Konformität geliefert. Screen-Reader-Tests mit NVDA, VoiceOver und JAWS sind Teil des Lieferprozesses, kein QA-Nachgedanke.
+
+Die praktische Implikation: Accessible Components werden vom DOM aufwärts designed. Tastaturnavigation, Fokus-Management, semantische Struktur und ARIA-Kontrakte werden beim Komponenten-Design festgelegt. Ein nachträglicher Accessibility-Pass kostet immer mehr und liefert immer weniger als es von Anfang an richtig zu machen.`,
+            keyFacts: [
+              { label: 'E2E', value: 'Cypress' },
+              { label: 'Unit', value: 'Jest' },
+              { label: 'Visual', value: 'Regression Testing' },
+              { label: 'A11y', value: 'WCAG 2.0 AA · BITV AAA' },
+            ],
           },
           {
             blockType: 'callToAction',
             heading: 'Im Einsatz sehen.',
-            text: 'Diese Seite läuft auf dem Stack, den ich predige. Node 24, Next.js 16, PayloadCMS 3, Tailwind 4 – und der Source-Code ist öffentlich auf GitHub. Proof of Work.',
+            text: 'Diese Seite läuft auf dem Stack, für den ich einstehe. Node 24, Next.js 16, PayloadCMS 3, Tailwind 4. Source-Code ist öffentlich. Nicht zur Schau – weil offener Code der einzige ehrliche Proof of Work ist.',
             buttonLabel: 'GitHub Repository',
             buttonLink: 'https://github.com/mayraost/mostheimer',
             style: 'primary',
