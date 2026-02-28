@@ -3,7 +3,6 @@ import type { Page } from '@/payload-types';
 import { Icon } from './Icon';
 import Link from 'next/link';
 
-
 type BentoGridBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'bentoGrid' }>;
 type BentoItem = NonNullable<BentoGridBlockData['items']>[number];
 
