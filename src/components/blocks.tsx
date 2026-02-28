@@ -7,7 +7,7 @@ import { ImageTextBlock } from './blocks/ImageTextBlock';
 import { RichTextBlock } from './blocks/RichTextBlock';
 import { Page } from '../payload-types';
 
-export function BlockRenderer({ block }: { block: any}) {
+export function BlockRenderer({ block }: { block: any }) {
   switch (block.blockType) {
     case 'hero':
       return <HeroBlock block={block} />;

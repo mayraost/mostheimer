@@ -8,10 +8,7 @@ const eslintConfig = defineConfig([
   ...fixupConfigRules(nextVitals),
   ...fixupConfigRules(nextTs),
   eslintPluginPrettierRecommended,
-  globalIgnores([
-    '.next/**',
-    'next-env.d.ts',
-  ]),
+  globalIgnores(['.next/**', 'next-env.d.ts']),
 ]);
 
 export default eslintConfig;
