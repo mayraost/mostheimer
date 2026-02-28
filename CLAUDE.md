@@ -156,3 +156,4 @@ npm run generate:types
 3. **Keine `eslint-disable`-Kommentare** – Code stattdessen korrigieren.
 4. Nach Payload-Schema-Änderungen `npm run generate:types` ausführen.
 5. Pfad-Aliase (`@/*`) für Imports bevorzugen.
+6. **Nach jedem Commit** einen Pull Request öffnen, sofern für den aktuellen Branch noch keiner existiert (`gh pr create`).
