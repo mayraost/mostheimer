@@ -16,7 +16,6 @@ type Args = {
 export const generateMetadata = ({ params, searchParams }: Args): Promise<Metadata> =>
   generatePageMetadata({ config: configPromise, params, searchParams });
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export default async function NotFound({ params, searchParams }: any) {
+export default async function NotFound({ params, searchParams }: Args) {
   return NotFoundPage({ config: configPromise, params, searchParams, importMap });
 }
