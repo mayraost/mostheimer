@@ -36,7 +36,7 @@ export default async function Page({
 
   return (
     <article className="max-w-6xl mx-auto w-full">
-      {page.layout?.map((block: any, index: number) => (
+      {page.layout?.map((block, index: number) => (
         <BlockRenderer key={index} block={block} />
       ))}
     </article>

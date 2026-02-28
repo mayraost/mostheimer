@@ -4,6 +4,7 @@ import { RichText } from '../blocks/RichText';
 import { CallToAction } from '../blocks/CallToAction';
 import { FeatureGrid } from '../blocks/FeatureGrid';
 import { ImageText } from '../blocks/ImageText';
+import { allBlocks } from '../blocks';
 
 export const Pages: CollectionConfig = {
   slug: 'pages',
@@ -34,7 +35,7 @@ export const Pages: CollectionConfig = {
     {
       name: 'layout',
       type: 'blocks',
-      blocks: [Hero, RichText, CallToAction, FeatureGrid, ImageText],
+      blocks: allBlocks,
       localized: true,
     },
   ],
