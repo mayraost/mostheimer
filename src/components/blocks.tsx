@@ -7,6 +7,7 @@ import { FeatureGridBlock } from './blocks/FeatureGridBlock';
 import { ImageTextBlock } from './blocks/ImageTextBlock';
 import { RichTextBlock } from './blocks/RichTextBlock';
 import { StatusBlock } from './blocks/StatusBlock';
+import { TechSectionBlock } from './blocks/TechSectionBlock';
 
 export type PageBlock = NonNullable<Page['layout']>[number];
 
@@ -26,6 +27,8 @@ export function BlockRenderer({ block }: { block: PageBlock }) {
       return <RichTextBlock block={block} />;
     case 'statusBlock':
       return <StatusBlock block={block} />;
+    case 'techSection':
+      return <TechSectionBlock block={block} />;
     default:
       return (
         <div className="py-8 text-center text-red-500 border border-red-500 rounded my-4">
@@ -43,4 +46,5 @@ export {
   ImageTextBlock,
   RichTextBlock,
   StatusBlock,
+  TechSectionBlock,
 };

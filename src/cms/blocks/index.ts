@@ -5,5 +5,15 @@ import { Hero } from './Hero';
 import { ImageText } from './ImageText';
 import { RichText } from './RichText';
 import { StatusBlock } from './StatusBlock';
+import { TechSection } from './TechSection';
 
-export const allBlocks = [BentoGrid, CallToAction, FeatureGrid, Hero, ImageText, RichText, StatusBlock];
+export const allBlocks = [
+  BentoGrid,
+  CallToAction,
+  FeatureGrid,
+  Hero,
+  ImageText,
+  RichText,
+  StatusBlock,
+  TechSection,
+];

@@ -826,6 +826,201 @@ export async function GET() {
       },
     });
 
+    // -----------------------------------------------------------------------
+    // 6. ENGINEERING PAGE
+    // -----------------------------------------------------------------------
+    await deletePage(payload, 'engineering');
+
+    const engineering = await payload.create({
+      collection: 'pages',
+      locale: 'en',
+      data: {
+        title: 'Engineering',
+        slug: 'engineering',
+        layout: [
+          {
+            blockType: 'hero',
+            heading: 'Engineering.',
+            subheading:
+              'Architecture decisions, performance trade-offs, and why VibeCoding without fundamentals is just expensive tech debt with a better name.',
+            showStackBadge: false,
+          },
+          // --- Section 1: Philosophy ---
+          {
+            blockType: 'techSection',
+            sectionLabel: 'Philosophy',
+            heading: 'Pragmatism over hype. Performance over narrative.',
+            body: `I have been writing code since I was 8 years old. I have watched Server-Side Rendering become a four-letter word, then get reinvented as RSC. I have seen NoSQL eat the world, then get blamed for every consistency bug in production. The fundamentals have not changed: code must perform, scale, and be maintainable by someone who is not you in eighteen months.
+
+I work with Next.js 16 and Node 24 because they are the correct tools for the problems I solve today. I also work with PHP, Pimcore, and Symfony because the client's revenue stream runs on them and "rewrite it in Next.js" is a business case, not a reflex. Framework wars are for engineers who have never shipped at scale.
+
+The correct question is never "which framework is best?" It is "what does this system need to do, who needs to maintain it, and what are the actual failure modes?" Everything else is conference talk.`,
+            keyFacts: [
+              { label: 'Years coding', value: '20+' },
+              { label: 'Production languages', value: '8+' },
+              { label: 'Legacy migrations', value: 'Incremental, always' },
+            ],
+          },
+          // --- Section 2: ZDF Case Study ---
+          {
+            blockType: 'techSection',
+            sectionLabel: 'Case Study',
+            heading: 'ZDFheute: Millions of requests, zero tolerance for latency.',
+            body: `The problem is deceptively simple: a news portal that cannot go down during breaking news, but also cannot pay for origin compute on every page view. Add live sports data, editorial updates and concurrent traffic spikes from TV broadcast cuts, and the naive architecture falls apart at exactly the wrong moment.
+
+The solution: Next.js with a purpose-built Cloudflare caching layer and granular separation of data sources by update frequency. Static article content is cached aggressively at the edge. Live ticker data is routed through a separate pipeline with sub-second invalidation. Responses are kept surgically lean – the dynamic payload is isolated to the exact DOM nodes that need it, never the full page.
+
+The hard part was not the implementation. It was aligning stakeholders on the idea that "cached but stale" and "live but slow" are both wrong answers, and that the correct architecture requires accepting that different parts of the same page operate under fundamentally different caching contracts.
+
+Latency does not die by accident. It dies by strategy, measurement, and the willingness to reject elegant-looking solutions that do not survive a traffic spike.`,
+            keyFacts: [
+              { label: 'Edge layer', value: 'Cloudflare' },
+              { label: 'Framework', value: 'Next.js App Router' },
+              { label: 'Live data', value: 'Isolated pipeline' },
+              { label: 'Cache strategy', value: 'Per-component granularity' },
+            ],
+          },
+          // --- Section 3: Accessibility ---
+          {
+            blockType: 'techSection',
+            sectionLabel: 'Deep Dive',
+            heading: 'Accessibility is not a CSS add-on. It is an architecture decision.',
+            body: `A green Lighthouse score does not make a site accessible. A passing axe-core audit does not mean a screen reader user can actually complete a task without losing context. Anyone who has shipped a "compliant" product without testing it with an actual screen reader knows exactly what I mean.
+
+Accessibility starts at the DOM and at the data model. It means semantic HTML that carries meaning without CSS. It means keyboard navigation that does not break when JavaScript is slow to hydrate. It means ARIA roles that are correct, not decorative. It means focus management that survives route transitions and async state updates.
+
+I have implemented WCAG 2.0 AA and BITV-compliant systems for public-sector clients where non-compliance has direct legal consequences. My testing stack includes NVDA, VoiceOver, and JAWS – not just automated tooling. The gap between what axe-core catches and what an actual user encounters is substantial and cannot be closed by a linter alone.
+
+The architecture implication: accessibility constraints must be visible in the component contract. A component that cannot communicate its interactive state without visual CSS is a component that will fail an audit and a real user simultaneously.`,
+            keyFacts: [
+              { label: 'Standards', value: 'WCAG 2.0 AA · BITV' },
+              { label: 'Screen readers', value: 'NVDA · VoiceOver · JAWS' },
+              { label: 'Approach', value: 'Architecture-first, not retrofit' },
+            ],
+          },
+          // --- Section 4: AI Edge ---
+          {
+            blockType: 'techSection',
+            sectionLabel: 'The AI Edge',
+            heading: 'VibeCoding without fundamentals is just fast-forward to legacy code.',
+            body: `I use AI tooling heavily. Mastra for agent and workflow orchestration, CopilotKit for in-app AI integration, Cursor for development velocity. These are genuine force multipliers when the engineer operating them understands what is happening beneath the abstraction layer.
+
+The current pattern I observe – shipping features by prompting without understanding the output – produces code that works until it encounters an edge case, fails in ways that are opaque to the engineer who shipped it, and creates architectural debt that a junior cannot diagnose and a senior should not have to clean up. The model does not understand your system. You do.
+
+My position is not anti-AI. My position is that AI tools belong in the hands of engineers who can read, critique, and refactor the output. I use them to accelerate decisions I already know how to make. I do not use them to make decisions I do not understand. That distinction compounds over time.
+
+I also work with WebRTC and WebSocket solutions where real-time communication is a genuine technical requirement rather than a feature that sounded interesting in sprint planning. The combination of AI-assisted development and real-time architecture is genuinely interesting territory when the fundamentals are solid.`,
+            keyFacts: [
+              { label: 'AI tools', value: 'Mastra · CopilotKit · Cursor' },
+              { label: 'Real-time', value: 'WebRTC · WebSockets' },
+              { label: 'Rule', value: 'Understand the output' },
+            ],
+          },
+          {
+            blockType: 'callToAction',
+            heading: 'Want to go deeper?',
+            text: 'If you have specific architecture questions about any of these topics, I am genuinely interested in the conversation. Bring a real problem, not a job description.',
+            buttonLabel: 'Get in touch',
+            buttonLink: 'mailto:mail@mostheimer.de',
+            style: 'primary',
+          },
+        ],
+      },
+    });
+
+    await payload.update({
+      collection: 'pages',
+      id: engineering.id,
+      locale: 'de',
+      data: {
+        title: 'Engineering',
+        layout: [
+          {
+            blockType: 'hero',
+            heading: 'Engineering.',
+            subheading:
+              'Architekturentscheidungen, Performance-Trade-offs und warum VibeCoding ohne Grundlagen nur teurer Tech-Debt mit besserem Namen ist.',
+            showStackBadge: false,
+          },
+          {
+            blockType: 'techSection',
+            sectionLabel: 'Philosophie',
+            heading: 'Pragmatismus über Hype. Performance über Narrativ.',
+            body: `Ich schreibe Code seit meinem 8. Lebensjahr. Ich habe erlebt, wie Server-Side Rendering zum Schimpfwort wurde – und dann als RSC neu erfunden wurde. Ich habe gesehen, wie NoSQL die Welt fraß und dann für jeden Consistency-Bug in Produktion verantwortlich gemacht wurde. Die Grundlagen haben sich nicht geändert: Code muss performen, skalieren und von jemandem gewartet werden können, der nicht du bist – in 18 Monaten.
+
+Ich arbeite mit Next.js 16 und Node 24, weil sie die richtigen Werkzeuge für die Probleme sind, die ich heute löse. Ich arbeite auch mit PHP, Pimcore und Symfony, weil der Umsatzstrom des Kunden darauf läuft und "in Next.js neu schreiben" ein Business Case ist, kein Reflex. Framework-Kriege sind für Engineers, die noch nie im großen Maßstab geshippt haben.
+
+Die richtige Frage ist nie "welches Framework ist das beste?" Sie ist "was muss dieses System leisten, wer muss es warten, und was sind die echten Failure-Modes?" Alles andere ist Conference-Talk.`,
+            keyFacts: [
+              { label: 'Jahre Coding', value: '20+' },
+              { label: 'Produktionssprachen', value: '8+' },
+              { label: 'Legacy-Migrationen', value: 'Inkrementell, immer' },
+            ],
+          },
+          {
+            blockType: 'techSection',
+            sectionLabel: 'Case Study',
+            heading: 'ZDFheute: Millionen Requests, null Toleranz für Latenz.',
+            body: `Das Problem klingt deceptively einfach: ein Nachrichtenportal, das bei Breaking News nicht ausfallen darf, aber auch nicht für jeden einzelnen Page View Origin-Compute bezahlen kann. Dazu Live-Sportdaten, redaktionelle Updates und gleichzeitige Traffic-Spitzen durch TV-Abspannmomente – und die naive Architektur kollabiert genau im falschen Moment.
+
+Die Lösung: Next.js mit einem eigens gebautem Cloudflare-Caching-Layer und granularer Trennung der Datenquellen nach Update-Frequenz. Statische Artikel-Inhalte werden aggressiv am Edge gecacht. Live-Ticker-Daten werden durch eine separate Pipeline mit Sub-Sekunden-Invalidierung geleitet. Responses bleiben chirurgisch schlank – der dynamische Payload ist auf exakt die DOM-Nodes isoliert, die ihn brauchen, nie auf die gesamte Seite.
+
+Das Schwierige war nicht die Implementierung. Es war, Stakeholder davon zu überzeugen, dass "gecacht, aber veraltet" und "live, aber langsam" beide falsche Antworten sind – und dass die korrekte Architektur akzeptiert, dass verschiedene Teile derselben Seite fundamental unterschiedliche Caching-Kontrakte haben.
+
+Latenz stirbt nicht durch Zufall. Sie stirbt durch Strategie, Messung und die Bereitschaft, elegant aussehende Lösungen abzulehnen, die einen Traffic-Spike nicht überleben.`,
+            keyFacts: [
+              { label: 'Edge-Layer', value: 'Cloudflare' },
+              { label: 'Framework', value: 'Next.js App Router' },
+              { label: 'Live-Daten', value: 'Isolierte Pipeline' },
+              { label: 'Cache-Strategie', value: 'Per-Komponente granular' },
+            ],
+          },
+          {
+            blockType: 'techSection',
+            sectionLabel: 'Deep Dive',
+            heading: 'Barrierefreiheit ist kein CSS-Add-on. Es ist eine Architekturentscheidung.',
+            body: `Ein grüner Lighthouse-Score macht eine Seite nicht barrierefrei. Ein bestandenes axe-core-Audit bedeutet nicht, dass ein Screen-Reader-Nutzer eine Aufgabe tatsächlich abschließen kann, ohne den Kontext zu verlieren. Jeder, der ein "konformes" Produkt geshippt hat, ohne es mit einem echten Screen Reader zu testen, weiß genau, was ich meine.
+
+Barrierefreiheit beginnt am DOM und am Datenmodell. Es bedeutet semantisches HTML, das Bedeutung ohne CSS trägt. Es bedeutet Tastaturnavigation, die nicht bricht, wenn JavaScript langsam hydratiert. Es bedeutet ARIA-Rollen, die korrekt sind, nicht dekorativ. Es bedeutet Fokus-Management, das Route-Transitions und asynchrone State-Updates überlebt.
+
+Ich habe WCAG 2.0 AA und BITV-konforme Systeme für Auftraggeber im öffentlichen Sektor implementiert, bei denen Nicht-Konformität direkte rechtliche Konsequenzen hat. Mein Test-Stack umfasst NVDA, VoiceOver und JAWS – nicht nur automatisierte Tooling. Die Lücke zwischen dem, was axe-core findet, und dem, was ein echter Nutzer erlebt, ist erheblich und kann kein Linter schließen.
+
+Die Architektur-Implikation: Accessibility-Constraints müssen im Komponenten-Kontrakt sichtbar sein. Eine Komponente, die ihren interaktiven Zustand ohne visuelles CSS nicht kommunizieren kann, wird gleichzeitig ein Audit und einen echten Nutzer scheitern lassen.`,
+            keyFacts: [
+              { label: 'Standards', value: 'WCAG 2.0 AA · BITV' },
+              { label: 'Screen Reader', value: 'NVDA · VoiceOver · JAWS' },
+              { label: 'Ansatz', value: 'Architecture-first, kein Retrofit' },
+            ],
+          },
+          {
+            blockType: 'techSection',
+            sectionLabel: 'The AI Edge',
+            heading: 'VibeCoding ohne Grundlagen ist nur Tech-Debt im Zeitraffer.',
+            body: `Ich nutze AI-Tooling intensiv. Mastra für Agent- und Workflow-Orchestrierung, CopilotKit für In-App-KI-Integration, Cursor für Entwicklungsgeschwindigkeit. Das sind echte Force-Multiplier – wenn der Engineer, der sie bedient, versteht, was unterhalb der Abstraktionsschicht passiert.
+
+Das aktuelle Muster, das ich beobachte – Features durch Prompting shippen, ohne den Output zu verstehen – produziert Code, der funktioniert, bis er auf einen Edge Case trifft, der auf undurchsichtige Weise scheitert und architektonischen Debt erzeugt, den ein Junior nicht diagnostizieren kann und ein Senior nicht aufräumen sollte. Das Modell versteht dein System nicht. Du tust es.
+
+Meine Position ist nicht Anti-KI. Meine Position ist, dass KI-Tools in die Hände von Engineers gehören, die den Output lesen, kritisieren und refaktorieren können. Ich nutze sie, um Entscheidungen zu beschleunigen, die ich bereits treffen kann. Ich nutze sie nicht, um Entscheidungen zu treffen, die ich nicht verstehe. Diese Unterscheidung wirkt sich über Zeit aus.
+
+Ich arbeite auch mit WebRTC- und WebSocket-Lösungen dort, wo Echtzeit-Kommunikation eine echte technische Anforderung ist – und nicht ein Feature, das im Sprint-Planning interessant klang. Die Kombination aus KI-gestützter Entwicklung und Echtzeit-Architektur ist genuines interessantes Terrain, wenn die Grundlagen solid sind.`,
+            keyFacts: [
+              { label: 'AI-Tools', value: 'Mastra · CopilotKit · Cursor' },
+              { label: 'Echtzeit', value: 'WebRTC · WebSockets' },
+              { label: 'Regel', value: 'Den Output verstehen' },
+            ],
+          },
+          {
+            blockType: 'callToAction',
+            heading: 'Tiefer gehen?',
+            text: 'Wenn du konkrete Architektur-Fragen zu einem dieser Themen hast, bin ich wirklich interessiert an dem Gespräch. Bring ein echtes Problem, keine Stellenbeschreibung.',
+            buttonLabel: 'Schreib mir',
+            buttonLink: 'mailto:mail@mostheimer.de',
+            style: 'primary',
+          },
+        ],
+      },
+    });
+
     return Response.json({
       message: 'All pages seeded successfully!',
       pages: {
@@ -834,6 +1029,7 @@ export async function GET() {
         trackRecord: trackRecord.id,
         leadership: leadership.id,
         about: about.id,
+        engineering: engineering.id,
       },
     });
   } catch (err: unknown) {

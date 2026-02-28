@@ -3721,6 +3721,30 @@ export interface Page {
             blockName?: string | null;
             blockType: 'statusBlock';
           }
+        | {
+            /**
+             * Small uppercase badge above the heading (e.g. "Case Study", "Deep Dive")
+             */
+            sectionLabel?: string | null;
+            heading: string;
+            /**
+             * Main technical content. Use blank lines for paragraph breaks.
+             */
+            body: string;
+            /**
+             * Optional metrics/facts row displayed below the body (e.g. "Caching layer: Cloudflare")
+             */
+            keyFacts?:
+              | {
+                  label: string;
+                  value: string;
+                  id?: string | null;
+                }[]
+              | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'techSection';
+          }
       )[]
     | null;
   updatedAt: string;
@@ -3965,6 +3989,22 @@ export interface PagesSelect<T extends boolean = true> {
                 | T
                 | {
                     topic?: T;
+                    id?: T;
+                  };
+              id?: T;
+              blockName?: T;
+            };
+        techSection?:
+          | T
+          | {
+              sectionLabel?: T;
+              heading?: T;
+              body?: T;
+              keyFacts?:
+                | T
+                | {
+                    label?: T;
+                    value?: T;
                     id?: T;
                   };
               id?: T;
