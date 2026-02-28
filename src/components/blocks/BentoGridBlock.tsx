@@ -1,6 +1,8 @@
 import React from 'react';
 import type { Page } from '@/payload-types';
 import { Icon } from './Icon';
+import Link from 'next/link';
+
 
 type BentoGridBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'bentoGrid' }>;
 type BentoItem = NonNullable<BentoGridBlockData['items']>[number];
@@ -50,9 +52,9 @@ function BentoCard({ item, isLarge }: { item: BentoItem; isLarge: boolean }) {
 
   if (item.ctaLink) {
     return (
-      <a href={item.ctaLink} className={spanClass}>
+      <Link href={item.ctaLink} className={spanClass}>
         {content}
-      </a>
+      </Link>
     );
   }
 
