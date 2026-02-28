@@ -37,18 +37,47 @@ npm run generate:types # Payload CMS TypeScript-Typen generieren
 ## Projektstruktur
 
 ```
-app/
-  (frontend)/         # Frontend-Routen (locale-basiert)
-  (payload)/          # Payload CMS Admin-Routen
-  api/                # API-Routen
-blocks/               # Payload CMS Block-Definitionen
-collections/          # Payload CMS Collections (Users, Media, Pages)
-globals/              # Payload CMS Globals (Navigation, SiteSettings, Translations)
-components/
-  blocks/             # Block-Komponenten-Implementierungen
-public/               # Statische Assets
-payload.config.ts     # Payload CMS Konfiguration
+src/
+  app/
+    (frontend)/
+      [locale]/
+        [[...slug]]/  # Dynamische Seiten-Route
+        settings/     # Einstellungsseite
+        layout.tsx    # Locale-Layout
+    (payload)/
+      admin/          # Payload CMS Admin-Panel
+        importMap.js  # Generierte Import Map
+      api/            # Payload REST-API-Route
+      layout.tsx      # Admin-Layout
+    api/
+      seed-home/      # Seed-Route für Startseite
+    globals.css       # Tailwind CSS v4 Design Tokens & globale Styles
+  cms/
+    blocks/           # Payload CMS Block-Definitionen (CallToAction, FeatureGrid, Hero, ImageText, RichText)
+    collections/      # Collections: Media, Pages, Users
+    globals/          # Globals: Navigation, SiteSettings, Translations
+  components/
+    blocks/           # Block-Komponenten (CallToActionBlock, FeatureGridBlock, HeroBlock, ImageTextBlock, RichTextBlock, Icon)
+    blocks.tsx        # Block-Dispatcher-Komponente
+    Header.tsx        # Site-Header
+    Logo.tsx          # Logo-Komponente
+    SettingsProvider.tsx      # Theme/Schriftgröße/Animations-Settings (Client)
+    TranslationsProvider.tsx  # i18n-Kontext (Client)
+    TypingHeading.tsx         # Tipp-Animation-Komponente (Client)
+  envConfig.ts        # Zod-validierte Umgebungsvariablen
+  payload-types.ts    # Generierte Payload-Typen (nicht manuell bearbeiten)
+  payload.config.ts   # Payload CMS Konfiguration
+  proxy.ts            # Proxy-Hilfsfunktionen
+  public/             # Statische Assets (SVGs)
+tests/
+  e2e/                # Playwright E2E-Tests (admin, frontend)
+  int/                # Integrationstests (API)
+  helpers/            # Test-Hilfsfunktionen (login, seedUser)
 next.config.ts        # Next.js Konfiguration
+tsconfig.json         # TypeScript-Konfiguration
+eslint.config.mjs     # ESLint Flat Config
+vitest.config.mts     # Vitest-Konfiguration
+playwright.config.ts  # Playwright-Konfiguration
 ```
 
 ## Code-Konventionen
@@ -296,11 +325,97 @@ await payload.delete({ collection: 'posts', id: '123' })
 
 ## Theming & UI
 
-- Light / Dark / System-Theme via CSS Custom Properties
-- Font-Size-Einstellung (normal/large)
-- Animations-Toggle (on/off/system)
+### Theme-System
+
+- Light / Dark / System-Theme via CSS Custom Properties (`globals.css`)
+- Font-Size-Einstellung (normal/large) via `html.large-font`
+- Animations-Toggle (on/off/system) via `body.no-animations`
 - User-Einstellungen werden in `localStorage` gespeichert
-- Primärfarbe: `#C2185B` (Light) / `#F06292` (Dark)
+- Theme-Klassen `.dark` / `.light` werden auf `<html>` gesetzt
+
+### Design Tokens (`src/app/globals.css`)
+
+Alle Tokens sind als Tailwind CSS v4 `@theme`-Variablen definiert und stehen als Utilities zur Verfügung (z. B. `bg-primary`, `text-muted-foreground`).
+
+#### Primary (Rose/Pink)
+
+| Token                    | Light       | Dark        | Verwendung                        |
+| ------------------------ | ----------- | ----------- | --------------------------------- |
+| `primary`                | `#C2185B`   | `#F06292`   | Brand-Farbe, CTAs, Akzente        |
+| `primary-hover`          | `#AD1457`   | `#EC407A`   | Hover-Zustand auf Primary-Flächen |
+| `primary-foreground`     | `#ffffff`   | `#ffffff`   | Text auf Primary-Hintergrund      |
+| `primary-muted`          | `#FCE4EC`   | `#3D1A26`   | Subtile Primary-Hintergründe      |
+
+#### Secondary (Violet)
+
+| Token                    | Light       | Dark        | Verwendung                        |
+| ------------------------ | ----------- | ----------- | --------------------------------- |
+| `secondary`              | `#6D28D9`   | `#A78BFA`   | Sekundäre Aktionen, Badges        |
+| `secondary-hover`        | `#5B21B6`   | `#8B5CF6`   | Hover auf Secondary               |
+| `secondary-foreground`   | `#ffffff`   | `#ffffff`   | Text auf Secondary-Hintergrund    |
+
+#### Accent (Amber)
+
+| Token                    | Light       | Dark        | Verwendung                        |
+| ------------------------ | ----------- | ----------- | --------------------------------- |
+| `accent`                 | `#F59E0B`   | `#FBBF24`   | Highlights, Tags, Badges          |
+| `accent-foreground`      | `#1A1A1A`   | `#1A1A1A`   | Text auf Accent-Hintergrund       |
+
+#### Backgrounds & Surfaces
+
+| Token                    | Light       | Dark        | Verwendung                        |
+| ------------------------ | ----------- | ----------- | --------------------------------- |
+| `background`             | `#FFFFFF`   | `#121212`   | Seitenhintergrund                 |
+| `surface`                | `#F8F8F8`   | `#1E1E1E`   | Cards, Panels                     |
+| `surface-raised`         | `#F0F0F0`   | `#252525`   | Elevated Cards, Modals            |
+| `header`                 | `#F8F8F8`   | `#1E1E1E`   | Header-Hintergrund (legacy alias) |
+
+#### Text
+
+| Token                    | Light       | Dark        | Verwendung                        |
+| ------------------------ | ----------- | ----------- | --------------------------------- |
+| `foreground` / `text`    | `#1A1A1A`   | `#EDEDED`   | Primärer Fließtext                |
+| `muted-foreground`       | `#6B6B6B`   | `#9E9E9E`   | Sekundärer Text, Platzhalter      |
+
+#### Border
+
+| Token                    | Light       | Dark        | Verwendung                        |
+| ------------------------ | ----------- | ----------- | --------------------------------- |
+| `border`                 | `#E5E5E5`   | `#333333`   | Standard-Trennlinien              |
+| `border-strong`          | `#CCCCCC`   | `#444444`   | Betonte Rahmen                    |
+
+#### Feedback
+
+| Token               | Light       | Dark        |
+| ------------------- | ----------- | ----------- |
+| `success`           | `#16A34A`   | `#4ADE80`   |
+| `warning`           | `#D97706`   | `#FBBF24`   |
+| `error`             | `#DC2626`   | `#F87171`   |
+| `info`              | `#2563EB`   | `#60A5FA`   |
+
+Jeder Feedback-Token hat einen passenden `*-foreground`-Token für Text auf dem jeweiligen Hintergrund.
+
+### Nutzung in Komponenten
+
+```tsx
+// Hintergründe
+<div className="bg-surface border border-border rounded-lg">
+<div className="bg-primary text-primary-foreground">
+
+// Text
+<p className="text-foreground">Primärtext</p>
+<p className="text-muted-foreground">Sekundärtext</p>
+
+// Feedback
+<span className="bg-error text-error-foreground">Fehler</span>
+<span className="bg-success text-success-foreground">Erfolg</span>
+
+// Glow-Effekte (Primary-Farbe hardcoded für drop-shadow/text-shadow)
+className="drop-shadow-[0_0_6px_rgba(194,24,91,0.4)]"         // Light
+className="[text-shadow:0_0_10px_rgba(194,24,91,0.25)]"        // Light
+```
+
+> **Hinweis:** Für `drop-shadow` und `text-shadow` müssen die RGBA-Werte der Primary-Farbe hardcoded werden (`194,24,91` für Light, `240,98,146` für Dark), da Tailwind diese nicht automatisch interpoliert.
 
 ## Workflow-Regeln
 
@@ -309,6 +424,31 @@ await payload.delete({ collection: 'posts', id: '123' })
 3. **Keine `eslint-disable`-Kommentare** – Code stattdessen korrigieren.
 4. Nach Payload-Schema-Änderungen `npm run generate:types` ausführen.
 5. Pfad-Aliase (`@/*`) für Imports bevorzugen.
-6. **Nach jedem Commit** einen Pull Request öffnen, sofern für den aktuellen Branch noch keiner existiert (`gh pr create`).
-7. TypeScript nach Änderungen validieren: `tsc --noEmit`.
-8. Nach Komponenten-Änderungen Import Map neu generieren: `payload generate:importmap`.
+6. **Vor jedem Commit** CLAUDE.md aktualisieren (siehe [CLAUDE.md-Pflege](#claudemd-pflege)).
+7. **Nach jedem Commit** einen Pull Request öffnen, sofern für den aktuellen Branch noch keiner existiert (`gh pr create`).
+8. TypeScript nach Änderungen validieren: `tsc --noEmit`.
+9. Nach Komponenten-Änderungen Import Map neu generieren: `payload generate:importmap`.
+
+## CLAUDE.md-Pflege
+
+Vor jedem Commit wird diese Datei auf Aktualität geprüft und bei Bedarf ergänzt. Ziel ist kontinuierliche Verbesserung der Verhaltensregeln, damit bekannte Fehler nicht erneut auftreten.
+
+### Was dokumentiert werden soll
+
+- **Neu entdeckte Fehlerquellen** – Muster, die zu Bugs oder Laufzeitfehlern geführt haben
+- **Projektspezifische Eigenheiten** – Abweichungen vom Standard-Verhalten von Next.js, Payload oder Tailwind
+- **Bewährte Lösungen** – Konkrete Code-Patterns, die sich als korrekt erwiesen haben
+- **Verworfene Ansätze** – Lösungen, die nicht funktioniert haben, mit Begründung
+
+### Prozess
+
+1. Vor dem Commit: Rückblick auf die gemachten Änderungen
+2. Fehler oder Lernpunkte aus der Session identifizieren
+3. Relevante Abschnitte in CLAUDE.md ergänzen oder korrigieren
+4. Veraltete oder falsche Regeln entfernen
+5. CLAUDE.md in denselben Commit aufnehmen (`git add CLAUDE.md`)
+
+### Gelernte Fehler (laufend ergänzt)
+
+<!-- Hier werden session-übergreifend Fehler dokumentiert, die nicht erneut gemacht werden sollen -->
+<!-- Format: - **[Kategorie]** Beschreibung des Fehlers → Korrekte Lösung -->
