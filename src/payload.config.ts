@@ -17,6 +17,8 @@ import { envConfig } from '@/envConfig';
 const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
 
+console.log("CONFIG:", JSON.stringify(envConfig, null, 4));
+
 export default buildConfig({
   admin: {
     user: Users.slug,
@@ -39,15 +41,15 @@ export default buildConfig({
   db:
     envConfig.dbType === 'sqllite'
       ? sqliteAdapter({
-          client: {
-            url: envConfig.dbUrl,
-          },
-        })
+        client: {
+          url: envConfig.dbUrl,
+        },
+      })
       : postgresAdapter({
-          pool: {
-            connectionString: envConfig.dbUrl,
-          },
-        }),
+        pool: {
+          connectionString: envConfig.dbUrl,
+        },
+      }),
   sharp,
   plugins: [],
 });
