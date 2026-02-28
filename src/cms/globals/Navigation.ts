@@ -9,6 +9,7 @@ export const Navigation: GlobalConfig = {
     {
       name: 'headerLinks',
       type: 'array',
+      localized: true,
       fields: [
         {
           name: 'label',
@@ -29,6 +30,7 @@ export const Navigation: GlobalConfig = {
     {
       name: 'footerLinks',
       type: 'array',
+      localized: true,
       fields: [
         {
           name: 'label',

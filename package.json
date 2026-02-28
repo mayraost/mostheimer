@@ -24,6 +24,7 @@
     "@payloadcms/db-sqlite": "3.78.0",
     "@payloadcms/next": "3.78.0",
     "@payloadcms/richtext-lexical": "3.78.0",
+    "@payloadcms/storage-vercel-blob": "^3.78.0",
     "@payloadcms/ui": "3.78.0",
     "@tailwindcss/postcss": "^4.2.1",
     "dotenv": "^17.3.1",
@@ -60,7 +61,7 @@
     "vitest": "4.0.18"
   },
   "engines": {
-    "node": ">=24",
+    "node": "^24",
     "npm": "^11"
   }
 }

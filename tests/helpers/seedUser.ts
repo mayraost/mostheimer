@@ -4,7 +4,7 @@ import config from '../../src/payload.config.js';
 export const testUser = {
   email: 'dev@payloadcms.com',
   password: 'test',
-  name: 'Dev User',
+  name: 'Test',
 };
 
 /**
@@ -27,6 +27,7 @@ export async function seedTestUser(): Promise<void> {
   await payload.create({
     collection: 'users',
     data: testUser,
+    draft: false,
   });
 }
 

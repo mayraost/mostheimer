@@ -12,7 +12,9 @@ import { Pages } from './cms/collections/Pages';
 import { Navigation } from './cms/globals/Navigation';
 import { SiteSettings } from './cms/globals/SiteSettings';
 import { Translations } from './cms/globals/Translations';
+import { NotFound } from './cms/globals/NotFound';
 import { envConfig } from '@/envConfig';
+import { vercelBlobStorage } from '@payloadcms/storage-vercel-blob';
 
 const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
@@ -27,7 +29,7 @@ export default buildConfig({
     },
   },
   collections: [Users, Media, Pages],
-  globals: [Navigation, SiteSettings, Translations],
+  globals: [Navigation, SiteSettings, Translations, NotFound],
   localization: {
     locales: ['en', 'de'],
     defaultLocale: 'en',
@@ -51,5 +53,13 @@ export default buildConfig({
         },
       }),
   sharp,
-  plugins: [],
+  plugins: [
+    vercelBlobStorage({
+      enabled: process.env.NODE_ENV === 'production',
+      collections: {
+        media: true,
+      },
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+    }),
+  ],
 });
