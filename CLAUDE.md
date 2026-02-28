@@ -37,18 +37,47 @@ npm run generate:types # Payload CMS TypeScript-Typen generieren
 ## Projektstruktur
 
 ```
-app/
-  (frontend)/         # Frontend-Routen (locale-basiert)
-  (payload)/          # Payload CMS Admin-Routen
-  api/                # API-Routen
-blocks/               # Payload CMS Block-Definitionen
-collections/          # Payload CMS Collections (Users, Media, Pages)
-globals/              # Payload CMS Globals (Navigation, SiteSettings, Translations)
-components/
-  blocks/             # Block-Komponenten-Implementierungen
-public/               # Statische Assets
-payload.config.ts     # Payload CMS Konfiguration
+src/
+  app/
+    (frontend)/
+      [locale]/
+        [[...slug]]/  # Dynamische Seiten-Route
+        settings/     # Einstellungsseite
+        layout.tsx    # Locale-Layout
+    (payload)/
+      admin/          # Payload CMS Admin-Panel
+        importMap.js  # Generierte Import Map
+      api/            # Payload REST-API-Route
+      layout.tsx      # Admin-Layout
+    api/
+      seed-home/      # Seed-Route für Startseite
+    globals.css       # Tailwind CSS v4 Design Tokens & globale Styles
+  cms/
+    blocks/           # Payload CMS Block-Definitionen (CallToAction, FeatureGrid, Hero, ImageText, RichText)
+    collections/      # Collections: Media, Pages, Users
+    globals/          # Globals: Navigation, SiteSettings, Translations
+  components/
+    blocks/           # Block-Komponenten (CallToActionBlock, FeatureGridBlock, HeroBlock, ImageTextBlock, RichTextBlock, Icon)
+    blocks.tsx        # Block-Dispatcher-Komponente
+    Header.tsx        # Site-Header
+    Logo.tsx          # Logo-Komponente
+    SettingsProvider.tsx      # Theme/Schriftgröße/Animations-Settings (Client)
+    TranslationsProvider.tsx  # i18n-Kontext (Client)
+    TypingHeading.tsx         # Tipp-Animation-Komponente (Client)
+  envConfig.ts        # Zod-validierte Umgebungsvariablen
+  payload-types.ts    # Generierte Payload-Typen (nicht manuell bearbeiten)
+  payload.config.ts   # Payload CMS Konfiguration
+  proxy.ts            # Proxy-Hilfsfunktionen
+  public/             # Statische Assets (SVGs)
+tests/
+  e2e/                # Playwright E2E-Tests (admin, frontend)
+  int/                # Integrationstests (API)
+  helpers/            # Test-Hilfsfunktionen (login, seedUser)
 next.config.ts        # Next.js Konfiguration
+tsconfig.json         # TypeScript-Konfiguration
+eslint.config.mjs     # ESLint Flat Config
+vitest.config.mts     # Vitest-Konfiguration
+playwright.config.ts  # Playwright-Konfiguration
 ```
 
 ## Code-Konventionen
@@ -395,6 +424,31 @@ className="[text-shadow:0_0_10px_rgba(194,24,91,0.25)]"        // Light
 3. **Keine `eslint-disable`-Kommentare** – Code stattdessen korrigieren.
 4. Nach Payload-Schema-Änderungen `npm run generate:types` ausführen.
 5. Pfad-Aliase (`@/*`) für Imports bevorzugen.
-6. **Nach jedem Commit** einen Pull Request öffnen, sofern für den aktuellen Branch noch keiner existiert (`gh pr create`).
-7. TypeScript nach Änderungen validieren: `tsc --noEmit`.
-8. Nach Komponenten-Änderungen Import Map neu generieren: `payload generate:importmap`.
+6. **Vor jedem Commit** CLAUDE.md aktualisieren (siehe [CLAUDE.md-Pflege](#claudemd-pflege)).
+7. **Nach jedem Commit** einen Pull Request öffnen, sofern für den aktuellen Branch noch keiner existiert (`gh pr create`).
+8. TypeScript nach Änderungen validieren: `tsc --noEmit`.
+9. Nach Komponenten-Änderungen Import Map neu generieren: `payload generate:importmap`.
+
+## CLAUDE.md-Pflege
+
+Vor jedem Commit wird diese Datei auf Aktualität geprüft und bei Bedarf ergänzt. Ziel ist kontinuierliche Verbesserung der Verhaltensregeln, damit bekannte Fehler nicht erneut auftreten.
+
+### Was dokumentiert werden soll
+
+- **Neu entdeckte Fehlerquellen** – Muster, die zu Bugs oder Laufzeitfehlern geführt haben
+- **Projektspezifische Eigenheiten** – Abweichungen vom Standard-Verhalten von Next.js, Payload oder Tailwind
+- **Bewährte Lösungen** – Konkrete Code-Patterns, die sich als korrekt erwiesen haben
+- **Verworfene Ansätze** – Lösungen, die nicht funktioniert haben, mit Begründung
+
+### Prozess
+
+1. Vor dem Commit: Rückblick auf die gemachten Änderungen
+2. Fehler oder Lernpunkte aus der Session identifizieren
+3. Relevante Abschnitte in CLAUDE.md ergänzen oder korrigieren
+4. Veraltete oder falsche Regeln entfernen
+5. CLAUDE.md in denselben Commit aufnehmen (`git add CLAUDE.md`)
+
+### Gelernte Fehler (laufend ergänzt)
+
+<!-- Hier werden session-übergreifend Fehler dokumentiert, die nicht erneut gemacht werden sollen -->
+<!-- Format: - **[Kategorie]** Beschreibung des Fehlers → Korrekte Lösung -->
