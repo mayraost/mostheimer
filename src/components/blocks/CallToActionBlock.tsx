@@ -19,7 +19,7 @@ export function CallToActionBlock({ block }: { block: CallToActionBlockData }) {
         <p className="text-lg opacity-80 mb-8 max-w-2xl mx-auto font-geist-mono">{block.text}</p>
       )}
       <a
-        href={block.buttonLink}
+        href={block.buttonLink ?? undefined}
         className={`inline-block px-8 py-4 rounded-full font-semibold hover:opacity-90 transition-opacity font-geist-mono ${styleStr}`}
       >
         {block.buttonLabel}
