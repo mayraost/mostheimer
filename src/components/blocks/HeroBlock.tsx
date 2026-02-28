@@ -2,6 +2,7 @@ import React from 'react';
 import Image from 'next/image';
 import type { Page, Media } from '@/payload-types';
 import { TypingHeading } from '../TypingHeading';
+import Link from 'next/link';
 
 type HeroBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'hero' }>;
 
@@ -16,7 +17,7 @@ export function HeroBlock({ block }: { block: HeroBlockData }) {
       : null;
 
   return (
-    <section className="relative min-h-[70vh] w-full flex flex-col items-center justify-center text-center overflow-hidden py-32 lg:py-48">
+    <section className="relative min-h-[70vh] w-full flex flex-col items-center justify-center text-center overflow-hidden py-16">
       {/* Animated Blobs */}
       <div className="absolute top-1/2 left-1/4 w-72 h-72 bg-primary/20 rounded-full mix-blend-multiply filter blur-2xl opacity-70 animate-blob -translate-x-1/2 -translate-y-1/2 dark:mix-blend-screen" />
       <div className="absolute top-1/2 right-1/4 w-72 h-72 bg-blue-400/20 rounded-full mix-blend-multiply filter blur-2xl opacity-70 animate-blob [animation-delay:2s] -translate-x-1/2 -translate-y-1/2 dark:mix-blend-screen dark:bg-blue-600/30" />
@@ -60,20 +61,20 @@ export function HeroBlock({ block }: { block: HeroBlockData }) {
         {(block.ctaLabel || block.ctaLabel2) && (
           <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
             {block.ctaLabel && block.ctaLink && (
-              <a
+              <Link
                 href={block.ctaLink}
                 className="inline-block bg-primary text-white border-2 border-primary px-8 py-4 rounded-full font-semibold hover:bg-transparent hover:text-primary transition-all duration-300 font-geist-mono shadow-md hover:shadow-lg transform hover:-translate-y-1"
               >
                 {block.ctaLabel}
-              </a>
+              </Link>
             )}
             {block.ctaLabel2 && block.ctaLink2 && (
-              <a
+              <Link
                 href={block.ctaLink2}
                 className="inline-block bg-transparent text-primary border-2 border-primary px-8 py-4 rounded-full font-semibold hover:bg-primary hover:text-white transition-all duration-300 font-geist-mono hover:shadow-lg transform hover:-translate-y-1"
               >
                 {block.ctaLabel2}
-              </a>
+              </Link>
             )}
           </div>
         )}

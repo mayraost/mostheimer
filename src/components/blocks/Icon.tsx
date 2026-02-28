@@ -1,9 +1,17 @@
 import React from 'react';
 import * as LucideIcons from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { icons } from 'lucide-react';
 
-export function Icon({ name, className }: { name: string; className?: string }) {
-  const icons = LucideIcons as Record<string, LucideIcon | undefined>;
+export function Icon({
+  name,
+  className,
+}: {
+  name?: keyof typeof icons | null;
+  className?: string;
+}) {
+  if (!name) {
+    return;
+  }
   const IconComponent = icons[name] ?? LucideIcons.HelpCircle;
   return <IconComponent className={className} />;
 }

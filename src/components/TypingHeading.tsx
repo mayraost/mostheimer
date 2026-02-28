@@ -21,7 +21,7 @@ export function TypingHeading({ text }: { text: string }) {
 
     const typingInterval = setInterval(() => {
       if (i < text.length) {
-        setDisplayedText((prev) => prev + text.charAt(i));
+        setDisplayedText(text.slice(0, i + 1));
         i++;
       } else {
         clearInterval(typingInterval);

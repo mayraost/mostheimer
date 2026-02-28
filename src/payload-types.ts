@@ -93,11 +93,13 @@ export interface Config {
     navigation: Navigation;
     'site-settings': SiteSetting;
     translations: Translation;
+    'not-found': NotFound;
   };
   globalsSelect: {
     navigation: NavigationSelect<false> | NavigationSelect<true>;
     'site-settings': SiteSettingsSelect<false> | SiteSettingsSelect<true>;
     translations: TranslationsSelect<false> | TranslationsSelect<true>;
+    'not-found': NotFoundSelect<false> | NotFoundSelect<true>;
   };
   locale: 'en' | 'de';
   widgets: {
@@ -4115,7 +4117,21 @@ export interface Translation {
     off: string;
     theme: string;
     settingsButtonAria: string;
+    menu: string;
   };
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "not-found".
+ */
+export interface NotFound {
+  id: number;
+  title: string;
+  message: string;
+  buttonLabel: string;
+  buttonLink: string;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -4183,7 +4199,21 @@ export interface TranslationsSelect<T extends boolean = true> {
         off?: T;
         theme?: T;
         settingsButtonAria?: T;
+        menu?: T;
       };
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "not-found_select".
+ */
+export interface NotFoundSelect<T extends boolean = true> {
+  title?: T;
+  message?: T;
+  buttonLabel?: T;
+  buttonLink?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
