@@ -1,7 +1,12 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React from 'react';
+import type { Page } from '@/payload-types';
 
-export function CallToActionBlock({ block }: { block: any }) {
+type CallToActionBlockData = Extract<
+  NonNullable<Page['layout']>[number],
+  { blockType: 'callToAction' }
+>;
+
+export function CallToActionBlock({ block }: { block: CallToActionBlockData }) {
   const styleStr =
     block.style === 'secondary'
       ? 'bg-transparent border-2 border-primary text-text'

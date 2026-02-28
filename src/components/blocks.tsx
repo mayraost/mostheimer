@@ -1,13 +1,14 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React from 'react';
+import type { Page } from '../payload-types';
 import { HeroBlock } from './blocks/HeroBlock';
 import { CallToActionBlock } from './blocks/CallToActionBlock';
 import { FeatureGridBlock } from './blocks/FeatureGridBlock';
 import { ImageTextBlock } from './blocks/ImageTextBlock';
 import { RichTextBlock } from './blocks/RichTextBlock';
-import { Page } from '../payload-types';
 
-export function BlockRenderer({ block }: { block: any }) {
+export type PageBlock = NonNullable<Page['layout']>[number];
+
+export function BlockRenderer({ block }: { block: PageBlock }) {
   switch (block.blockType) {
     case 'hero':
       return <HeroBlock block={block} />;
@@ -22,7 +23,7 @@ export function BlockRenderer({ block }: { block: any }) {
     default:
       return (
         <div className="py-8 text-center text-red-500 border border-red-500 rounded my-4">
-          Unsupported block type: {block.blockType}
+          Unsupported block type
         </div>
       );
   }
