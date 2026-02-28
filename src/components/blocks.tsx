@@ -5,7 +5,6 @@ import { CallToActionBlock } from './blocks/CallToActionBlock';
 import { FeatureGridBlock } from './blocks/FeatureGridBlock';
 import { ImageTextBlock } from './blocks/ImageTextBlock';
 import { RichTextBlock } from './blocks/RichTextBlock';
-import { Page } from '../payload-types';
 
 export function BlockRenderer({ block }: { block: any }) {
   switch (block.blockType) {

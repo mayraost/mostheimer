@@ -1,9 +1,4 @@
 import type { CollectionConfig } from 'payload';
-import { Hero } from '../blocks/Hero';
-import { RichText } from '../blocks/RichText';
-import { CallToAction } from '../blocks/CallToAction';
-import { FeatureGrid } from '../blocks/FeatureGrid';
-import { ImageText } from '../blocks/ImageText';
 import { allBlocks } from '../blocks';
 
 export const Pages: CollectionConfig = {
