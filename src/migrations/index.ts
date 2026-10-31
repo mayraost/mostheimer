@@ -1,5 +1,6 @@
 import * as migration_20261031_221848_init from './20261031_221848_init';
 import * as migration_20261031_224616 from './20261031_224616';
+import * as migration_20261031_233235_codify_common_menu from './20261031_233235_codify_common_menu';
 
 export const migrations = [
   {
@@ -11,5 +12,10 @@ export const migrations = [
     up: migration_20261031_224616.up,
     down: migration_20261031_224616.down,
     name: '20261031_224616',
+  },
+  {
+    up: migration_20261031_233235_codify_common_menu.up,
+    down: migration_20261031_233235_codify_common_menu.down,
+    name: '20261031_233235_codify_common_menu',
   },
 ];
