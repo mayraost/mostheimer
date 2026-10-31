@@ -14,6 +14,7 @@ import { NotFound } from './cms/globals/NotFound';
 import { SiteSettings } from './cms/globals/SiteSettings';
 import { Translations } from './cms/globals/Translations';
 import { envConfig } from '@/envConfig';
+import { migrations } from './migrations';
 
 const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
@@ -45,6 +46,7 @@ export default buildConfig({
           },
         })
       : postgresAdapter({
+          prodMigrations: migrations,
           pool: {
             connectionString: envConfig.dbUrl,
           },
