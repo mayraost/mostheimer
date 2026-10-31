@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { getPayload } from 'payload';
 import configPromise from '@payload-config';
 import { BlockRenderer } from '@/components/blocks';
+import { envConfig } from '@/envConfig';
 
 async function queryPageBySlug(slug: string, locale: 'en' | 'de') {
   const payload = await getPayload({ config: configPromise });
@@ -46,7 +47,7 @@ export async function generateMetadata({ params }: PageProps<'/[locale]/[[...slu
 
   if (!page) return { title: 'Mostheimer 404' };
 
-  const baseUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000';
+  const baseUrl = envConfig.serverUrl;
   const slugPath = slug === 'home' ? '' : `/${slug}`;
 
   return {
