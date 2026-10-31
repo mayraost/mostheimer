@@ -12,6 +12,7 @@ import { Pages } from './cms/collections/Pages';
 import { Navigation } from './cms/globals/Navigation';
 import { SiteSettings } from './cms/globals/SiteSettings';
 import { Translations } from './cms/globals/Translations';
+import { NotFound } from './cms/globals/NotFound';
 import { envConfig } from '@/envConfig';
 
 const filename = fileURLToPath(import.meta.url);
@@ -25,7 +26,7 @@ export default buildConfig({
     },
   },
   collections: [Users, Media, Pages],
-  globals: [Navigation, SiteSettings, Translations],
+  globals: [Navigation, SiteSettings, Translations, NotFound],
   localization: {
     locales: ['en', 'de'],
     defaultLocale: 'en',
