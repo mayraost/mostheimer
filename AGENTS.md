@@ -29,13 +29,12 @@ npm run generate:types # Payload CMS TypeScript-Typen generieren
 
 ## Umgebungsvariablen
 
-| Variable            | Beschreibung                                                                            | Standard                      |
-| ------------------- | --------------------------------------------------------------------------------------- | ----------------------------- |
-| `PAYLOAD_SECRET`    | Geheimschlüssel für Payload CMS (Fallback 'ABC' nur lokal – in Coolify zwingend setzen) | `''`                          |
-| `DATABASE_URL`      | Datenbankverbindung                                                                     | `file:./payload.db` (sqlite)  |
-| `DATABASE_TYPE`     | Datenbank-Typ                                                                           | `sqlite` (Prod: `postgresql`) |
-| `APP_PORT`          | Published Host-Port (Compose)                                                           | `3300`                        |
-| `POSTGRES_PASSWORD` | Postgres-Passwort (Compose)                                                             | –                             |
+| Variable         | Beschreibung                                                                            | Standard                      |
+| ---------------- | --------------------------------------------------------------------------------------- | ----------------------------- |
+| `PAYLOAD_SECRET` | Geheimschlüssel für Payload CMS (Fallback 'ABC' nur lokal – in Coolify zwingend setzen) | `''`                          |
+| `APP_PORT`       | Published Host-Port (Compose)                                                           | `3300`                        |
+| `DATABASE_URL`   | Coolify-App-Env auf zentrale coolify-postgres (nicht im Compose!)                       | –                             |
+| `DATABASE_TYPE`  | Datenbank-Typ                                                                           | `sqlite` (Prod: `postgresql`) |
 
 ## Projektstruktur
 
@@ -175,17 +174,21 @@ import type { Page } from '@payload-config'; // Payload-Config-Alias
 
 ### Globals
 
-| Global         | Beschreibung               |
-| -------------- | -------------------------- |
-| `navigation`   | Seitennavigation           |
-| `siteSettings` | Globale Einstellungen      |
-| `translations` | Mehrsprachige Texte/Labels |
+| Global         | Beschreibung                                                                                                              |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `navigation`   | Seitennavigation                                                                                                          |
+| `siteSettings` | Globale Einstellungen                                                                                                     |
+| `translations` | Mehrsprachige Texte/Labels (Felder `localized: true` → en/de)                                                             |
+| `not-found`    | 404-Inhalte (title/message/buttonLabel/buttonLink, localized) – gerendert von `src/app/(frontend)/[locale]/not-found.tsx` |
 
 ### Content Blocks
 
-- `HeroBlock` – Hero-Bereich mit Tipp-Animation
-- `RichTextBlock` – Formatierter Text
-- `CtaBlock` – Call-to-Action
+- `HeroBlock` – Hero-Bereich mit Tipp-Animation; Felder `showStackBadge` (Stack-Badge-Zeile über dem Heading), `ctaLabel/ctaLink` (Primary-Pill) und `ctaLabel2/ctaLink2` (Ghost-Pill) – Pillen nur bei Label+Link
+- `RichTextBlock` – echter Lexical-Renderer via `RichText` aus `@payloadcms/richtext-lexical/react` (kein raw-JSON mehr)
+- `BentoGridBlock` – Bento-Raster (4-Spalten, `featured` = 2 Spalten); Items: highlight/title/description/iconName/ctaLabel/ctaLink/featured (aktive Tile CTA nur mit Link, Label `… →`)
+- `StatusBlock` – Status-Karte (badgeLabel/title/description) mit `networkTopics`-Array als Tag-Pillen
+- `TechSectionBlock` – Deep-Dive-Sektion (sectionLabel/heading/body, Absätze via `\n\n`) mit `keyFacts`-dl (label/value)
+- `CtaBlock` – Call-to-Action; Button-Pill nur rendern wenn `buttonLabel && buttonLink` gesetzt (kein leerer Pill)
 - `FeatureGridBlock` – Feature-Raster
 - `ImageTextBlock` – Bild + Text
 
@@ -447,11 +450,11 @@ className="[text-shadow:0_0_10px_rgba(194,24,91,0.25)]"        // Light
 ## Deployment (Coolify)
 
 - Deployment via **Docker Compose** auf Coolify (`docker-compose.yml` im Repo-Root; **nicht Vercel**)
-- Services: `app` (Next.js Standalone-Build) + `postgres` (`postgres:17-alpine`)
+- Service: nur `app` (Next.js Standalone-Build) – eigener Postgres-Service entfernt; DB ist die **zentrale geteilte `coolify-postgres`-Instanz** (Coolify-Host, SOP 31.10.2026): externes `coolify-postgres-net` im Compose deklariert, Verbindung via Hostname `coolify-postgres:5432` aus `DATABASE_URL` (Coolify-App-Env, NICHT im Compose)
 - Published Host-Port: `${APP_PORT:-3300}:3000` – `APP_PORT=3300` in Coolify setzen (Port-Konflikte mit anderen Stacks vermeiden)
 - Domain `https://mosthi.de` in Coolify dem Service `app` zuweisen (`docker_compose_domains`); der Coolify-Proxy (Traefik) routet über den **published Host-Port**, nicht über das Compose-Network
-- **KEIN `networks:`-Block** ergänzen: alle Services hängen am impliziten Projekt-Default-Netz (pro Coolify-Projekt isoliert; DNS-Aliase wie `postgres` kollidieren sonst mit fremden Stacks)
-- Env setzen (siehe `.env.example`): `DATABASE_URL`, `DATABASE_TYPE=postgresql`, `PAYLOAD_SECRET`, `APP_PORT`, `POSTGRES_PASSWORD`
+- **KEIN weiteres `networks:`-Deklarat** ergänzen: einziger externer Netz-Eintrag ist `coolify-postgres-net` (external); alles andere bleibt implizites Projekt-Default-Netz (pro Coolify-Projekt isoliert; DNS-Aliase wie `postgres` kollidieren sonst mit fremden Stacks)
+- Env setzen (siehe `.env.example`): `DATABASE_URL` (Coolify-App-Env, zeigt auf coolify-postgres), `DATABASE_TYPE=postgresql`, `PAYLOAD_SECRET`, `APP_PORT`
 - Healthcheck: Docker `HEALTHCHECK` im Image trifft `/api/health` (force-dynamic, `{status:'ok'}`)
 - Media-Uploads (Payload `media`) landen in `/app/public/media` und persistieren im Named Volume `media-data` (überleben Re-Deploys)
 - Compose-Header im Repo dokumentiert den genauen Coolify-Setup-Ablauf (Resource anlegen, Compose-File angeben, Env, Domain, No-Networks-Regel)

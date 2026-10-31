@@ -1,12 +1,11 @@
 import React from 'react';
 import type { Page } from '@/payload-types';
 import { Icon } from './Icon';
-import Link from 'next/link';
 
 type BentoGridBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'bentoGrid' }>;
 type BentoItem = NonNullable<BentoGridBlockData['items']>[number];
 
-function BentoCard({ item, isLarge }: { item: BentoItem; isLarge: boolean }) {
+function BentoCard({ item }: { item: BentoItem }) {
   const content = (
     <div
       className={[
@@ -15,6 +14,7 @@ function BentoCard({ item, isLarge }: { item: BentoItem; isLarge: boolean }) {
         item.ctaLink ? 'cursor-pointer' : '',
       ].join(' ')}
     >
+      {/* Background accent on hover */}
       <div className="absolute inset-0 rounded-2xl bg-primary/0 group-hover:bg-primary/[0.03] transition-colors duration-300 pointer-events-none" />
 
       <div className="relative z-10">
@@ -47,22 +47,18 @@ function BentoCard({ item, isLarge }: { item: BentoItem; isLarge: boolean }) {
     </div>
   );
 
-  const spanClass = isLarge ? 'md:col-span-2 lg:col-span-2' : 'col-span-1';
-
   if (item.ctaLink) {
     return (
-      <Link href={item.ctaLink} className={spanClass}>
+      <a href={item.ctaLink} className={item.featured ? 'md:col-span-2' : ''}>
         {content}
-      </Link>
+      </a>
     );
   }
 
-  return <div className={spanClass}>{content}</div>;
+  return <div className={item.featured ? 'md:col-span-2' : ''}>{content}</div>;
 }
 
 export function BentoGridBlock({ block }: { block: BentoGridBlockData }) {
-  const total = block.items?.length || 0;
-
   return (
     <section className="w-full py-16 my-4">
       <div className="max-w-5xl mx-auto px-4">
@@ -72,17 +68,10 @@ export function BentoGridBlock({ block }: { block: BentoGridBlockData }) {
           </h2>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
-          {block.items?.map((item, index) => {
-            // Smart spanning: if it's explicitly featured, or it's the last item and we need to fill the row
-            let isLarge = !!item.featured;
-            if (!item.featured && index === total - 1 && total % 3 === 1) {
-              isLarge = true; // fill the last partial row in a 3-col layout
-            } else if (!item.featured && total === 4 && index === 3) {
-              isLarge = true; // for 4 items, make 1st (if featured) and 4th large to balance it!
-            }
-            return <BentoCard key={item.id ?? item.title} item={item} isLarge={isLarge} />;
-          })}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-fr">
+          {block.items?.map((item) => (
+            <BentoCard key={item.id ?? item.title} item={item} />
+          ))}
         </div>
       </div>
     </section>

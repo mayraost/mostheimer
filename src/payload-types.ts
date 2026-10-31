@@ -125,15 +125,15 @@ export interface Config {
   fallbackLocale: ('false' | 'none' | 'null') | false | null | ('en' | 'de') | ('en' | 'de')[];
   globals: {
     navigation: Navigation;
+    'not-found': NotFound;
     'site-settings': SiteSetting;
     translations: Translation;
-    'not-found': NotFound;
   };
   globalsSelect: {
     navigation: NavigationSelect<false> | NavigationSelect<true>;
+    'not-found': NotFoundSelect<false> | NotFoundSelect<true>;
     'site-settings': SiteSettingsSelect<false> | SiteSettingsSelect<true>;
     translations: TranslationsSelect<false> | TranslationsSelect<true>;
-    'not-found': NotFoundSelect<false> | NotFoundSelect<true>;
   };
   locale: 'en' | 'de';
   widgets: {
@@ -4395,7 +4395,7 @@ export interface Hero {
   subheading?: string | null;
   backgroundImage?: (number | null) | Media;
   /**
-   * Display the live tech-stack badge (Node 24 | Next.js 16 | Tailwind 4 | PayloadCMS 3)
+   * Display the live tech-stack badge (Node 24 | Next.js 16 | Tailwind 4 | PayloadCMS 4)
    */
   showStackBadge?: boolean | null;
   ctaLabel?: string | null;
@@ -4438,7 +4438,7 @@ export interface RichText {
  */
 export interface StatusBlock {
   /**
-   * Short badge text shown above the title (e.g. "Aktuell" / "Current")
+   * Short badge text shown above the title (e.g. "Aktuell" / "Current Status")
    */
   badgeLabel?: string | null;
   title: string;
@@ -4883,6 +4883,27 @@ export interface Navigation {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "not-found".
+ */
+export interface NotFound {
+  id: number;
+  title: string;
+  message: string;
+  buttonLabel: string;
+  buttonLink: string;
+  createdBy?: {
+    relationTo: 'users';
+    value: number | User;
+  } | null;
+  updatedBy?: {
+    relationTo: 'users';
+    value: number | User;
+  } | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "site-settings".
  */
 export interface SiteSetting {
@@ -4941,27 +4962,6 @@ export interface Translation {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "not-found".
- */
-export interface NotFound {
-  id: number;
-  title: string;
-  message: string;
-  buttonLabel: string;
-  buttonLink: string;
-  createdBy?: {
-    relationTo: 'users';
-    value: number | User;
-  } | null;
-  updatedBy?: {
-    relationTo: 'users';
-    value: number | User;
-  } | null;
-  updatedAt?: string | null;
-  createdAt?: string | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "navigation_select".
  */
 export interface NavigationSelect<T extends boolean = true> {
@@ -4980,6 +4980,21 @@ export interface NavigationSelect<T extends boolean = true> {
         link?: T;
         id?: T;
       };
+  createdBy?: T;
+  updatedBy?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "not-found_select".
+ */
+export interface NotFoundSelect<T extends boolean = true> {
+  title?: T;
+  message?: T;
+  buttonLabel?: T;
+  buttonLink?: T;
   createdBy?: T;
   updatedBy?: T;
   updatedAt?: T;
@@ -5030,21 +5045,6 @@ export interface TranslationsSelect<T extends boolean = true> {
         settingsButtonAria?: T;
         menu?: T;
       };
-  createdBy?: T;
-  updatedBy?: T;
-  updatedAt?: T;
-  createdAt?: T;
-  globalType?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "not-found_select".
- */
-export interface NotFoundSelect<T extends boolean = true> {
-  title?: T;
-  message?: T;
-  buttonLabel?: T;
-  buttonLink?: T;
   createdBy?: T;
   updatedBy?: T;
   updatedAt?: T;

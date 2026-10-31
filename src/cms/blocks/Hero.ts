@@ -10,7 +10,7 @@ export const Hero: Block = {
     },
     {
       name: 'subheading',
-      type: 'textarea',
+      type: 'text',
     },
     {
       name: 'backgroundImage',
@@ -23,7 +23,7 @@ export const Hero: Block = {
       defaultValue: true,
       admin: {
         description:
-          'Display the live tech-stack badge (Node 24 | Next.js 16 | Tailwind 4 | PayloadCMS 3)',
+          'Display the live tech-stack badge (Node 24 | Next.js 16 | Tailwind 4 | PayloadCMS 4)',
       },
     },
     {

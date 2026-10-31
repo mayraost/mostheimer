@@ -13,7 +13,6 @@ export const Translations: GlobalConfig = {
       name: 'settings',
       type: 'group',
       localized: true,
-      required: true,
       fields: [
         { name: 'title', type: 'text', defaultValue: 'Settings', required: true },
         { name: 'themeHeading', type: 'text', defaultValue: 'Theme', required: true },
@@ -43,7 +42,6 @@ export const Translations: GlobalConfig = {
       name: 'common',
       type: 'group',
       localized: true,
-      required: true,
       fields: [
         { name: 'system', type: 'text', defaultValue: 'System', required: true },
         { name: 'light', type: 'text', defaultValue: 'Light', required: true },

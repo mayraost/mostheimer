@@ -12,7 +12,7 @@ export const StatusBlock: Block = {
       type: 'text',
       defaultValue: 'Status',
       admin: {
-        description: 'Short badge text shown above the title (e.g. "Aktuell" / "Current")',
+        description: 'Short badge text shown above the title (e.g. "Aktuell" / "Current Status")',
       },
     },
     {
