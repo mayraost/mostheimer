@@ -6,6 +6,7 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { TranslationsProvider } from '@/components/TranslationsProvider';
 import { getPayload } from 'payload';
+import { envConfig } from '@/envConfig';
 import configPromise from '@payload-config';
 
 const averia = Averia_Serif_Libre({
@@ -22,7 +23,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'Mostheimer',
   description: 'Personal Website',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'),
+  metadataBase: new URL(envConfig.serverUrl),
 };
 
 export default async function RootLayout({ children, params }: LayoutProps<'/[locale]'>) {

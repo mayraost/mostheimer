@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { getPayload } from 'payload';
 import configPromise from '@payload-config';
+import { envConfig } from '@/envConfig';
 
 // Die Sitemap liest Seiten aus der DB; DB-Verbindung existiert erst zur Laufzeit.
 // Deshalb dynamisch rendern statt zur Build-Zeit prerendernder Versuch.
@@ -28,7 +29,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     return [];
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000';
+  const baseUrl = envConfig.serverUrl;
   const locales = ['en', 'de'];
 
   const sitemapEntries: MetadataRoute.Sitemap = [];
