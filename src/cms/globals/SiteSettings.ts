@@ -11,10 +11,12 @@ export const SiteSettings: GlobalConfig = {
       type: 'text',
       defaultValue: 'Mostheimer',
       required: true,
+      localized: true,
     },
     {
       name: 'siteDescription',
       type: 'textarea',
+      localized: true,
     },
     {
       name: 'defaultOgImage',

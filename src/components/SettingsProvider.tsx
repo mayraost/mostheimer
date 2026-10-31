@@ -21,18 +21,22 @@ const SettingsContext = createContext<SettingsContextType | undefined>(undefined
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>('system');
+  const [currentTheme, setCurrentTheme] = useState<SettingsContextType['currentTheme']>('light');
   const [fontSize, setFontSize] = useState<FontSize>('normal');
   const [animations, setAnimations] = useState<Animations>('system');
+  const [currentAnimations, setCurrentAnimations] =
+    useState<SettingsContextType['currentAnimations']>('on');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setTheme((localStorage.getItem('theme') as Theme) || 'system');
-      setFontSize((localStorage.getItem('fontSize') as FontSize) || 'normal');
-      setAnimations((localStorage.getItem('animations') as Animations) || 'system');
-      setMounted(true);
-    }, 0);
-    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTheme((localStorage.getItem('theme') as Theme) || 'system');
+
+    setFontSize((localStorage.getItem('fontSize') as FontSize) || 'normal');
+
+    setAnimations((localStorage.getItem('animations') as Animations) || 'system');
+
+    setMounted(true);
   }, []);
 
   useEffect(() => {
@@ -47,9 +51,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         ? 'dark'
         : 'light';
       root.classList.add(systemTheme);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCurrentTheme(systemTheme);
     } else {
       root.classList.add(theme);
+      setCurrentTheme(theme);
     }
+
     localStorage.setItem('theme', theme);
 
     // Apply font size
@@ -63,6 +71,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     } else {
       disableAnimations = animations === 'off';
     }
+
+    setCurrentAnimations(disableAnimations ? 'off' : 'on');
     root.classList.toggle('no-animations', disableAnimations);
     localStorage.setItem('animations', animations);
   }, [theme, fontSize, animations, mounted]);
@@ -71,24 +81,12 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     <SettingsContext.Provider
       value={{
         theme,
-        currentTheme: mounted
-          ? theme === 'system'
-            ? window.matchMedia('(prefers-color-scheme: dark)').matches
-              ? 'dark'
-              : 'light'
-            : theme
-          : 'dark', // Default to dark for SSR
+        currentTheme,
         setTheme,
         fontSize,
         setFontSize,
         animations,
-        currentAnimations: mounted
-          ? animations === 'system'
-            ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
-              ? 'off'
-              : 'on'
-            : animations
-          : 'on', // Default to on for SSR
+        currentAnimations,
         setAnimations,
       }}
     >

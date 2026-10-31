@@ -19,11 +19,7 @@ async function queryPageBySlug(slug: string, locale: 'en' | 'de') {
   return result.docs?.[0] || null;
 }
 
-export default async function Page({
-  params,
-}: {
-  params: Promise<{ slug?: string[]; locale: string }>;
-}) {
+export default async function Page({ params }: PageProps<'/[locale]/[[...slug]]'>) {
   const resolvedParams = await params;
   const locale = (resolvedParams.locale as 'en' | 'de') || 'en';
   const slug = resolvedParams.slug ? resolvedParams.slug.join('/') : 'home';
@@ -42,11 +38,7 @@ export default async function Page({
   );
 }
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ slug?: string[]; locale: string }>;
-}) {
+export async function generateMetadata({ params }: PageProps<'/[locale]/[[...slug]]'>) {
   const resolvedParams = await params;
   const locale = (resolvedParams.locale as 'en' | 'de') || 'en';
   const slug = resolvedParams.slug ? resolvedParams.slug.join('/') : 'home';
@@ -54,16 +46,16 @@ export async function generateMetadata({
 
   if (!page) return { title: 'Mostheimer 404' };
 
-  // Generate alternate URLs mapping properly for the root ('home') avoiding duplication and regular slugs
+  const baseUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000';
   const slugPath = slug === 'home' ? '' : `/${slug}`;
 
   return {
     title: `${page.title} - Mostheimer`,
     alternates: {
-      canonical: `/${locale}${slugPath}`,
+      canonical: `${baseUrl}/${locale}${slugPath}`,
       languages: {
-        en: `/en${slugPath}`,
-        de: `/de${slugPath}`,
+        en: `${baseUrl}/en${slugPath}`,
+        de: `${baseUrl}/de${slugPath}`,
       },
     },
   };
