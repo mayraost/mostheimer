@@ -1,10 +1,10 @@
 import { postgresAdapter } from '@payloadcms/db-postgres';
 import { sqliteAdapter } from '@payloadcms/db-sqlite';
 import { lexicalEditor } from '@payloadcms/richtext-lexical';
+import { sharpTransformer } from '@payloadcms/transformer-sharp';
 import path from 'path';
 import { buildConfig } from 'payload';
 import { fileURLToPath } from 'url';
-import sharp from 'sharp';
 
 import { Users } from './cms/collections/Users';
 import { Media } from './cms/collections/Media';
@@ -16,8 +16,6 @@ import { envConfig } from '@/envConfig';
 
 const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
-
-console.log("CONFIG:", JSON.stringify(envConfig, null, 4));
 
 export default buildConfig({
   admin: {
@@ -39,17 +37,41 @@ export default buildConfig({
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
   db:
-    envConfig.dbType === 'sqllite'
+    envConfig.dbType === 'sqlite'
       ? sqliteAdapter({
-        client: {
-          url: envConfig.dbUrl,
-        },
-      })
+          client: {
+            url: envConfig.dbUrl,
+          },
+        })
       : postgresAdapter({
-        pool: {
-          connectionString: envConfig.dbUrl,
+          pool: {
+            connectionString: envConfig.dbUrl,
+          },
+        }),
+  upload: {
+    transformers: [
+      sharpTransformer({
+        collections: {
+          media: {
+            formatOptions: { format: 'webp' },
+            variants: [
+              {
+                name: 'thumbnail',
+                width: 400,
+                height: 300,
+                position: 'centre',
+              },
+              {
+                name: 'card',
+                width: 768,
+                height: 1024,
+                position: 'centre',
+              },
+            ],
+          },
         },
       }),
-  sharp,
+    ],
+  },
   plugins: [],
 });
