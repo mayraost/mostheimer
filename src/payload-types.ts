@@ -4947,6 +4947,7 @@ export interface Translation {
     off: string;
     theme: string;
     settingsButtonAria: string;
+    menu: string;
   };
   createdBy?: {
     relationTo: 'users';
@@ -5042,6 +5043,7 @@ export interface TranslationsSelect<T extends boolean = true> {
         off?: T;
         theme?: T;
         settingsButtonAria?: T;
+        menu?: T;
       };
   createdBy?: T;
   updatedBy?: T;
