@@ -1,6 +1,5 @@
 import React from 'react';
 import type { Page } from '@/payload-types';
-import Link from 'next/link';
 
 type CallToActionBlockData = Extract<
   NonNullable<Page['layout']>[number],
@@ -19,13 +18,13 @@ export function CallToActionBlock({ block }: { block: CallToActionBlockData }) {
       {block.text && (
         <p className="text-lg opacity-80 mb-8 max-w-2xl mx-auto font-geist-mono">{block.text}</p>
       )}
-      {block.buttonLink && (
-        <Link
+      {block.buttonLabel && block.buttonLink && (
+        <a
           href={block.buttonLink}
           className={`inline-block px-8 py-4 rounded-full font-semibold hover:opacity-90 transition-opacity font-geist-mono ${styleStr}`}
         >
           {block.buttonLabel}
-        </Link>
+        </a>
       )}
     </section>
   );

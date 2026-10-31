@@ -10,9 +10,9 @@ import { Users } from './cms/collections/Users';
 import { Media } from './cms/collections/Media';
 import { Pages } from './cms/collections/Pages';
 import { Navigation } from './cms/globals/Navigation';
+import { NotFound } from './cms/globals/NotFound';
 import { SiteSettings } from './cms/globals/SiteSettings';
 import { Translations } from './cms/globals/Translations';
-import { NotFound } from './cms/globals/NotFound';
 import { envConfig } from '@/envConfig';
 
 const filename = fileURLToPath(import.meta.url);
@@ -26,7 +26,7 @@ export default buildConfig({
     },
   },
   collections: [Users, Media, Pages],
-  globals: [Navigation, SiteSettings, Translations, NotFound],
+  globals: [Navigation, NotFound, SiteSettings, Translations],
   localization: {
     locales: ['en', 'de'],
     defaultLocale: 'en',

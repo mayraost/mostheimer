@@ -1,11 +1,11 @@
 import React from 'react';
 import type { Page } from '../payload-types';
-import { BentoGridBlock } from './blocks/BentoGridBlock';
 import { HeroBlock } from './blocks/HeroBlock';
 import { CallToActionBlock } from './blocks/CallToActionBlock';
 import { FeatureGridBlock } from './blocks/FeatureGridBlock';
 import { ImageTextBlock } from './blocks/ImageTextBlock';
 import { RichTextBlock } from './blocks/RichTextBlock';
+import { BentoGridBlock } from './blocks/BentoGridBlock';
 import { StatusBlock } from './blocks/StatusBlock';
 import { TechSectionBlock } from './blocks/TechSectionBlock';
 
@@ -13,8 +13,6 @@ export type PageBlock = NonNullable<Page['layout']>[number];
 
 export function BlockRenderer({ block }: { block: PageBlock }) {
   switch (block.blockType) {
-    case 'bentoGrid':
-      return <BentoGridBlock block={block} />;
     case 'hero':
       return <HeroBlock block={block} />;
     case 'callToAction':
@@ -25,6 +23,8 @@ export function BlockRenderer({ block }: { block: PageBlock }) {
       return <ImageTextBlock block={block} />;
     case 'richText':
       return <RichTextBlock block={block} />;
+    case 'bentoGrid':
+      return <BentoGridBlock block={block} />;
     case 'statusBlock':
       return <StatusBlock block={block} />;
     case 'techSection':
@@ -39,12 +39,12 @@ export function BlockRenderer({ block }: { block: PageBlock }) {
 }
 
 export {
-  BentoGridBlock,
   HeroBlock,
   CallToActionBlock,
   FeatureGridBlock,
   ImageTextBlock,
   RichTextBlock,
+  BentoGridBlock,
   StatusBlock,
   TechSectionBlock,
 };
