@@ -1,0 +1,63 @@
+# Coolify-Deployment (Docker Compose):
+# 1. In Coolify: New Resource -> Docker Compose (Empty), dieses Repo verbinden.
+# 2. Diese Datei als Compose-File angeben.
+# 3. Environment setzen (siehe .env.example): APP_PORT muss auf dem
+#    Coolify-Host frei sein (Port-Konflikte mit anderen Stacks vermeiden,
+#    internal-dashboard nutzt ~3100, halloween-counter 3200 → hier 3300).
+# 4. Domain in Coolify dem Service "app" zuweisen (docker_compose_domains),
+#    z. B. https://mosthi.de – der Coolify-Proxy (Traefik) routet
+#    über den published Host-Port, NICHT über das Compose-Network.
+# 5. KEIN networks:-Block ergänzen: alle Services hängen am impliziten
+#    Projekt-Default-Netz (pro Coolify-Projekt isoliert, DNS-Aliase wie
+#    "postgres" kollidieren sonst mit fremden Stacks).
+# 6. Payload-DB (Postgres): Migrations wurden in diesem Repo noch nie
+#    erzeugt (kein src/migrations, kein payload migrate:create voriges Mal
+#    gelaufen). Ein erster Deploy via "ci"-Script würde `payload migrate &&
+#    pnpm build` ausführen (inkl. payload generate:types); ohne Migrations-
+#    Files schlägt `payload migrate` leer/ohne Wirkung durch bzw. muss
+#    vorher `payload migrate:create` laufen – für den gewünschten Zustand
+#    aushandeln, bevor Migrations-Files committet werden.
+# 7. POSTGRES_PASSWORD wirkt nur bei der ersten Cluster-Initialisierung
+#    auf dem Volume postgres-data (Passwort-Änderung später erfordert
+#    ein neues Volume).
+# 8. Payload-Media-Uploads landen in /app/public/media und persistieren
+#    im Volume media-data (überleben Re-Deploys).
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    mem_limit: 512m
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PAYLOAD_SECRET: ${PAYLOAD_SECRET:?}
+      DATABASE_URL: postgres://mostheimer:${POSTGRES_PASSWORD:?}@postgres:5432/mostheimer
+      DATABASE_TYPE: postgresql
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+    ports:
+      - '${APP_PORT:-3300}:3000'
+    volumes:
+      - media-data:/app/public/media
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    mem_limit: 384m
+    environment:
+      POSTGRES_USER: mostheimer
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: mostheimer
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', 'mostheimer']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  postgres-data:
+  media-data:

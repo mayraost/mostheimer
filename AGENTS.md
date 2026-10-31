@@ -1,20 +1,20 @@
-# CLAUDE.md
+# AGENTS.md
 
 ## Projekt-Übersicht
 
-**mostheimer** – Next.js 16 + Payload CMS v3 Anwendung mit Mehrsprachigkeit (EN/DE), Tailwind CSS v4 und TypeScript.
+**mostheimer** – Next.js 16 + Payload CMS v4 Anwendung mit Mehrsprachigkeit (EN/DE), Tailwind CSS v4 und TypeScript.
 
 ## Tech Stack
 
-| Kategorie    | Technologie                          |
-| ------------ | ------------------------------------ |
-| Framework    | Next.js 16 (canary) – App Router     |
-| Sprache      | TypeScript 5 (strict mode)           |
-| CMS          | Payload CMS v3 mit Lexical Rich Text |
-| Datenbank    | SQLite (Standard), PostgreSQL optional |
-| Styling      | Tailwind CSS v4                      |
-| Icons        | Lucide React                         |
-| Node-Version | 24 (`.nvm`)                          |
+| Kategorie    | Technologie                                                                 |
+| ------------ | --------------------------------------------------------------------------- |
+| Framework    | Next.js 16.4.3 (stable) – App Router, Turbopack                             |
+| Sprache      | TypeScript 5 (strict mode)                                                  |
+| CMS          | Payload CMS 4.0.0-beta.6 mit Lexical Rich Text                              |
+| Datenbank    | SQLite (Standard, `file:./payload.db`), PostgreSQL (Produktion via Compose) |
+| Styling      | Tailwind CSS v4                                                             |
+| Icons        | Lucide React                                                                |
+| Node-Version | >= 24 (engine in `package.json`), npm ^11                                   |
 
 ## Befehle
 
@@ -29,10 +29,13 @@ npm run generate:types # Payload CMS TypeScript-Typen generieren
 
 ## Umgebungsvariablen
 
-| Variable         | Beschreibung                  | Standard            |
-| ---------------- | ----------------------------- | ------------------- |
-| `PAYLOAD_SECRET` | Geheimschlüssel für Payload CMS | `''`              |
-| `DATABASE_URI`   | Datenbankverbindung           | `file:./payload.db` |
+| Variable            | Beschreibung                                                                            | Standard                      |
+| ------------------- | --------------------------------------------------------------------------------------- | ----------------------------- |
+| `PAYLOAD_SECRET`    | Geheimschlüssel für Payload CMS (Fallback 'ABC' nur lokal – in Coolify zwingend setzen) | `''`                          |
+| `DATABASE_URL`      | Datenbankverbindung                                                                     | `file:./payload.db` (sqlite)  |
+| `DATABASE_TYPE`     | Datenbank-Typ                                                                           | `sqlite` (Prod: `postgresql`) |
+| `APP_PORT`          | Published Host-Port (Compose)                                                           | `3300`                        |
+| `POSTGRES_PASSWORD` | Postgres-Passwort (Compose)                                                             | –                             |
 
 ## Projektstruktur
 
@@ -51,6 +54,7 @@ src/
       layout.tsx      # Admin-Layout
     api/
       seed-home/      # Seed-Route für Startseite
+      health/         # Healthcheck-Route ({status:'ok'}, force-dynamic)
     globals.css       # Tailwind CSS v4 Design Tokens & globale Styles
   cms/
     blocks/           # Payload CMS Block-Definitionen (CallToAction, FeatureGrid, Hero, ImageText, RichText)
@@ -78,6 +82,8 @@ tsconfig.json         # TypeScript-Konfiguration
 eslint.config.mjs     # ESLint Flat Config
 vitest.config.mts     # Vitest-Konfiguration
 playwright.config.ts  # Playwright-Konfiguration
+docker-compose.yml    # Coolify-Deployment (app + postgres)
+Dockerfile            # Standalone-Produktionsimage mit HEALTHCHECK
 ```
 
 ## Code-Konventionen
@@ -92,8 +98,8 @@ playwright.config.ts  # Playwright-Konfiguration
 ### Importe & Aliase
 
 ```typescript
-import { Header } from '@/components/Header';      // Root-Alias
-import type { Page } from '@payload-config';        // Payload-Config-Alias
+import { Header } from '@/components/Header'; // Root-Alias
+import type { Page } from '@payload-config'; // Payload-Config-Alias
 ```
 
 ### React-Komponenten
@@ -136,7 +142,7 @@ import type { Page } from '@payload-config';        // Payload-Config-Alias
 - Routing: `/{locale}/[...slug]`
 - Middleware erkennt Sprache automatisch via `accept-language`-Header
 
-## Payload CMS
+## Payload CMS (v4)
 
 ### Kernprinzipien
 
@@ -146,6 +152,13 @@ import type { Page } from '@payload-config';        // Payload-Config-Alias
 4. **Transaction Safety** – In Hooks immer `req` an verschachtelte Operationen übergeben
 5. **Local API** – Bypasses Zugriffskontrollen standardmäßig; `overrideAccess: false` setzen wenn nötig
 6. **Rollen prüfen** – Sicherstellen, dass Rollen existieren, bevor Access Controls auf Collections/Globals angewendet werden
+
+### Payload 4 spezifika (vs. v3)
+
+- Top-level `sharp`-Config-Option entfernt → `sharpTransformer` aus `@payloadcms/transformer-sharp` über `upload.transformers` einbinden
+- `upload.imageSizes` / `formatOptions` entfernt → konsolidiert in `sharpTransformer`-Varianten
+- Admin-UI-Imports aus `@payloadcms/ui`
+- Env-Prefix: `PAYLOAD_PUBLIC_*` → `NEXT_PUBLIC_*`
 
 ### Code-Validierung
 
@@ -190,13 +203,13 @@ npm run generate:types
 
 ```typescript
 // ❌ SICHERHEITSLÜCKE: Zugriffskontrolle wird umgangen
-await payload.find({ collection: 'posts', user: someUser })
+await payload.find({ collection: 'posts', user: someUser });
 
 // ✅ SICHER: Benutzerberechtigungen werden erzwungen
-await payload.find({ collection: 'posts', user: someUser, overrideAccess: false })
+await payload.find({ collection: 'posts', user: someUser, overrideAccess: false });
 
 // ✅ Administrative Operation (bewusstes Bypass)
-await payload.find({ collection: 'posts' }) // kein user, overrideAccess defaults to true
+await payload.find({ collection: 'posts' }); // kein user, overrideAccess defaults to true
 ```
 
 **Regel**: Wenn `user` an die Local API übergeben wird, IMMER `overrideAccess: false` setzen.
@@ -206,14 +219,14 @@ await payload.find({ collection: 'posts' }) // kein user, overrideAccess default
 ```typescript
 // ❌ DATENVERLUST-RISIKO: Separate Transaktion
 async ({ doc, req }) => {
-  await req.payload.create({ collection: 'audit-log', data: { docId: doc.id } })
+  await req.payload.create({ collection: 'audit-log', data: { docId: doc.id } });
   // Fehlendes req = separate Transaktion!
-}
+};
 
 // ✅ ATOMAR: Gleiche Transaktion
 async ({ doc, req }) => {
-  await req.payload.create({ collection: 'audit-log', data: { docId: doc.id }, req })
-}
+  await req.payload.create({ collection: 'audit-log', data: { docId: doc.id }, req });
+};
 ```
 
 **Regel**: In Hooks immer `req` an verschachtelte Operationen übergeben.
@@ -222,36 +235,47 @@ async ({ doc, req }) => {
 
 ```typescript
 // ❌ ENDLOSSCHLEIFE
-afterChange: [async ({ doc, req }) => {
-  await req.payload.update({ collection: 'posts', id: doc.id, data: { views: doc.views + 1 }, req })
-  // Löst afterChange erneut aus!
-}]
+afterChange: [
+  async ({ doc, req }) => {
+    await req.payload.update({
+      collection: 'posts',
+      id: doc.id,
+      data: { views: doc.views + 1 },
+      req,
+    });
+    // Löst afterChange erneut aus!
+  },
+];
 
 // ✅ SICHER: Context-Flag verwenden
-afterChange: [async ({ doc, req, context }) => {
-  if (context.skipHooks) return
-  await req.payload.update({
-    collection: 'posts', id: doc.id,
-    data: { views: doc.views + 1 },
-    context: { skipHooks: true }, req,
-  })
-}]
+afterChange: [
+  async ({ doc, req, context }) => {
+    if (context.skipHooks) return;
+    await req.payload.update({
+      collection: 'posts',
+      id: doc.id,
+      data: { views: doc.views + 1 },
+      context: { skipHooks: true },
+      req,
+    });
+  },
+];
 ```
 
 ### Zugriffskontrollen
 
 ```typescript
-import type { Access } from 'payload'
+import type { Access } from 'payload';
 
 // Boolean-Return
-export const authenticated: Access = ({ req: { user } }) => Boolean(user)
+export const authenticated: Access = ({ req: { user } }) => Boolean(user);
 
 // Query-Constraint (Row-Level Security)
 export const ownPostsOnly: Access = ({ req: { user } }) => {
-  if (!user) return false
-  if (user?.roles?.includes('admin')) return true
-  return { author: { equals: user.id } }
-}
+  if (!user) return false;
+  if (user?.roles?.includes('admin')) return true;
+  return { author: { equals: user.id } };
+};
 ```
 
 **Wichtig**: Field-Level Access gibt nur `boolean` zurück (keine Query-Constraints).
@@ -259,10 +283,10 @@ export const ownPostsOnly: Access = ({ req: { user } }) => {
 ### Queries – Local API
 
 ```typescript
-import { getPayload } from 'payload'
-import config from '@payload-config'
+import { getPayload } from 'payload';
+import config from '@payload-config';
 
-const payload = await getPayload({ config })
+const payload = await getPayload({ config });
 
 // Suchen
 const posts = await payload.find({
@@ -271,12 +295,12 @@ const posts = await payload.find({
   depth: 2,
   limit: 10,
   sort: '-createdAt',
-})
+});
 
 // Erstellen / Aktualisieren / Löschen
-await payload.create({ collection: 'posts', data: { title: 'Neu' } })
-await payload.update({ collection: 'posts', id: '123', data: { status: 'published' } })
-await payload.delete({ collection: 'posts', id: '123' })
+await payload.create({ collection: 'posts', data: { title: 'Neu' } });
+await payload.update({ collection: 'posts', id: '123', data: { status: 'published' } });
+await payload.delete({ collection: 'posts', id: '123' });
 ```
 
 ### Hooks
@@ -297,17 +321,20 @@ await payload.delete({ collection: 'posts', id: '123' })
 ### Best Practices
 
 **Sicherheit:**
+
 - `overrideAccess: false` immer setzen wenn `user` an Local API übergeben wird
 - Standardmäßig restriktive Zugriffskontrollen, schrittweise öffnen
 - `saveToJWT: true` für Rollen verwenden (vermeidet Datenbank-Lookups)
 
 **Performance:**
+
 - Häufig abgefragte Felder indexieren
 - `select` nutzen um zurückgegebene Felder zu begrenzen
 - `depth` auf Relationships begrenzen (Standard: 2; `0` für IDs only)
 - Query-Constraints statt async-Operationen in Access-Funktionen bevorzugen
 
 **Datenintegrität:**
+
 - `req` immer an verschachtelte Operationen in Hooks übergeben
 - Context-Flags für Hook-Loop-Vermeidung nutzen
 
@@ -339,59 +366,59 @@ Alle Tokens sind als Tailwind CSS v4 `@theme`-Variablen definiert und stehen als
 
 #### Primary (Rose/Pink)
 
-| Token                    | Light       | Dark        | Verwendung                        |
-| ------------------------ | ----------- | ----------- | --------------------------------- |
-| `primary`                | `#C2185B`   | `#F06292`   | Brand-Farbe, CTAs, Akzente        |
-| `primary-hover`          | `#AD1457`   | `#EC407A`   | Hover-Zustand auf Primary-Flächen |
-| `primary-foreground`     | `#ffffff`   | `#ffffff`   | Text auf Primary-Hintergrund      |
-| `primary-muted`          | `#FCE4EC`   | `#3D1A26`   | Subtile Primary-Hintergründe      |
+| Token                | Light     | Dark      | Verwendung                        |
+| -------------------- | --------- | --------- | --------------------------------- |
+| `primary`            | `#C2185B` | `#F06292` | Brand-Farbe, CTAs, Akzente        |
+| `primary-hover`      | `#AD1457` | `#EC407A` | Hover-Zustand auf Primary-Flächen |
+| `primary-foreground` | `#ffffff` | `#ffffff` | Text auf Primary-Hintergrund      |
+| `primary-muted`      | `#FCE4EC` | `#3D1A26` | Subtile Primary-Hintergründe      |
 
 #### Secondary (Violet)
 
-| Token                    | Light       | Dark        | Verwendung                        |
-| ------------------------ | ----------- | ----------- | --------------------------------- |
-| `secondary`              | `#6D28D9`   | `#A78BFA`   | Sekundäre Aktionen, Badges        |
-| `secondary-hover`        | `#5B21B6`   | `#8B5CF6`   | Hover auf Secondary               |
-| `secondary-foreground`   | `#ffffff`   | `#ffffff`   | Text auf Secondary-Hintergrund    |
+| Token                  | Light     | Dark      | Verwendung                     |
+| ---------------------- | --------- | --------- | ------------------------------ |
+| `secondary`            | `#6D28D9` | `#A78BFA` | Sekundäre Aktionen, Badges     |
+| `secondary-hover`      | `#5B21B6` | `#8B5CF6` | Hover auf Secondary            |
+| `secondary-foreground` | `#ffffff` | `#ffffff` | Text auf Secondary-Hintergrund |
 
 #### Accent (Amber)
 
-| Token                    | Light       | Dark        | Verwendung                        |
-| ------------------------ | ----------- | ----------- | --------------------------------- |
-| `accent`                 | `#F59E0B`   | `#FBBF24`   | Highlights, Tags, Badges          |
-| `accent-foreground`      | `#1A1A1A`   | `#1A1A1A`   | Text auf Accent-Hintergrund       |
+| Token               | Light     | Dark      | Verwendung                  |
+| ------------------- | --------- | --------- | --------------------------- |
+| `accent`            | `#F59E0B` | `#FBBF24` | Highlights, Tags, Badges    |
+| `accent-foreground` | `#1A1A1A` | `#1A1A1A` | Text auf Accent-Hintergrund |
 
 #### Backgrounds & Surfaces
 
-| Token                    | Light       | Dark        | Verwendung                        |
-| ------------------------ | ----------- | ----------- | --------------------------------- |
-| `background`             | `#FFFFFF`   | `#121212`   | Seitenhintergrund                 |
-| `surface`                | `#F8F8F8`   | `#1E1E1E`   | Cards, Panels                     |
-| `surface-raised`         | `#F0F0F0`   | `#252525`   | Elevated Cards, Modals            |
-| `header`                 | `#F8F8F8`   | `#1E1E1E`   | Header-Hintergrund (legacy alias) |
+| Token            | Light     | Dark      | Verwendung                        |
+| ---------------- | --------- | --------- | --------------------------------- |
+| `background`     | `#FFFFFF` | `#121212` | Seitenhintergrund                 |
+| `surface`        | `#F8F8F8` | `#1E1E1E` | Cards, Panels                     |
+| `surface-raised` | `#F0F0F0` | `#252525` | Elevated Cards, Modals            |
+| `header`         | `#F8F8F8` | `#1E1E1E` | Header-Hintergrund (legacy alias) |
 
 #### Text
 
-| Token                    | Light       | Dark        | Verwendung                        |
-| ------------------------ | ----------- | ----------- | --------------------------------- |
-| `foreground` / `text`    | `#1A1A1A`   | `#EDEDED`   | Primärer Fließtext                |
-| `muted-foreground`       | `#6B6B6B`   | `#9E9E9E`   | Sekundärer Text, Platzhalter      |
+| Token                 | Light     | Dark      | Verwendung                   |
+| --------------------- | --------- | --------- | ---------------------------- |
+| `foreground` / `text` | `#1A1A1A` | `#EDEDED` | Primärer Fließtext           |
+| `muted-foreground`    | `#6B6B6B` | `#9E9E9E` | Sekundärer Text, Platzhalter |
 
 #### Border
 
-| Token                    | Light       | Dark        | Verwendung                        |
-| ------------------------ | ----------- | ----------- | --------------------------------- |
-| `border`                 | `#E5E5E5`   | `#333333`   | Standard-Trennlinien              |
-| `border-strong`          | `#CCCCCC`   | `#444444`   | Betonte Rahmen                    |
+| Token           | Light     | Dark      | Verwendung           |
+| --------------- | --------- | --------- | -------------------- |
+| `border`        | `#E5E5E5` | `#333333` | Standard-Trennlinien |
+| `border-strong` | `#CCCCCC` | `#444444` | Betonte Rahmen       |
 
 #### Feedback
 
-| Token               | Light       | Dark        |
-| ------------------- | ----------- | ----------- |
-| `success`           | `#16A34A`   | `#4ADE80`   |
-| `warning`           | `#D97706`   | `#FBBF24`   |
-| `error`             | `#DC2626`   | `#F87171`   |
-| `info`              | `#2563EB`   | `#60A5FA`   |
+| Token     | Light     | Dark      |
+| --------- | --------- | --------- |
+| `success` | `#16A34A` | `#4ADE80` |
+| `warning` | `#D97706` | `#FBBF24` |
+| `error`   | `#DC2626` | `#F87171` |
+| `info`    | `#2563EB` | `#60A5FA` |
 
 Jeder Feedback-Token hat einen passenden `*-foreground`-Token für Text auf dem jeweiligen Hintergrund.
 
@@ -417,6 +444,18 @@ className="[text-shadow:0_0_10px_rgba(194,24,91,0.25)]"        // Light
 
 > **Hinweis:** Für `drop-shadow` und `text-shadow` müssen die RGBA-Werte der Primary-Farbe hardcoded werden (`194,24,91` für Light, `240,98,146` für Dark), da Tailwind diese nicht automatisch interpoliert.
 
+## Deployment (Coolify)
+
+- Deployment via **Docker Compose** auf Coolify (`docker-compose.yml` im Repo-Root; **nicht Vercel**)
+- Services: `app` (Next.js Standalone-Build) + `postgres` (`postgres:17-alpine`)
+- Published Host-Port: `${APP_PORT:-3300}:3000` – `APP_PORT=3300` in Coolify setzen (Port-Konflikte mit anderen Stacks vermeiden)
+- Domain `https://mosthi.de` in Coolify dem Service `app` zuweisen (`docker_compose_domains`); der Coolify-Proxy (Traefik) routet über den **published Host-Port**, nicht über das Compose-Network
+- **KEIN `networks:`-Block** ergänzen: alle Services hängen am impliziten Projekt-Default-Netz (pro Coolify-Projekt isoliert; DNS-Aliase wie `postgres` kollidieren sonst mit fremden Stacks)
+- Env setzen (siehe `.env.example`): `DATABASE_URL`, `DATABASE_TYPE=postgresql`, `PAYLOAD_SECRET`, `APP_PORT`, `POSTGRES_PASSWORD`
+- Healthcheck: Docker `HEALTHCHECK` im Image trifft `/api/health` (force-dynamic, `{status:'ok'}`)
+- Media-Uploads (Payload `media`) landen in `/app/public/media` und persistieren im Named Volume `media-data` (überleben Re-Deploys)
+- Compose-Header im Repo dokumentiert den genauen Coolify-Setup-Ablauf (Resource anlegen, Compose-File angeben, Env, Domain, No-Networks-Regel)
+
 ## Workflow-Regeln
 
 1. **Nach jeder Dateiänderung** `npm run lint:fix` ausführen.
@@ -424,12 +463,12 @@ className="[text-shadow:0_0_10px_rgba(194,24,91,0.25)]"        // Light
 3. **Keine `eslint-disable`-Kommentare** – Code stattdessen korrigieren.
 4. Nach Payload-Schema-Änderungen `npm run generate:types` ausführen.
 5. Pfad-Aliase (`@/*`) für Imports bevorzugen.
-6. **Vor jedem Commit** CLAUDE.md aktualisieren (siehe [CLAUDE.md-Pflege](#claudemd-pflege)).
+6. **Vor jedem Commit** AGENTS.md aktualisieren (siehe [AGENTS.md-Pflege](#agentsmd-pflege)).
 7. **Nach jedem Commit** einen Pull Request öffnen, sofern für den aktuellen Branch noch keiner existiert (`gh pr create`).
 8. TypeScript nach Änderungen validieren: `tsc --noEmit`.
 9. Nach Komponenten-Änderungen Import Map neu generieren: `payload generate:importmap`.
 
-## CLAUDE.md-Pflege
+## AGENTS.md-Pflege
 
 Vor jedem Commit wird diese Datei auf Aktualität geprüft und bei Bedarf ergänzt. Ziel ist kontinuierliche Verbesserung der Verhaltensregeln, damit bekannte Fehler nicht erneut auftreten.
 
@@ -444,9 +483,9 @@ Vor jedem Commit wird diese Datei auf Aktualität geprüft und bei Bedarf ergän
 
 1. Vor dem Commit: Rückblick auf die gemachten Änderungen
 2. Fehler oder Lernpunkte aus der Session identifizieren
-3. Relevante Abschnitte in CLAUDE.md ergänzen oder korrigieren
+3. Relevante Abschnitte in AGENTS.md ergänzen oder korrigieren
 4. Veraltete oder falsche Regeln entfernen
-5. CLAUDE.md in denselben Commit aufnehmen (`git add CLAUDE.md`)
+5. AGENTS.md in denselben Commit aufnehmen (`git add AGENTS.md`)
 
 ### Gelernte Fehler (laufend ergänzt)
 
