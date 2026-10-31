@@ -5,10 +5,17 @@ import configPromise from '@payload-config';
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const payload = await getPayload({ config: configPromise });
 
-  const result = await payload.find({
-    collection: 'pages',
-    limit: 1000,
-  });
+  let result;
+  try {
+    result = await payload.find({
+      collection: 'pages',
+      limit: 1000,
+    });
+  } catch {
+    // DB not reachable/migrated yet (z. B. Build-Prerender auf frischem Volume):
+    // Sitemap mit leerer Seite-Einliste ausgeben statt Build zu brechen.
+    return [];
+  }
 
   const baseUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000';
   const locales = ['en', 'de'];
