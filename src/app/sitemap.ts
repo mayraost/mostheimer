@@ -2,8 +2,19 @@ import type { MetadataRoute } from 'next';
 import { getPayload } from 'payload';
 import configPromise from '@payload-config';
 
+// Die Sitemap liest Seiten aus der DB; DB-Verbindung existiert erst zur Laufzeit.
+// Deshalb dynamisch rendern statt zur Build-Zeit prerendernder Versuch.
+export const dynamic = 'force-dynamic';
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const payload = await getPayload({ config: configPromise });
+  let payload;
+  try {
+    payload = await getPayload({ config: configPromise });
+  } catch {
+    // DB not reachable/migrated yet (z. B. Build-Prerender auf frischem Volume):
+    // Sitemap mit leerer Seitenliste ausgeben statt Build zu brechen.
+    return [];
+  }
 
   let result;
   try {
@@ -13,7 +24,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
   } catch {
     // DB not reachable/migrated yet (z. B. Build-Prerender auf frischem Volume):
-    // Sitemap mit leerer Seite-Einliste ausgeben statt Build zu brechen.
+    // Sitemap mit leerer Seitenliste ausgeben statt Build zu brechen.
     return [];
   }
 
