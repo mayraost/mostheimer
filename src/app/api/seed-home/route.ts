@@ -3,13 +3,22 @@ import { getPayload } from 'payload';
 
 export const maxDuration = 60;
 
-export async function GET() {
+export async function GET(req: Request) {
   const payload = await getPayload({ config: configPromise });
+
+  // Seed-Route darf nur mit gültiger (Admin-)Session genutzt werden:
+  // unauthentifiziert wäre die Route öffentlich missbrauchbar (Seed-Spam).
+  const { user } = await payload.auth({ headers: req.headers });
+  if (!user) {
+    return Response.json({ error: 'Unauthorized: admin session required' }, { status: 401 });
+  }
 
   try {
     // Check if the home page already exists
     const existingPages = await payload.find({
       collection: 'pages',
+      user,
+      overrideAccess: false,
       where: {
         slug: {
           equals: 'home',
@@ -21,12 +30,16 @@ export async function GET() {
       await payload.delete({
         collection: 'pages',
         id: existingPages.docs[0].id,
+        user,
+        overrideAccess: false,
       });
     }
 
     // Create the Home page in English
     const page = await payload.create({
       collection: 'pages',
+      user,
+      overrideAccess: false,
       locale: 'en',
       data: {
         title: 'Home',
@@ -86,6 +99,8 @@ export async function GET() {
     await payload.update({
       collection: 'pages',
       id: page.id,
+      user,
+      overrideAccess: false,
       locale: 'de',
       data: {
         title: 'Startseite',
