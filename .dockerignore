@@ -6,3 +6,17 @@ node_modules
 *.sqlite3-wal
 .env
 .env.*
+# Build-Kontext verschlanken: nur fuer Tests/Tooling, nicht fuer next build benoetigt
+tests
+docs
+.github
+*.test.*
+vitest.config.mts
+vitest.setup.ts
+playwright.config.ts
+eslint.config.mjs
+AGENTS.md
+README.md
+.prettierrc
+.mcp.json
+.nvm
