@@ -1,0 +1,91 @@
+import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres';
+
+export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
+  await db.execute(sql`
+   CREATE TYPE "public"."enum_pages_status" AS ENUM('draft', 'published');
+  CREATE TYPE "public"."enum__pages_v_published_locale" AS ENUM('en', 'de');
+  CREATE TYPE "public"."enum__pages_v_version_status" AS ENUM('draft', 'published');
+  ALTER TABLE "pages_blocks_bento_grid_items" ALTER COLUMN "title" DROP NOT NULL;
+  ALTER TABLE "pages_blocks_call_to_action" ALTER COLUMN "heading" DROP NOT NULL;
+  ALTER TABLE "pages_blocks_feature_grid_features" ALTER COLUMN "title" DROP NOT NULL;
+  ALTER TABLE "pages_blocks_hero" ALTER COLUMN "heading" DROP NOT NULL;
+  ALTER TABLE "pages_blocks_image_text" ALTER COLUMN "image_id" DROP NOT NULL;
+  ALTER TABLE "pages_blocks_rich_text" ALTER COLUMN "content" DROP NOT NULL;
+  ALTER TABLE "pages_blocks_status_block_network_topics" ALTER COLUMN "topic" DROP NOT NULL;
+  ALTER TABLE "pages_blocks_status_block" ALTER COLUMN "title" DROP NOT NULL;
+  ALTER TABLE "pages_blocks_status_block" ALTER COLUMN "description" DROP NOT NULL;
+  ALTER TABLE "pages_blocks_tech_section_key_facts" ALTER COLUMN "label" DROP NOT NULL;
+  ALTER TABLE "pages_blocks_tech_section_key_facts" ALTER COLUMN "value" DROP NOT NULL;
+  ALTER TABLE "pages_blocks_tech_section" ALTER COLUMN "heading" DROP NOT NULL;
+  ALTER TABLE "pages_blocks_tech_section" ALTER COLUMN "body" DROP NOT NULL;
+  ALTER TABLE "pages" ALTER COLUMN "slug" DROP NOT NULL;
+  ALTER TABLE "pages_locales" ALTER COLUMN "title" DROP NOT NULL;
+  ALTER TABLE "_pages_v_blocks_bento_grid_items" ALTER COLUMN "title" DROP NOT NULL;
+  ALTER TABLE "_pages_v_blocks_call_to_action" ALTER COLUMN "heading" DROP NOT NULL;
+  ALTER TABLE "_pages_v_blocks_feature_grid_features" ALTER COLUMN "title" DROP NOT NULL;
+  ALTER TABLE "_pages_v_blocks_hero" ALTER COLUMN "heading" DROP NOT NULL;
+  ALTER TABLE "_pages_v_blocks_image_text" ALTER COLUMN "image_id" DROP NOT NULL;
+  ALTER TABLE "_pages_v_blocks_rich_text" ALTER COLUMN "content" DROP NOT NULL;
+  ALTER TABLE "_pages_v_blocks_status_block_network_topics" ALTER COLUMN "topic" DROP NOT NULL;
+  ALTER TABLE "_pages_v_blocks_status_block" ALTER COLUMN "title" DROP NOT NULL;
+  ALTER TABLE "_pages_v_blocks_status_block" ALTER COLUMN "description" DROP NOT NULL;
+  ALTER TABLE "_pages_v_blocks_tech_section_key_facts" ALTER COLUMN "label" DROP NOT NULL;
+  ALTER TABLE "_pages_v_blocks_tech_section_key_facts" ALTER COLUMN "value" DROP NOT NULL;
+  ALTER TABLE "_pages_v_blocks_tech_section" ALTER COLUMN "heading" DROP NOT NULL;
+  ALTER TABLE "_pages_v_blocks_tech_section" ALTER COLUMN "body" DROP NOT NULL;
+  ALTER TABLE "_pages_v" ALTER COLUMN "version_slug" DROP NOT NULL;
+  ALTER TABLE "_pages_v_locales" ALTER COLUMN "version_title" DROP NOT NULL;
+  ALTER TABLE "pages_locales" ADD COLUMN "_status" "enum_pages_status" DEFAULT 'draft';
+  ALTER TABLE "_pages_v" ADD COLUMN "published_locale" "enum__pages_v_published_locale";
+  ALTER TABLE "_pages_v" ADD COLUMN "latest" boolean;
+  ALTER TABLE "_pages_v_locales" ADD COLUMN "version__status" "enum__pages_v_version_status" DEFAULT 'draft';
+  CREATE INDEX "pages__status_idx" ON "pages_locales" USING btree ("_status","_locale");
+  CREATE INDEX "_pages_v_published_locale_idx" ON "_pages_v" USING btree ("published_locale");
+  CREATE INDEX "_pages_v_latest_idx" ON "_pages_v" USING btree ("latest");
+  CREATE INDEX "_pages_v_version_version__status_idx" ON "_pages_v_locales" USING btree ("version__status","_locale");`);
+}
+
+export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
+  await db.execute(sql`
+   DROP INDEX "pages__status_idx";
+  DROP INDEX "_pages_v_published_locale_idx";
+  DROP INDEX "_pages_v_latest_idx";
+  DROP INDEX "_pages_v_version_version__status_idx";
+  ALTER TABLE "pages_blocks_bento_grid_items" ALTER COLUMN "title" SET NOT NULL;
+  ALTER TABLE "pages_blocks_call_to_action" ALTER COLUMN "heading" SET NOT NULL;
+  ALTER TABLE "pages_blocks_feature_grid_features" ALTER COLUMN "title" SET NOT NULL;
+  ALTER TABLE "pages_blocks_hero" ALTER COLUMN "heading" SET NOT NULL;
+  ALTER TABLE "pages_blocks_image_text" ALTER COLUMN "image_id" SET NOT NULL;
+  ALTER TABLE "pages_blocks_rich_text" ALTER COLUMN "content" SET NOT NULL;
+  ALTER TABLE "pages_blocks_status_block_network_topics" ALTER COLUMN "topic" SET NOT NULL;
+  ALTER TABLE "pages_blocks_status_block" ALTER COLUMN "title" SET NOT NULL;
+  ALTER TABLE "pages_blocks_status_block" ALTER COLUMN "description" SET NOT NULL;
+  ALTER TABLE "pages_blocks_tech_section_key_facts" ALTER COLUMN "label" SET NOT NULL;
+  ALTER TABLE "pages_blocks_tech_section_key_facts" ALTER COLUMN "value" SET NOT NULL;
+  ALTER TABLE "pages_blocks_tech_section" ALTER COLUMN "heading" SET NOT NULL;
+  ALTER TABLE "pages_blocks_tech_section" ALTER COLUMN "body" SET NOT NULL;
+  ALTER TABLE "pages" ALTER COLUMN "slug" SET NOT NULL;
+  ALTER TABLE "pages_locales" ALTER COLUMN "title" SET NOT NULL;
+  ALTER TABLE "_pages_v_blocks_bento_grid_items" ALTER COLUMN "title" SET NOT NULL;
+  ALTER TABLE "_pages_v_blocks_call_to_action" ALTER COLUMN "heading" SET NOT NULL;
+  ALTER TABLE "_pages_v_blocks_feature_grid_features" ALTER COLUMN "title" SET NOT NULL;
+  ALTER TABLE "_pages_v_blocks_hero" ALTER COLUMN "heading" SET NOT NULL;
+  ALTER TABLE "_pages_v_blocks_image_text" ALTER COLUMN "image_id" SET NOT NULL;
+  ALTER TABLE "_pages_v_blocks_rich_text" ALTER COLUMN "content" SET NOT NULL;
+  ALTER TABLE "_pages_v_blocks_status_block_network_topics" ALTER COLUMN "topic" SET NOT NULL;
+  ALTER TABLE "_pages_v_blocks_status_block" ALTER COLUMN "title" SET NOT NULL;
+  ALTER TABLE "_pages_v_blocks_status_block" ALTER COLUMN "description" SET NOT NULL;
+  ALTER TABLE "_pages_v_blocks_tech_section_key_facts" ALTER COLUMN "label" SET NOT NULL;
+  ALTER TABLE "_pages_v_blocks_tech_section_key_facts" ALTER COLUMN "value" SET NOT NULL;
+  ALTER TABLE "_pages_v_blocks_tech_section" ALTER COLUMN "heading" SET NOT NULL;
+  ALTER TABLE "_pages_v_blocks_tech_section" ALTER COLUMN "body" SET NOT NULL;
+  ALTER TABLE "_pages_v" ALTER COLUMN "version_slug" SET NOT NULL;
+  ALTER TABLE "_pages_v_locales" ALTER COLUMN "version_title" SET NOT NULL;
+  ALTER TABLE "pages_locales" DROP COLUMN "_status";
+  ALTER TABLE "_pages_v" DROP COLUMN "published_locale";
+  ALTER TABLE "_pages_v" DROP COLUMN "latest";
+  ALTER TABLE "_pages_v_locales" DROP COLUMN "version__status";
+  DROP TYPE "public"."enum_pages_status";
+  DROP TYPE "public"."enum__pages_v_published_locale";
+  DROP TYPE "public"."enum__pages_v_version_status";`);
+}
