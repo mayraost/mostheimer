@@ -65,6 +65,6 @@
     "npm": "^11"
   },
   "overrides": {
-    "dompurify": "dompurify@3.4.17"
+    "dompurify": "3.4.17"
   }
 }
