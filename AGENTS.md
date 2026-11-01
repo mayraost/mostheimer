@@ -14,7 +14,7 @@
 | Datenbank    | SQLite (Standard, `file:./payload.db`), PostgreSQL (Produktion via Compose) |
 | Styling      | Tailwind CSS v4                                                             |
 | Icons        | Lucide React                                                                |
-| Node-Version | >= 24 (engine in `package.json`), npm ^11                                   |
+| Node-Version | >= 26 (engine in `package.json`), npm ^11                                   |
 
 ## Befehle
 

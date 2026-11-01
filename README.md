@@ -11,7 +11,7 @@
 | Datenbank | SQLite (Entwicklung), PostgreSQL (Produktion)   |
 | Styling   | Tailwind CSS v4, lucide-react                   |
 | Sprache   | TypeScript 5 (strict), React 19.3               |
-| Runtime   | Node >= 24 (engine in package.json), npm ^11    |
+| Runtime   | Node >= 26 (engine in package.json), npm ^11    |
 
 ## Quickstart
 
