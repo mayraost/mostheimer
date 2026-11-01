@@ -15,8 +15,11 @@
 #    App-Env (postgresql://<user>:<pw>@coolify-postgres:5432/<db>; Service-
 #    Name coolify-postgres im Netz coolify-postgres-net). Compose-environment
 #    würde App-Envs überschreiben, deshalb fehlt sie hier bewusst.
-# 7. PAYLOAD_SECRET kommt als Coolify-App-Env und wird via ${PAYLOAD_SECRET:?}
-#    beim Compose-Render in den Container injiziert (wie bisher).
+# 7. PAYLOAD_SECRET kommt als Coolify-App-Env direkt in den Container – KEINE
+#    ${PAYLOAD_SECRET:?}-Referenz im Compose: Coolify injiziert App-/Compose-Envs
+#    zusätzlich als Build-ARGs, wodurch der Wert im docker history des Images
+#    lesbar war (Leak, rotiert 01.11.2026). Runtime-Injektion über App-Env
+#    reicht (gleiches Pattern wie DATABASE_URL oben).
 # 8. Payload-Media-Uploads landen in /app/public/media und persistieren
 #    im Volume media-data (überleben Re-Deploys).
 
@@ -26,8 +29,6 @@ services:
     restart: unless-stopped
     mem_limit: 512m
     environment:
-      PAYLOAD_SECRET: ${PAYLOAD_SECRET:?}
-      DATABASE_TYPE: postgresql
       PORT: 3000
       HOSTNAME: 0.0.0.0
     networks:

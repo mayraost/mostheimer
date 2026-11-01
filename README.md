@@ -4,24 +4,39 @@
 
 ## Tech Stack
 
-| Kategorie | Technologie                                     |
-| --------- | ----------------------------------------------- |
-| Framework | Next.js 16.4.3 (stable) – App Router, Turbopack |
-| CMS       | Payload CMS 4.0.0-beta.6, Lexical Rich Text     |
-| Datenbank | SQLite (Entwicklung), PostgreSQL (Produktion)   |
-| Styling   | Tailwind CSS v4, lucide-react                   |
-| Sprache   | TypeScript 5 (strict), React 19.3               |
-| Runtime   | Node >= 26 (engine in package.json), npm ^11    |
+| Kategorie | Technologie                                                |
+| --------- | ---------------------------------------------------------- |
+| Framework | Next.js 16.4.3 (stable) – App Router, Turbopack            |
+| CMS       | Payload CMS 4.0.0-beta.6, Lexical Rich Text                |
+| Datenbank | PostgreSQL (zentrale, geteilte `coolify-postgres`-Instanz) |
+| Styling   | Tailwind CSS v4, lucide-react                              |
+| Sprache   | TypeScript 5 (strict), React 19.3                          |
+| Runtime   | Node >= 26 (engine in package.json), npm ^11               |
 
 ## Quickstart
 
 ```bash
 npm install
-cp .env.example .env   # Variablen anpassen: PAYLOAD_SECRET, DATABASE_URL, DATABASE_TYPE
+cp .env.example .env   # Variablen anpassen: PAYLOAD_SECRET, DATABASE_URL
 npm run dev            # Entwicklungsserver: http://localhost:3000 (Admin: /admin)
 ```
 
-`.env.example` als Ausgangspunkt verwenden: `PAYLOAD_SECRET`, `DATABASE_URL` (Entwicklung: sqlite `file:./payload.db`), `DATABASE_TYPE`.
+### Datenbank
+
+Das Projekt nutzt die zentrale, geteilte Postgres-Instanz (**coolify-postgres**) –
+lokal für die Entwicklung (`~/workspace/coolify-postgres`, Container
+`coolify-postgres`, gebunden an `127.0.0.1:5432`) und auf dem Coolify-Host für die
+Produktion. Pro Projekt existieren dort eigener User und eigene Datenbank:
+
+```text
+DATABASE_URL=postgresql://mostheimer:<passwort>@127.0.0.1:5432/mostheimer
+```
+
+Das Passwort wird in der **gitignored** `.env` gepflegt – nie ins Repo commiten.
+Läuft die Instanz nicht, liegt diese in `~/workspace/coolify-postgres` und wird
+dort mit `docker compose up -d` gestartet. Schemaänderungen laufen ausschliesslich
+über Payload-Migrationen (`npx payload migrate:create <name>` + `npx payload
+migrate`), ein Dev-Schema-Push ist deaktiviert (`push: false`).
 
 Nach Änderungen am Payload-Schema (`src/cms/`) die Typescript-Typen neu generieren:
 
@@ -39,10 +54,7 @@ Test-Suiten liegen in `tests/` (Playwright E2E in `tests/e2e`, Integrationstests
 
 ## Deployment (Coolify)
 
-Deployment erfolgt via **Docker Compose** auf [Coolify](https://coolify.io) – **nicht Vercel**. Die `docker-compose.yml` im Repo-Root definiert zwei Services:
-
-- `app` – Next.js Standalone-Produktionsbuild (Docker `HEALTHCHECK` trifft `/api/health`)
-- `postgres` – PostgreSQL 17 (`postgres:17-alpine`) mit persistentem Volume
+Deployment erfolgt via **Docker Compose** auf [Coolify](https://coolify.io) – **nicht Vercel**. Die `docker-compose.yml` im Repo-Root definiert nur den `app`-Service (Next.js Standalone-Produktionsbuild, Docker `HEALTHCHECK` trifft `/api/health`). Die Datenbank ist die zentrale, geteilte `coolify-postgres`-Instanz auf dem Coolify-Host (externes `coolify-postgres-net` im Compose, Hostname `coolify-postgres:5432` via `DATABASE_URL` als Coolify-App-Env).
 
 Ablauf (Details im Header der `docker-compose.yml`):
 

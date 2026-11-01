@@ -1,10 +1,8 @@
-import { getPayload } from 'payload';
-import configPromise from '@payload-config';
 import { headers } from 'next/headers';
 import Link from 'next/link';
+import { getCachedNotFound } from '@/cms/cache/frontend/frontendCache';
 
 export default async function NotFound() {
-  const payload = await getPayload({ config: configPromise });
   const headersList = await headers();
   const acceptLanguage = headersList.get('accept-language');
   const referer = headersList.get('referer');
@@ -15,10 +13,7 @@ export default async function NotFound() {
 
   const locale = isDe ? 'de' : 'en';
 
-  const notFoundData = await payload.findGlobal({
-    slug: 'not-found',
-    locale,
-  });
+  const notFoundData = await getCachedNotFound(locale);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[50vh] text-center w-full px-4">

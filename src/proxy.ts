@@ -21,7 +21,16 @@ export function proxy(request: NextRequest) {
     (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`,
   );
 
-  if (pathnameHasLocale) return NextResponse.next();
+  if (pathnameHasLocale) {
+    // x-pathname-Fwd: macht den Pfad im [locale]-Layout lesbar (layouts
+    // koennen sonst keine pathname auslesen). Wird vom NotFoundGate
+    // benutzt, um unbekannte Slugs VOR dem ersten HTTP-Header-Flush
+    // (Layout-Skeleton-Suspense) mit echtem HTTP-404 zu beantworten
+    // (siehe [locale]/layout.tsx).
+    const headers = new Headers(request.headers);
+    headers.set('x-pathname', pathname);
+    return NextResponse.next({ request: { headers } });
+  }
 
   // Redirect if there is no locale
   const acceptLanguage = request.headers.get('accept-language');

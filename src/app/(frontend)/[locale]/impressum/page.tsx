@@ -1,6 +1,11 @@
 import type { Metadata } from 'next';
 import { envConfig } from '@/envConfig';
 
+// Locales build-statisch (kein DB-Lookup) — Root-Param-Pflicht am Build.
+export function generateStaticParams() {
+  return ['en', 'de'].map((locale) => ({ locale }));
+}
+
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = envConfig.serverUrl;
   return {
