@@ -1,5 +1,6 @@
 import React from 'react';
 import Image from 'next/image';
+import { RichText as LexicalRichText } from '@payloadcms/richtext-lexical/react';
 import type { Page, Media } from '@/payload-types';
 
 type ImageTextBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'imageText' }>;
@@ -25,9 +26,11 @@ export function ImageTextBlock({ block }: { block: ImageTextBlockData }) {
       <div className={`flex-1 ${isImageRight ? 'md:order-1' : 'md:order-2'}`}>
         <h2 className="text-3xl lg:text-5xl font-averia font-bold mb-6">{block.heading}</h2>
         {block.text && (
-          <div
+          // Lexical-Renderer (kein dangerouslySetInnerHTML — Stored-XSS-Fix);
+          // Typo-Klassen wie vor dem Fix, als RichText-Wrapper uebernommen.
+          <LexicalRichText
+            data={block.text}
             className="text-lg opacity-80 font-geist-mono leading-relaxed"
-            dangerouslySetInnerHTML={{ __html: JSON.stringify(block.text, null, 2) }}
           />
         )}
       </div>
