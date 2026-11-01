@@ -7,6 +7,12 @@ export const SiteSettings: GlobalConfig = {
   },
   fields: [
     {
+      name: 'maintenanceMode',
+      type: 'checkbox',
+      label: 'Wartungsmodus aktiv',
+      defaultValue: false,
+    },
+    {
       name: 'siteName',
       type: 'text',
       defaultValue: 'Mostheimer',

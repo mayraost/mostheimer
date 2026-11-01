@@ -8,6 +8,7 @@ import { TranslationsProvider } from '@/components/TranslationsProvider';
 import { getPayload } from 'payload';
 import { envConfig } from '@/envConfig';
 import configPromise from '@payload-config';
+import { MaintenanceScreen } from '@/components/MaintenanceScreen';
 
 const averia = Averia_Serif_Libre({
   weight: ['300', '400', '700'],
@@ -31,6 +32,24 @@ export default async function RootLayout({ children, params }: LayoutProps<'/[lo
   const locale = (resolvedParams.locale as 'en' | 'de') || 'en';
 
   const payload = await getPayload({ config: configPromise });
+
+  const siteSettings = await payload.findGlobal({
+    slug: 'site-settings',
+    locale,
+    depth: 0,
+  });
+
+  // Wartungsmodus: Komplett-Screen ohne Header/Footer/Inhalt auf jeder Seite
+  if (siteSettings.maintenanceMode) {
+    return (
+      <html lang={locale}>
+        <body className={`${averia.variable} ${geistMono.variable} antialiased`}>
+          <MaintenanceScreen locale={locale} />
+        </body>
+      </html>
+    );
+  }
+
   const translations = await payload.findGlobal({
     slug: 'translations',
     locale,
