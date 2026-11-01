@@ -63,5 +63,8 @@
   "engines": {
     "node": ">=24",
     "npm": "^11"
+  },
+  "overrides": {
+    "dompurify": "dompurify@3.4.17"
   }
 }
