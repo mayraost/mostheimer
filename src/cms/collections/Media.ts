@@ -1,4 +1,5 @@
 import type { CollectionConfig } from 'payload';
+import { revalidateAllFrontendCmsCaches } from '../cache/frontend/frontendCache';
 
 export const Media: CollectionConfig = {
   slug: 'media',
@@ -9,6 +10,12 @@ export const Media: CollectionConfig = {
   },
   access: {
     read: () => true,
+  },
+  hooks: {
+    // Media wird in Blocks/Globals (OG-Image) referenziert — hier ist der
+    // Ziel-Cache nicht punktgenau ableitbar, deshalb breiter Flush.
+    afterChange: [() => revalidateAllFrontendCmsCaches()],
+    afterDelete: [() => revalidateAllFrontendCmsCaches()],
   },
   fields: [
     {

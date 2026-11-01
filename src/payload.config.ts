@@ -25,6 +25,20 @@ export default buildConfig({
     importMap: {
       baseDir: path.resolve(dirname),
     },
+    components: {
+      views: {
+        'cache-clear': {
+          // Manuelles Cache-Flush-Panel (Server Action clearAllFrontendCaches)
+          Component: { path: '/cms/admin/views/CacheClearView' },
+          path: '/cache-clear',
+          meta: {
+            title: 'Cache leeren',
+            description: 'Alle Frontend-CMS-Caches manuell invalidieren',
+          },
+        },
+      },
+      actions: ['/cms/admin/components/CacheClearNavLink'],
+    },
   },
   collections: [Users, Media, Pages],
   globals: [Navigation, NotFound, SiteSettings, Translations],

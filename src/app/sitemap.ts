@@ -1,31 +1,20 @@
 import type { MetadataRoute } from 'next';
-import { getPayload } from 'payload';
-import configPromise from '@payload-config';
+import { connection } from 'next/server';
 import { envConfig } from '@/envConfig';
+import { getCachedAllPages } from '@/cms/cache/frontend/frontendCache';
 
-// Die Sitemap liest Seiten aus der DB; DB-Verbindung existiert erst zur Laufzeit.
-// Deshalb dynamisch rendern statt zur Build-Zeit prerendernder Versuch.
-export const dynamic = 'force-dynamic';
-
+// Die Sitemap liest Seiten aus der DB; DB-Verbindung existiert erst zur
+// Laufzeit (Coolify-Docker-Build ohne DB). connection() bricht den Build-
+// Prerender-Versuch ab — so landet kein leerer DB-Fallback als Cache-Eintrag.
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  let payload;
-  try {
-    payload = await getPayload({ config: configPromise });
-  } catch {
-    // DB not reachable/migrated yet (z. B. Build-Prerender auf frischem Volume):
-    // Sitemap mit leerer Seitenliste ausgeben statt Build zu brechen.
-    return [];
-  }
+  await connection();
 
-  let result;
+  let docs;
   try {
-    result = await payload.find({
-      collection: 'pages',
-      limit: 1000,
-    });
+    docs = await getCachedAllPages();
   } catch {
-    // DB not reachable/migrated yet (z. B. Build-Prerender auf frischem Volume):
-    // Sitemap mit leerer Seitenliste ausgeben statt Build zu brechen.
+    // DB not reachable/migrated yet (z. B. erster Request auf frischem Volume):
+    // Sitemap mit leerer Seitenliste ausgeben statt Request zu brechen.
     return [];
   }
 
@@ -34,7 +23,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const sitemapEntries: MetadataRoute.Sitemap = [];
 
-  result.docs.forEach((page) => {
+  docs.forEach((page) => {
     locales.forEach((locale) => {
       const slugPath = page.slug === 'home' ? '' : `/${page.slug}`;
       sitemapEntries.push({

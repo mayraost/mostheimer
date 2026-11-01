@@ -1,4 +1,5 @@
 import { GlobalConfig } from 'payload';
+import { revalidateTranslationsCache } from '../cache/frontend/frontendCache';
 
 export const Translations: GlobalConfig = {
   slug: 'translations',
@@ -7,6 +8,9 @@ export const Translations: GlobalConfig = {
   },
   access: {
     read: () => true,
+  },
+  hooks: {
+    afterChange: [() => revalidateTranslationsCache()],
   },
   fields: [
     {

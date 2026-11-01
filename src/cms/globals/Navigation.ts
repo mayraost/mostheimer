@@ -1,9 +1,13 @@
 import type { GlobalConfig } from 'payload';
+import { revalidateNavigationCache } from '../cache/frontend/frontendCache';
 
 export const Navigation: GlobalConfig = {
   slug: 'navigation',
   access: {
     read: () => true,
+  },
+  hooks: {
+    afterChange: [() => revalidateNavigationCache()],
   },
   fields: [
     {

@@ -1,9 +1,15 @@
 import type { GlobalConfig } from 'payload';
+import { revalidateSiteSettingsCache } from '../cache/frontend/frontendCache';
 
 export const SiteSettings: GlobalConfig = {
   slug: 'site-settings',
   access: {
     read: () => true,
+  },
+  hooks: {
+    // Wartungsmodus & Branding wirken auf ALLE Seiten, aber der Cache-
+    // Einstieg ist der SiteSettings-Global-Tag (breit genug, da Layout).
+    afterChange: [() => revalidateSiteSettingsCache()],
   },
   fields: [
     {

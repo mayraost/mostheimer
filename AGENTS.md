@@ -57,8 +57,13 @@ src/
     globals.css       # Tailwind CSS v4 Design Tokens & globale Styles
   cms/
     blocks/           # Payload CMS Block-Definitionen (CallToAction, FeatureGrid, Hero, ImageText, RichText)
+    cache/
+      frontend/       # Datencache-Layer: constants/utils/queries/revalidate/clearCaches (Server Action)/frontendCache.ts (Barrel)
     collections/      # Collections: Media, Pages, Users
-    globals/          # Globals: Navigation, SiteSettings, Translations
+    globals/          # Globals: Navigation, SiteSettings, Translations, NotFound
+    admin/
+      views/          # Custom-Admin-Views (CacheClearView: /admin/cache-clear)
+      components/     # Admin-Nav-Components (CacheClearNavLink)
   components/
     blocks/           # Block-Komponenten (CallToActionBlock, FeatureGridBlock, HeroBlock, ImageTextBlock, RichTextBlock, Icon)
     blocks.tsx        # Block-Dispatcher-Komponente
@@ -461,9 +466,45 @@ className="[text-shadow:0_0_10px_rgba(194,24,91,0.25)]"        // Light
 - **Fertig (Stand 31.10.2026):** zentrale `coolify-postgres` live (`DATABASE_URL` Coolify-App-Env); Migration `20261031_224616` per `prodMigrations` auf dem postgres-Adapter (Migrate-on-Connect beim ersten Request) angelaufen; Content nativ (bento/status/tech, hero CTA2, NotFound) aus dem Vercel-DB-Dump importiert; Image 363 MB; `/sitemap.xml` `force-dynamic` (Build-Container erreicht die DB nicht)
 - **Migration-Schema-Snapshots:** `payload migrate:create` diffed gegen die neueste `*.json`-Datei in `src/migrations/` (Fallback: Adapter-Default-Schema) und schreibt pro Migration einen eigenen Snapshot (`<name>.ts` + `<name>.json`). Beide committen — fehlt der Snapshot, generiert `migrate:create` dieselben Diffs erneut (bekannter Fall: SiteSettings-lokalisierte Felder → `site_settings_locales`/`_site_settings_v_locales`, Migration `20261101_103630_fix_site_settings_locales`). Handgeschriebene Migrationen zusätzlich mit Guards (IF NOT EXISTS, FK-Check via pg_constraint, Daten-Kopie vor Spalten-Drop).
 
+## Frontend-Caching (cacheComponents, Stand 01.11.2026)
+
+Erprobt nach `nextjs-payload-caching`-Skill (yogaraum26/scobio2026-Pattern),
+Profil „Docker/Coolify-Build ohne DB":
+
+- `next.config.ts`: `cacheComponents: true`. Öffentliche Routen NICHT prerenderbar
+  (Build-Container erreicht die DB nicht) → dynamische Shell:
+  `await connection()` (aus `next/server`, Next 16) in `LayoutShell`
+  (`[locale]/layout.tsx`) + `<Suspense fallback={LayoutSkeleton}>` — Skeleton
+  statisch, kein Datenbezug.
+- Datenebene: `src/cms/cache/frontend/` — alle Public-Payload-Reads über
+  `'use cache'`-Queries (`cacheTag(CACHE_TAGS.ALL, Domain-Tag, Punkt-Tag)` +
+  `cacheLife({ stale: 3600, revalidate: 604800 })` = 7-Tage-Safety-Net).
+  `draftMode()` KEINS auf Public-Routen. Public Reads: `getCachedPageBySlug`,
+  `getCachedSiteSettings/Translations/Navigation/NotFound`, `getCachedAllPages`
+  (Sitemap). Tag-Schema: `cms:all`, `cms:pages`, `cms:pages:<slug>`, `cms:sitemap`,
+  `cms:global:<slug>`.
+- OSR/Invalidierung: Payload-Hooks flusen via `safeRevalidate(tag, 'max')`
+  (try/catch-Pflicht, sonst unhandled außerhalb Request-Kontext):
+  Pages afterChange/afterDelete → `revalidatePagePathCache` + Slug-Umbenennung
+  → alten Pfad mitinvalidieren; Media → `revalidateAllFrontendCmsCaches`;
+  Globals → je eigener Tag. `revalidateTag(tag, 'max')` — 2-Arg-Form ist in
+  Next 16 verpflichtend (Single-Arg deprecated, TS-Fehler).
+- Sitemap: `connection()` statt `export const dynamic = 'force-dynamic'`
+  (cacheComponents) + gecachte Query; DB-Fallback bleibt (leere Sitemap statt Crash).
+- Manuelles Flush OHNE Publish: Server Action `clearAllFrontendCaches`
+  (`src/cms/cache/frontend/clearCaches.ts`, `'use server'`, Auth-Gate via
+  `payload.auth({ headers: await headers() })`, jede Payload-Collection =
+  berechtigt) + Custom-Admin-View `src/cms/admin/views/CacheClearView.tsx` +
+  Nav-Link `CacheClearNavLink` — registriert in `payload.config.ts`
+  `admin.components` (`views['cache-clear']`, `actions`), Route
+  `/admin/cache-clear`. Server Actions vor API-Routen für Writes
+  (AGENTS-GLOBAL-Regel); API-Route nur für externe Caller (Cron/curl) —
+  nicht nötig, Hooks decken Publish/Unpublish ab.
+
 ## Workflow-Regeln
 
 1. **Nach jeder Dateiänderung** `npm run lint:fix` ausführen.
+
 2. **Kein `any`** – immer konkrete Typen verwenden.
 3. **Keine `eslint-disable`-Kommentare** – Code stattdessen korrigieren.
 4. Nach Payload-Schema-Änderungen `npm run generate:types` ausführen.
@@ -494,9 +535,9 @@ Vor jedem Commit wird diese Datei auf Aktualität geprüft und bei Bedarf ergän
 
 ### Gelernte Fehler (laufend ergänzt)
 
-<!-- Hier werden session-übergreifend Fehler dokumentiert, die nicht erneut gemacht werden sollen -->
-<!-- Format: - **[Kategorie]** Beschreibung des Fehlers → Korrekte Lösung -->
-
+- **[Payload-Admin]** `admin.components.actions`-Einträge sind direkt `CustomComponent` (= `PayloadComponent`; String-Pfad via importMap baseDir oder `{ path }`) — kein `{ Component: '...' }`-Wrapper (TS2353). Custom-Views (`AdminViewConfig`) dagegen WOHL mit `Component`, `path`, `meta`. `@payloadcms/ui`-Button: `buttonStyle="destructive"` (kein `'error'`).
+- **[Cache]** `revalidateTag` in Next 16 verlangt 2-Arg `revalidateTag(tag, 'max')` (Single-Arg deprecated → TS-Fehler); `connection()` kommt aus `next/server` (nicht `react`) und muss inside `Suspense` laufen, sonst blockierende Navigations-Shell (Next-16 cacheComponents).
+- **[TS]** "Cannot find module" auf Barrel: Ursache war das falsche Pfadlevel (`../cache/frontendCache` statt `../cache/frontend/frontendCache`) — zuerst Pfadlevel/Trace-Resolution (`tsc --traceResolution`) prüfen, nicht TS-Config fixen.
 - **[Deployment]** Cloudflared-Tunnel + Traefik `is_force_https_enabled=true` (default) → Redirect-Loop (Tunnel-Ingress trifft Traefik auf :80, wird zu https geforced, Cloudflare ruft wieder http auf … endloser Redirect) → Lösung: `docker_compose_domains` mit `"is_force_https_enabled": false` per PATCH setzen (Tunnel/Cloudflare übernimmt HTTPS-Terminierung).
 - **[Deps/Audit]** Transitive Critical-CVEs (z. B. dompurify 3.4.15 via monaco-editor/@payloadcms/ui) werden von `npm audit fix --package-lock-only` nicht gehoben, wenn der betroffene Range von einer Zwischen-Dep gepinnt ist → Lösung: npm-`overrides`-Block in `package.json` (exakte Version, z. B. `"dompurify": "3.4.17"`) + Lockfile-Regen. Begleitender Rollback der Zwischen-Dep (monaco 0.57.0→0.56.0) ist okay, solange das Audit danach nicht schlechter ist. Lockfile-Regen mit Remote-Tarball-Deps braucht `NPM_CONFIG_ALLOW_REMOTE=all` (npm ≥ 12).
 - **[Payload-V3→V4-Migration]** Deployment ohne `src/migrations` → frisches Postgres-Volume ohne Schema (App-Container bootstrapped die DB nicht). → Lösung: generierte Migrationen committen; frisches Volume über One-Shot-Tooling-Container (`npx payload migrate`) bootstrappen — das CI-Script (`payload migrate && next build`) läuft im Standalone-Image nicht.

@@ -1,9 +1,13 @@
 import type { GlobalConfig } from 'payload';
+import { revalidateNotFoundCache } from '../cache/frontend/frontendCache';
 
 export const NotFound: GlobalConfig = {
   slug: 'not-found',
   access: {
     read: () => true,
+  },
+  hooks: {
+    afterChange: [() => revalidateNotFoundCache()],
   },
   fields: [
     {

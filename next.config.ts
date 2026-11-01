@@ -9,6 +9,12 @@ const nextConfig: NextConfig = {
   // X-Powered-By-Header entfernen
   poweredByHeader: false,
   reactStrictMode: true,
+  // cacheComponents (Next 16): Datenlayer via 'use cache' + cacheTag,
+  // dynamische Shell via connection() — Build-Container (Coolify-Docker)
+  // erreicht die DB nicht, deshalb kein Build-Prerender der Public-Routes;
+  // OSR-Kontrolle laeuft ausschliesslich ueber Payload-Hooks + revalidateTag
+  // (vgl. nextjs-payload-caching-Skill, Profil "Build ohne DB").
+  cacheComponents: true,
   // Hinweis: Der fruehere webpack()-extensionAlias-Block ist in Next 16 obsolet –
   // Turbopack ist Default fuer dev UND build (Payload 4 unterstuetzt Turbopack
   // nativ, siehe Payload-Doku "Enable Turbopack"); der Block wurde nur bei
