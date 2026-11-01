@@ -1,16 +1,16 @@
 # syntax=docker/dockerfile:1
 
-# node:24-alpine statt bookworm-slim: ~100 MB kleineres Basis-Image (musl).
+# node:24.22.2-alpine3.24 statt bookworm-slim: ~100 MB kleineres Basis-Image (musl).
 # Achtung: sharp (0.35) liefert musl-Prebuilds mit -> npm ci zieht im Container
 # automatisch @img/sharp-linuxmusl-*; Build wurde gegen alpine verifiziert.
-FROM node:24-alpine AS deps
+FROM node:24.22.2-alpine3.24 AS deps
 WORKDIR /app
 # Layer-Order: Package-Files zuerst -> node_modules-Layer cacht stabil Builds
 COPY package.json package-lock.json ./
 # BuildKit-Cache-Mount: npm-Cache bleibt zwischen Builds erhalten -> schneller
 RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 
-FROM node:24-alpine AS build
+FROM node:24.22.2-alpine3.24 AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
@@ -18,7 +18,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
-FROM node:24-alpine AS runner
+FROM node:24.22.2-alpine3.24 AS runner
 WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
