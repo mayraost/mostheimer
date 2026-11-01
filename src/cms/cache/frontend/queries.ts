@@ -52,6 +52,11 @@ export async function getCachedPageBySlugStatic(
 
 /** Oeffentlicher Page-Read (immer statisch, keine draftMode-Divergenz). */
 export function getCachedPageBySlug(slug: string, locale: FrontendLocale) {
+  // Build-ohne-DB-Guard (Skill §4): kein DB-Fetch und kein Cache-Write
+  // waehrend der Produktion-Build-Phase (Coolify-Docker: keine DB erreichbar).
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return Promise.resolve(null);
+  }
   return getCachedPageBySlugStatic(slug, locale);
 }
 
@@ -75,6 +80,10 @@ export async function getCachedAllPagesStatic(): Promise<Page[]> {
 }
 
 export function getCachedAllPages() {
+  // Build-ohne-DB-Guard (Skill §4) — siehe getCachedPageBySlug.
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return Promise.resolve([]);
+  }
   return getCachedAllPagesStatic();
 }
 
@@ -97,6 +106,8 @@ export async function getCachedSiteSettingsStatic(locale: FrontendLocale): Promi
 }
 
 export function getCachedSiteSettings(locale: FrontendLocale) {
+  // Wird nur nach Layout-connection() im Request-Kontext gerendert →
+  // kein Build-Guard noetig.
   return getCachedSiteSettingsStatic(locale);
 }
 

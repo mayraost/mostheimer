@@ -6,15 +6,15 @@
 
 ## Tech Stack
 
-| Kategorie    | Technologie                                                                 |
-| ------------ | --------------------------------------------------------------------------- |
-| Framework    | Next.js 16.4.3 (stable) – App Router, Turbopack                             |
-| Sprache      | TypeScript 5 (strict mode)                                                  |
-| CMS          | Payload CMS 4.0.0-beta.6 mit Lexical Rich Text                              |
-| Datenbank    | SQLite (Standard, `file:./payload.db`), PostgreSQL (Produktion via Compose) |
-| Styling      | Tailwind CSS v4                                                             |
-| Icons        | Lucide React                                                                |
-| Node-Version | >= 26 (engine in `package.json`), npm ^11                                   |
+| Kategorie    | Technologie                                                                                                                                                                                                    |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Framework    | Next.js 16.4.3 (stable) – App Router, Turbopack                                                                                                                                                                |
+| Sprache      | TypeScript 5 (strict mode)                                                                                                                                                                                     |
+| CMS          | Payload CMS 4.0.0-beta.6 mit Lexical Rich Text                                                                                                                                                                 |
+| Datenbank    | PostgreSQL (zentrale geteilte coolify-postgres; SQLite entfernt; lokale Dev ebenfalls zentrale Instanz `~/workspace/coolify-postgres` → `DATABASE_URL=postgresql://mostheimer:<pw>@localhost:5432/mostheimer`) |
+| Styling      | Tailwind CSS v4                                                                                                                                                                                                |
+| Icons        | Lucide React                                                                                                                                                                                                   |
+| Node-Version | >= 26 (engine in `package.json`), npm ^11                                                                                                                                                                      |
 
 ## Befehle
 
@@ -29,12 +29,11 @@ npm run generate:types # Payload CMS TypeScript-Typen generieren
 
 ## Umgebungsvariablen
 
-| Variable         | Beschreibung                                                                            | Standard                      |
-| ---------------- | --------------------------------------------------------------------------------------- | ----------------------------- |
-| `PAYLOAD_SECRET` | Geheimschlüssel für Payload CMS (Fallback 'ABC' nur lokal – in Coolify zwingend setzen) | `''`                          |
-| `APP_PORT`       | Published Host-Port (Compose)                                                           | `3300`                        |
-| `DATABASE_URL`   | Coolify-App-Env auf zentrale coolify-postgres (nicht im Compose!)                       | –                             |
-| `DATABASE_TYPE`  | Datenbank-Typ                                                                           | `sqlite` (Prod: `postgresql`) |
+| Variable         | Beschreibung                                                                                                       | Standard |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------ | -------- |
+| `PAYLOAD_SECRET` | Geheimschlüssel für Payload CMS (Fallback 'ABC' nur lokal – in Coolify zwingend setzen)                            | `''`     |
+| `APP_PORT`       | Published Host-Port (Compose)                                                                                      | `3300`   |
+| `DATABASE_URL`   | Zentrale geteilte Postgres-Instanz (kein Default mehr – Projekte ohne `DATABASE_URL` scheitern bewusst am Connect) | –        |
 
 ## Projektstruktur
 
@@ -355,8 +354,6 @@ await payload.delete({ collection: 'posts', id: '123' });
 5. **Relationship Depth**: Standard ist 2; für reine IDs `depth: 0` setzen
 6. **Draft Status**: `_status`-Feld wird automatisch eingefügt wenn Drafts aktiviert
 7. **Typen**: Werden erst nach `generate:types` aktualisiert
-8. **SQLite Transactions**: Standardmäßig deaktiviert; mit `transactionOptions: {}` aktivieren
-9. **Point Fields**: Werden in SQLite nicht unterstützt
 
 ## Theming & UI
 
@@ -459,7 +456,7 @@ className="[text-shadow:0_0_10px_rgba(194,24,91,0.25)]"        // Light
 - Published Host-Port: `${APP_PORT:-3300}:3000` – `APP_PORT=3300` in Coolify setzen (Port-Konflikte mit anderen Stacks vermeiden)
 - Domain `https://mosthi.de` in Coolify dem Service `app` zuweisen (`docker_compose_domains`); der Coolify-Proxy (Traefik) routet über den **published Host-Port**, nicht über das Compose-Network
 - **KEIN weiteres `networks:`-Deklarat** ergänzen: einziger externer Netz-Eintrag ist `coolify-postgres-net` (external); alles andere bleibt implizites Projekt-Default-Netz (pro Coolify-Projekt isoliert; DNS-Aliase wie `postgres` kollidieren sonst mit fremden Stacks)
-- Env setzen (siehe `.env.example`): `DATABASE_URL` (Coolify-App-Env, zeigt auf coolify-postgres), `DATABASE_TYPE=postgresql`, `PAYLOAD_SECRET`, `APP_PORT`
+- Env setzen (siehe `.env.example`): `DATABASE_URL` (Coolify-App-Env, zeigt auf coolify-postgres), `PAYLOAD_SECRET`, `APP_PORT`
 - Healthcheck: Docker `HEALTHCHECK` im Image trifft `/api/health` (force-dynamic, `{status:'ok'}`)
 - Media-Uploads (Payload `media`) landen in `/app/public/media` und persistieren im Named Volume `media-data` (überleben Re-Deploys)
 - Compose-Header im Repo dokumentiert den genauen Coolify-Setup-Ablauf (Resource anlegen, Compose-File angeben, Env, Domain, No-Networks-Regel)
@@ -501,6 +498,21 @@ Profil „Docker/Coolify-Build ohne DB":
   (AGENTS-GLOBAL-Regel); API-Route nur für externe Caller (Cron/curl) —
   nicht nötig, Hooks decken Publish/Unpublish ab.
 
+### Postgres-only (01.11.2026)
+
+- SQLite komplett entfernt: kein sqliteAdapter/Fallback mehr; `envConfig.dbUrl`
+  ohne Default (`DATABASE_URL ?? ''`).
+- Zentrale Instanz überall (lokale Dev → `~/workspace/coolify-postgres`, DB/User
+  `mostheimer`; Passwort in gitignored `.env` +
+  `~/.config/opencode/.secrets/mostheimer-local-db.password`).
+- `push: false` am postgresAdapter: Dev-Schema-Push aus → Schemaänderungen
+  IMMER via `npx payload migrate:create <name>` (Snapshot-Diff,
+  `DATABASE_TYPE=postgresql DATABASE_URL=postgresql://x:x@localhost:5432/x npx
+payload migrate:create ...`-Kommando falls generiert) + `npx payload migrate`.
+- Learnings: Dev-Push auf Prod-parite-DB → migrate-Prompt-Contamination
+  (Payload fragt interaktiv, Server hängt); deshalb DB-Fresh-Reset vor
+  Prod-Verifikation und dauerhaft `DATABASE_TYPE` aus dem Projekt entfernt.
+
 ## Workflow-Regeln
 
 1. **Nach jeder Dateiänderung** `npm run lint:fix` ausführen.
@@ -541,6 +553,19 @@ Vor jedem Commit wird diese Datei auf Aktualität geprüft und bei Bedarf ergän
 - **[Deployment]** Cloudflared-Tunnel + Traefik `is_force_https_enabled=true` (default) → Redirect-Loop (Tunnel-Ingress trifft Traefik auf :80, wird zu https geforced, Cloudflare ruft wieder http auf … endloser Redirect) → Lösung: `docker_compose_domains` mit `"is_force_https_enabled": false` per PATCH setzen (Tunnel/Cloudflare übernimmt HTTPS-Terminierung).
 - **[Deps/Audit]** Transitive Critical-CVEs (z. B. dompurify 3.4.15 via monaco-editor/@payloadcms/ui) werden von `npm audit fix --package-lock-only` nicht gehoben, wenn der betroffene Range von einer Zwischen-Dep gepinnt ist → Lösung: npm-`overrides`-Block in `package.json` (exakte Version, z. B. `"dompurify": "3.4.17"`) + Lockfile-Regen. Begleitender Rollback der Zwischen-Dep (monaco 0.57.0→0.56.0) ist okay, solange das Audit danach nicht schlechter ist. Lockfile-Regen mit Remote-Tarball-Deps braucht `NPM_CONFIG_ALLOW_REMOTE=all` (npm ≥ 12).
 - **[Payload-V3→V4-Migration]** Deployment ohne `src/migrations` → frisches Postgres-Volume ohne Schema (App-Container bootstrapped die DB nicht). → Lösung: generierte Migrationen committen; frisches Volume über One-Shot-Tooling-Container (`npx payload migrate`) bootstrappen — das CI-Script (`payload migrate && next build`) läuft im Standalone-Image nicht.
-- **[Migration-Generierung]** `payload migrate:create` mit Default-sqlite-Adapter diffet Postgres-Snapshots (`concurrently`/`method`-Index-Keys) → Drizzle-Zod-Validation-Fehler und keine Migration wird erzeugt → Lösung: immer `DATABASE_TYPE=postgresql DATABASE_URL=postgresql://x:x@localhost:5432/x npx payload migrate:create <name>` (Live-DB nicht nötig, Diff läuft gegen den Snapshot).
+- **[Migration-Generierung]** Vor Postgres-only diffte `payload migrate:create` mit Default-sqlite-Adapter Postgres-Snapshots (`concurrently`/`method`-Index-Keys) → Drizzle-Zod-Validation-Fehler; es brauchte `DATABASE_TYPE=postgresql DATABASE_URL=postgresql://x:x@localhost:5432/x npx payload migrate:create <name>` als Prefix. Seit Postgres-only (01.11.2026) ist der postgresAdapter der einzige/Default-Adapter — `npx payload migrate:create <name>` diffed direkt gegen den Postgres-Snapshot, Live-DB nicht nötig.
 - **[Coolify/Domain-Routing]** `docker_compose_domains`-PATCH akzeptiert in der aktuellen Coolify-Version nur `name`/`domain`/`redirect` — `is_force_https_enabled` im JSON führt zu 422 („Only name, domain, and redirect fields are supported"). Force-HTTPS ist App-Setting/Default, nicht Domain-Item.
 - **[Sicherheit]** Container-Env-Probe (`docker exec <app> env`) druckt `DATABASE_URL` inkl. Passwort in den Chat → Lösung: nie Env-Werte ausgeben; bei Leak `POSTGRES_PASSWORD` rotieren via Postgres-`ALTER USER` + Coolify-Env-PATCH (`PATCH /applications/{uuid}/envs`) – Volume-Reset nicht nötig; App-Env via Force-Redeploy propagieren.
+- **[Next-16/Streaming]** Unbekannter Slug lief HTTP-200 statt 404: Layout-Skeleton-Suspense flushet Header (Status 200 fixiert), bevor das dynamische Page-`notFound()` wirft (Doku: „Before streaming starts, a 404 status can be returned; after streaming, 200 remains"). `notFound()` allein in `generateMetadata` half NICHT (Streaming-Metadata-Metadatentag flusht Head früher) → Lösung: „NotFoundGate" im `[locale]`-Layout VOR der Suspense-Boundary (liest `x-pathname` Request-Header aus `src/proxy.ts`, gecacheter `getCachedPageBySlug`-Check → `notFound()` PRE-FLUSH) + Group-`src/app/(frontend)/not-found.tsx` als Catch mit Custom-UI (Inline-Styles, Error-Recovery-Shell hat kein CSS) + `htmlLimitedBots: /.*/` in next.config (deaktiviert präemptives Streaming-Metadata-Head-Flush). Nested unbekannte Pfade abgedeckt; statische Geschwister-Routen (`preview|settings|impressum`) via STATIC_CHILD_ROUTES vom Gate ausgenommen. Trade-off: `instant = false` am Layout verschiebt preview/settings/impressum im Build `◐ → ƒ` (Runtime-Rendered); `[[...slug]]` bleibt `◐`.
+- **[Payload-LocalAPI]** `revalidateTag`-Fortschritt via tsx-Subprozess-Script (Local API) → `Invariant: static generation store missing` → `safeRevalidate` skippt. Verifizier-Tooling für OSR: Mutieren statt via Subprozess via REST `PATCH /api/pages/<id>?locale=en` (Cookie-Session) — Hooks feuern dann im Next-Server-Kontext.
+- **[Next-16/Headers]** Security-Header auf `next.config.ts` (HSTS/nosniff/Referrer/Permissions-Policy, scobio2026-Muster — non-CSP-Teil): `X-Frame-Options: DENY` NICHT nutzen bei Payload-Live-Preview (Admin embeddet `/preview` Route als iframe; gleiche Origin) → SAMEORIGIN.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
