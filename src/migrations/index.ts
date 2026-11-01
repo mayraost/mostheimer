@@ -1,6 +1,7 @@
 import * as migration_20261031_221848_init from './20261031_221848_init';
 import * as migration_20261031_224616 from './20261031_224616';
 import * as migration_20261031_233235_codify_common_menu from './20261031_233235_codify_common_menu';
+import * as migration_20261101_103630_fix_site_settings_locales from './20261101_103630_fix_site_settings_locales';
 
 export const migrations = [
   {
@@ -17,5 +18,10 @@ export const migrations = [
     up: migration_20261031_233235_codify_common_menu.up,
     down: migration_20261031_233235_codify_common_menu.down,
     name: '20261031_233235_codify_common_menu',
+  },
+  {
+    up: migration_20261101_103630_fix_site_settings_locales.up,
+    down: migration_20261101_103630_fix_site_settings_locales.down,
+    name: '20261101_103630_fix_site_settings_locales',
   },
 ];
