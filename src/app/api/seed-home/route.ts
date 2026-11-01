@@ -1,14 +1,17 @@
-import configPromise from '@payload-config';
-import { getPayload } from 'payload';
 import type { Page, User } from '@/payload-types';
+import type { Payload } from 'payload';
+import { assertSeedAccess } from '../_seedGuard';
 
 export const maxDuration = 60;
 
 // ---------------------------------------------------------------------------
-// Helper: Kapselt Delete, Create (EN) und Update (DE) in einem sauberen Flow
+// Helper: Upsert-artiges Localized Seeding (EN create/update + DE update in
+// einem sauberen Flow). PAGES WERDEN NICHT MEHR GELÖSCHT: bestehende Dokumente
+// werden via find → update aktualisiert, nur fehlende Slugs werden erstellt
+// (Defense-in-Depth gegen irreversiblen Content-Verlust).
 // ---------------------------------------------------------------------------
 async function seedLocalizedPage(
-  payload: Awaited<ReturnType<typeof getPayload>>,
+  payload: Payload,
   user: User,
   slug: string,
   enData: { title: string; layout: NonNullable<Page['layout']> },
@@ -21,30 +24,40 @@ async function seedLocalizedPage(
     where: { slug: { equals: slug } },
   });
 
+  let pageId: string | number;
   if (existing.totalDocs > 0) {
-    await payload.delete({
+    pageId = existing.docs[0].id;
+    // Existierendes Dokument wird aktualisiert (nicht geloescht): EN hier,
+    // DE unten — identisches Seed-Ergebnis wie vormals delete+create.
+    await payload.update({
       collection: 'pages',
-      id: existing.docs[0].id,
+      id: pageId,
       user,
       overrideAccess: false,
+      locale: 'en',
+      data: {
+        title: enData.title,
+        layout: enData.layout,
+      },
     });
+  } else {
+    const created = await payload.create({
+      collection: 'pages',
+      user,
+      overrideAccess: false,
+      locale: 'en',
+      data: {
+        title: enData.title,
+        slug: slug,
+        layout: enData.layout,
+      },
+    });
+    pageId = created.id;
   }
-
-  const page = await payload.create({
-    collection: 'pages',
-    user,
-    overrideAccess: false,
-    locale: 'en',
-    data: {
-      title: enData.title,
-      slug: slug,
-      layout: enData.layout,
-    },
-  });
 
   await payload.update({
     collection: 'pages',
-    id: page.id,
+    id: pageId,
     user,
     overrideAccess: false,
     locale: 'de',
@@ -54,18 +67,15 @@ async function seedLocalizedPage(
     },
   });
 
-  return page.id;
+  return pageId;
 }
 
-export async function GET(req: Request) {
-  const payload = await getPayload({ config: configPromise });
-
-  // Seed-Route darf nur mit gültiger (Admin-)Session genutzt werden:
-  // unauthentifiziert wäre die Route öffentlich missbrauchbar (Seed-Spam).
-  const { user } = await payload.auth({ headers: req.headers });
-  if (!user) {
-    return Response.json({ error: 'Unauthorized: admin session required' }, { status: 401 });
+export async function POST(req: Request) {
+  const access = await assertSeedAccess(req);
+  if ('response' in access) {
+    return access.response;
   }
+  const { payload, user } = access;
 
   try {
     // -----------------------------------------------------------------------
@@ -1048,6 +1058,8 @@ export async function GET(req: Request) {
       message: 'All localized pages seeded successfully with deep architectural content!',
     });
   } catch (err: unknown) {
+    // Stack nur serverseitig loggen — nie im Response-Body (kein Info-Leak).
+    console.error('seed-home failed:', err);
     return Response.json(
       { error: err instanceof Error ? err.message : 'Error occurred' },
       { status: 500 },

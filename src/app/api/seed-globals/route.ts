@@ -1,20 +1,15 @@
-import configPromise from '@payload-config';
-import { getPayload } from 'payload';
+import { assertSeedAccess } from '../_seedGuard';
 
 export const maxDuration = 60;
 
-export async function GET(req: Request) {
-  const payload = await getPayload({ config: configPromise });
-
-  // Seed-Route darf nur mit gültiger (Admin-)Session genutzt werden:
-  // unauthentifiziert wäre die Route öffentlich missbrauchbar (Seed-Spam).
-  const { user } = await payload.auth({ headers: req.headers });
-  if (!user) {
-    return Response.json({ error: 'Unauthorized: admin session required' }, { status: 401 });
+export async function POST(req: Request) {
+  const access = await assertSeedAccess(req);
+  if ('response' in access) {
+    return access.response;
   }
+  const { payload, user } = access;
 
   try {
-    // Dann neu setzen
     await payload.updateGlobal({
       user,
       overrideAccess: false,
@@ -158,11 +153,11 @@ export async function GET(req: Request) {
       message: 'Global settings (Navigation, Translations & NotFound) seeded successfully!',
     });
   } catch (err: unknown) {
-    console.error('SEED ERROR:', err);
+    // Stack nur serverseitig loggen — nie im Response-Body (kein Info-Leak).
+    console.error('seed-globals failed:', err);
     return Response.json(
       {
-        error: err instanceof Error ? err.message : 'Error occurred',
-        stack: err instanceof Error ? err.stack : undefined,
+        error: err instanceof Error ? err.message : 'An internal error occurred',
       },
       { status: 500 },
     );
