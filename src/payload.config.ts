@@ -76,6 +76,11 @@ export default buildConfig({
     },
   }),
   upload: {
+    // Multipart-Request-Gesamtlimit (Busboy/performant upload pipeline —
+    // Key verifiziert: FetchAPIFileUploadOptions in config/types.d.ts,
+    // Default 50 MB). Etwas Headroom über dem fileSize-Limit unten,
+    // damit Fields/Headers nicht zum Abbruch führen.
+    requestSizeLimit: 11 * 1024 * 1024,
     limits: { fileSize: MAX_UPLOAD_BYTES },
     transformers: [
       sharpTransformer({

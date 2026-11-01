@@ -2,22 +2,44 @@ import { withPayload } from '@payloadcms/next/withPayload';
 import type { NextConfig } from 'next';
 
 /**
- * CSP-Report-Only-Rollout (Stufe 1, KEIN Enforce): bewusst schmale
- * Directive-Scope (default/img/object/base-uri/form-action/frame-ancestors/
- * upgrade-insecure-requests) OHNE script-src/style-src — Turbopack-Dev und
- * Payload-Lexical embeden erhebliche Inline-Styles/Scripts; bis nonce-Infra
- * stünden dort massig False-Positives im Report-Empfänger. Erst wenn die
- * Reports leer sind, wird auf Content-Security-Policy (Enforce) umgestellt.
+ * CSP-Rollout (Finalzustand nach Nonce-Prüfung):
+ *
+ * Nonce-Entscheidung: KEIN Nonce. Doku-Basis
+ * node_modules/next/dist/docs/01-app/02-guides/content-security-policy.md —
+ * "When you use nonces in your CSP, all pages must be dynamically rendered"
+ * (Dynamic Rendering Requirement, ca. Zeile 391: ISR deaktiviert, PPR
+ * inkompatibel, kein CDN-Caching). Projekteigene cacheComponents/OSR-
+ * Architektur (statisch + Payload-Hook-Invalidierung) waere damit zerstört.
+ *
+ * Enforce-CSP = dokumentiertes "Without Nonces"-Muster desselben Docs
+ * (Zeilen 421–435): Next+Payload emittieren Inline-Bootstrap-Scripts
+ * (self.__next_f.push) und Inline-Styles (Lexical-Admin) — unter
+ * default-src 'self' ohne script/style-src-Override wären sie geblockt;
+ * daher script/style-src mit 'unsafe-inline' (Next-16-ohne-Nonce-Praxis),
+ * dev zusätzlich 'unsafe-eval' (React-HMR/debug evals, Doku "Good to know").
+ *
+ * Report-Only-Spürer daneben für den Schritt, den unsafe-inline später
+ * abzugeben (req für Nonce/Hash-Infra separat).
  */
-const CSP_REPORT_ONLY = [
+const isDev = process.env.NODE_ENV === 'development';
+
+const CSP_ENFORCE = [
   "default-src 'self'",
-  "base-uri 'self'",
-  "object-src 'none'",
-  "frame-ancestors 'self'",
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
+  "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
+  "object-src 'none'",
+  "base-uri 'self'",
   "form-action 'self'",
+  "frame-ancestors 'self'",
   'upgrade-insecure-requests',
 ].join('; ');
+
+// Observability: RO-Header listet NUR die verschärften Direktiven; die
+// Reports zeigen, was ersetzt werden müsste, wenn 'unsafe-inline' wegfällt.
+// Kein report-to/Endpoint (eigene Report-Infra (Storage/Endpoint) ist
+// bewusst NICHT Teil dieses Rollouts).
+const CSP_REPORT_ONLY = ["script-src 'self'", "style-src 'self'"].join('; ');
 
 // Ausfuehrliche Feature-Restriktion: alles, was die App nicht nutzt.
 const PERMISSIONS_POLICY = [
@@ -76,7 +98,11 @@ const nextConfig: NextConfig = {
         // Isolation: eigene Browsing-Contexte koppeln sich nicht mit
         // Cross-Origin-Referenzen (Mitigation gegen Lateral-Mitlesen).
         { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
-        // Rollout-Stufe 1: CSP nur REPORTEN (keine Verletzung blockiert).
+        // CSP-Rollout: enforce (Verifizierter Scope wie oben).
+        { key: 'Content-Security-Policy', value: CSP_ENFORCE },
+        // Parallel dazu der verschärfte Spürer fuer den späteren
+        // 'unsafe-inline'-Abbau (kein report-to-Endpoint, bewusst ohne
+        // eigene Report-Infra).
         { key: 'Content-Security-Policy-Report-Only', value: CSP_REPORT_ONLY },
       ],
     },
@@ -86,6 +112,14 @@ const nextConfig: NextConfig = {
       // global, sonst wuerde auch jedes legitime Cross-Origin-Laden (z. B.
       // API-Fetches aus externen Tooling-Kontexten) geblockt.
       source: '/media/:path*',
+      headers: [{ key: 'Cross-Origin-Resource-Policy', value: 'same-origin' }],
+    },
+    {
+      // Payload-REST-File-Endpoint der media-Collection (Verifiziert:
+      // dist/uploads/endpoints/index.js `path: '/file/:filename'` mounted
+      // unter Collection-Slug → /api/media/file/<filename>) — transformierte
+      // Varianten werden unter derselben Route gelesen.
+      source: '/api/media/file/:path*',
       headers: [{ key: 'Cross-Origin-Resource-Policy', value: 'same-origin' }],
     },
   ],

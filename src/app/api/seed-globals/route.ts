@@ -153,13 +153,9 @@ export async function POST(req: Request) {
       message: 'Global settings (Navigation, Translations & NotFound) seeded successfully!',
     });
   } catch (err: unknown) {
-    // Stack nur serverseitig loggen — nie im Response-Body (kein Info-Leak).
+    // Details/Stack nur serverseitig loggen — Response-Body bleibt generisch
+    // (kein Leak interner Fehler-Details wie DB-Fehlertexte).
     console.error('seed-globals failed:', err);
-    return Response.json(
-      {
-        error: err instanceof Error ? err.message : 'An internal error occurred',
-      },
-      { status: 500 },
-    );
+    return Response.json({ error: 'An internal error occurred' }, { status: 500 });
   }
 }

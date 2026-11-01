@@ -1058,11 +1058,9 @@ export async function POST(req: Request) {
       message: 'All localized pages seeded successfully with deep architectural content!',
     });
   } catch (err: unknown) {
-    // Stack nur serverseitig loggen — nie im Response-Body (kein Info-Leak).
+    // Details/Stack nur serverseitig loggen — Response-Body bleibt generisch
+    // (kein Leak interner Fehler-Details wie DB-Fehlertexte).
     console.error('seed-home failed:', err);
-    return Response.json(
-      { error: err instanceof Error ? err.message : 'Error occurred' },
-      { status: 500 },
-    );
+    return Response.json({ error: 'An internal error occurred' }, { status: 500 });
   }
 }
