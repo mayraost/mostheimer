@@ -3,7 +3,17 @@ import { notFound } from 'next/navigation';
 import { connection } from 'next/server';
 import { BlockRenderer } from '@/components/blocks';
 import { envConfig } from '@/envConfig';
-import { getCachedPageBySlug } from '@/cms/cache/frontend/frontendCache';
+import { getCachedPageBySlug, getCachedSiteSettings } from '@/cms/cache/frontend/frontendCache';
+import { JsonLdScript, buildProfilePageJsonLd, buildSiteJsonLd } from '@/components/StructuredData';
+import { ogImageUrl } from '@/components/og/ogCard';
+
+/**
+ * Über-Mich-artige Slugs → ProfilePage-JSON-LD (AEO-Layer, Research
+ * aeo-discovery-layer: ProfilePage deckt die „About Me"-Page ab; die
+ * Homepage selbst ist WebSite-Kandidat). Nicht-Profil-Seiten bekommen
+ * bewusst kein Structured Data (kein erfundenes @type).
+ */
+const PROFILE_PAGE_SLUGS = new Set(['about', 'about-me', 'ueber-mich', 'ueber']);
 
 // Locales sind build-statisch (kein DB-Lookup noetig) — ohne diese
 // generateStaticParams bricht der Build-Prerender-Versuch ab (Root-Param).
@@ -33,12 +43,34 @@ export default async function Page({ params }: PageProps<'/[locale]/[[...slug]]'
     return notFound();
   }
 
+  // JSON-LD (AEO-Layer): Homepage → WebSite + Person; Profil-Slugs →
+  // ProfilePage mit mainEntity. Lässt sich rein serverseitig aus den
+  // 'use cache'-Queries lösen (kein zusätzlicher Client-JS-Weight).
+  let jsonLd: Record<string, unknown> | null = null;
+  if (slug === 'home') {
+    const siteSettings = await getCachedSiteSettings(locale);
+    jsonLd = buildSiteJsonLd({
+      locale,
+      siteName: siteSettings.siteName || 'Mostheimer',
+      description: siteSettings.siteDescription,
+    });
+  } else if (PROFILE_PAGE_SLUGS.has(slug)) {
+    jsonLd = buildProfilePageJsonLd({
+      locale,
+      path: `${locale === 'de' ? '/de' : '/en'}/${slug}`,
+      dateModified: page.updatedAt ?? null,
+    });
+  }
+
   return (
-    <article className="max-w-6xl mx-auto w-full">
-      {page.layout?.map((block, index: number) => (
-        <BlockRenderer key={index} block={block} />
-      ))}
-    </article>
+    <>
+      {jsonLd ? <JsonLdScript data={jsonLd} /> : null}
+      <article className="max-w-6xl mx-auto w-full">
+        {page.layout?.map((block, index: number) => (
+          <BlockRenderer key={index} block={block} />
+        ))}
+      </article>
+    </>
   );
 }
 
@@ -55,12 +87,27 @@ export async function generateMetadata({ params }: PageProps<'/[locale]/[[...slu
 
   return {
     title: `${page.title} - Mostheimer`,
+    // AEO-Layer OG/Twitter-Parity (Research P2): per-Page-Karte via
+    // /og-Route (opengraph-image-Dateikonvention ist im [[...slug]]-
+    // Catch-All nicht möglich — siehe src/app/og/route.tsx).
+    openGraph: {
+      title: page.title,
+      type: 'website',
+      siteName: 'Mostheimer',
+      url: `${baseUrl}/${locale}${slugPath}`,
+      images: [ogImageUrl(page.title, locale)],
+    },
+    twitter: { card: 'summary_large_image' },
     alternates: {
       canonical: `${baseUrl}/${locale}${slugPath}`,
       languages: {
         en: `${baseUrl}/en${slugPath}`,
         de: `${baseUrl}/de${slugPath}`,
       },
+      // x-default bewusst HELD BACK (unverified-marker im Research: der
+      // Key-Passthrough ist in der Next-16.4-Doku nicht dokumentiert).
+      // Wird erst ergänzt, nachdem nach Deploy Rich Results Test +
+      // URL-Inspection den Passthrough verifiziert haben.
     },
   };
 }

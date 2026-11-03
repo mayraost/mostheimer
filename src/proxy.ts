@@ -11,6 +11,10 @@ export function proxy(request: NextRequest) {
   if (
     pathname.startsWith('/admin') ||
     pathname.startsWith('/api') ||
+    // /og: OG-Image-Byte-Route (src/app/og/route.tsx, AEO-Layer) — ohne
+    // Skip landet sie im Locale-Redirect (307) und Crawler bekommen kein
+    // Bild. Exakt '/og', nicht startsWith, um /ogxyz-Fehltreffer zu meiden.
+    pathname === '/og' ||
     pathname.includes('.') // like a file .json, .js, .png, etc.
   ) {
     return NextResponse.next();

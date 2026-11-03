@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { envConfig } from '@/envConfig';
+import { ogImageUrl } from '@/components/og/ogCard';
 
 // Locales build-statisch (kein DB-Lookup) — Root-Param-Pflicht am Build.
 export function generateStaticParams() {
@@ -21,12 +22,27 @@ export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = envConfig.serverUrl;
   return {
     title: 'Impressum - Mostheimer',
+    // AEO-Layer OG/Twitter-Parity (Profile der Catch-All-Pages, ohne eigenes
+    // og-title: Plattformen übernehmen <title>/og:title-Fallback).
+    // AEO-Layer OG/Twitter-Parity (per-Page-Karte via /og-Route —
+    // opengraph-image-Dateikonvention ist im Catch-All nicht möglich,
+    // siehe src/app/og/route.tsx).
+    openGraph: {
+      title: 'Impressum',
+      type: 'website',
+      siteName: 'Mostheimer',
+      url: `${baseUrl}/de/impressum`,
+      images: [ogImageUrl('Impressum', 'de')],
+    },
+    twitter: { card: 'summary_large_image' },
     alternates: {
       canonical: `${baseUrl}/de/impressum`,
       languages: {
         en: `${baseUrl}/en/impressum`,
         de: `${baseUrl}/de/impressum`,
       },
+      // x-default held back — unverified Key-Passthrough (siehe
+      // [[...slug]]/page.tsx generateMetadata).
     },
   };
 }
