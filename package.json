@@ -5,7 +5,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "payload build",
+    "build": "next build",
     "ci": "payload migrate && next build",
     "dev": "next dev",
     "devsafe": "rm -rf .next && next dev",
