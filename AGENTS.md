@@ -8,7 +8,7 @@
 
 | Kategorie    | Technologie                                                                                                                                                                                                    |
 | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Framework    | Next.js 16.4.3 (stable) – App Router, Turbopack                                                                                                                                                                |
+| Framework    | Next.js 16.4.5 (stable) – App Router, Turbopack                                                                                                                                                                |
 | Sprache      | TypeScript 6.0.3 (exakt gepinnt, strict mode) – letzte JS-Compiler-Serie vor TS 7 (native)                                                                                                                     |
 | CMS          | Payload CMS 4.0.0-beta.6 mit Lexical Rich Text                                                                                                                                                                 |
 | Datenbank    | PostgreSQL (zentrale geteilte coolify-postgres; SQLite entfernt; lokale Dev ebenfalls zentrale Instanz `~/workspace/coolify-postgres` → `DATABASE_URL=postgresql://mostheimer:<pw>@localhost:5432/mostheimer`) |
@@ -547,6 +547,8 @@ Vor jedem Commit wird diese Datei auf Aktualität geprüft und bei Bedarf ergän
 5. AGENTS.md in denselben Commit aufnehmen (`git add AGENTS.md`)
 
 ### Gelernte Fehler (laufend ergänzt)
+
+- **[Next-16/ensureStatic]** `ensureStatic` (seit 16.4.0, braucht `cacheComponents` + `partialPrefetching`): `'navigation'` (vollstatisch, hart validiert) ist mit dem NotFoundGate-Muster KOMPLETT inkompatibel — das `[locale]`-Layout rendert den Gate als bewussten Blocking-Render (`connection()`/`headers()` Outside-Suspense, Pre-Flush-404) → Page-Level `'navigation'` (z. B. impressum) bricht den Build mit `static-route-dynamic` `at body` (empirisch verifiziert; `instant=false` relaxiert NUR Instant-Navigation-Validation, nicht `'navigation'`). Kompatibler engster Level = **`'shell'`** page-level (App Shell des default-Link-Prefetchs muss statisch; kein Build-Validation-Konflikt): settings + impressum. Klassifikation bleibt ƒ; Laufzeit-Verifikation: unknown-Slug-404/preview/admin unverändert. `'navigation'`-Upgrade-Pfad = zukünftige Layout-Restrukturierung (Gate hinter eine eigene Suspense-Boundary oder Route-Gruppen-Split), NICHT Gate entfernen.
 
 - **[TS 6/Upgrade]** TypeScript 6.0.3 (01.11.2026, exakt gepinnt, letzte JS-Compiler-Serie vor TS 7 — TS 7 native hat keine JS-API, typescript-eslint-Peer `>=4.8.4 <6.1.0` zwingt zu <6.1): tsconfig braucht `types: ["node"]` (TS 6 defaultet `types: []` → sonst `process.env`-Typing weg) und `baseUrl` ist deprecated/entfernt — `paths` funktionieren ohne (Entries relativ zur tsconfig); Projekt nutzte baseUrl nur als paths-Präfix, kein Code-Change nötig. Verify-Kette (tsc/lint/generate:types/build/vitest) lief ohne weitere Anpassungen durch.
 
