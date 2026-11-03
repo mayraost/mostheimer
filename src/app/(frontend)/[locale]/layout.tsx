@@ -34,6 +34,11 @@ export const metadata: Metadata = {
   title: 'Mostheimer',
   description: 'Personal Website',
   metadataBase: new URL(envConfig.serverUrl),
+  // AEO-Layer (Research 03.11.2026): OG/Twitter-Basis für alle Segmente;
+  // per-Page-Cards kommen aus der opengraph-image-Dateikonvention
+  // ([locale] + [[...slug]]), twitter.image generiert Next parallel mit.
+  openGraph: { siteName: 'Mostheimer', type: 'website' },
+  twitter: { card: 'summary_large_image' },
 };
 
 // [block]-Opt-out (docs 01-app/03-api-reference/03-file-conventions/
