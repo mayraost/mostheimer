@@ -57,6 +57,21 @@ const PERMISSIONS_POLICY = [
 const nextConfig: NextConfig = {
   /* config options here */
   output: 'standalone',
+  // Tailwind v4 native Turbopack-Loader statt PostCSS-Pipeline
+  // (@tailwindcss/turbopack, Syntax aus Paket-README + Next-Doku
+  // turbopack.md "Configuring webpack loaders": rules-Key = zustandsgesteuerter
+  // Glob '*.css' (Dateiname-Match), loaders + as: '*.css' = Loader gibt
+  // CSS aus statt JS). postcss.config.mjs mit @tailwindcss/postcss wurde
+  // entfernt — Loader AND Headless-PostCSS wuerden sonst Tailwind
+  // zweimal prozessieren.
+  turbopack: {
+    rules: {
+      '*.css': {
+        loaders: ['@tailwindcss/turbopack'],
+        as: '*.css',
+      },
+    },
+  },
   // Header-Kompression im Node selbst (guenstig, hilft hinter Proxies ohne Kompression)
   compress: true,
   // X-Powered-By-Header entfernen
