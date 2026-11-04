@@ -76,14 +76,7 @@ export default async function Page({ params }: PageProps<'/[locale]/[[...slug]]'
       <article className="mx-auto w-full max-w-6xl">
         {!hasHeroBlock && (
           <header className="mb-8 border-b border-border pb-6">
-            <p className="mono-label flex items-center gap-2 text-primary">
-              <span
-                aria-hidden="true"
-                className="inline-block h-1.5 w-1.5 rounded-full bg-primary"
-              />
-              {slug === 'home' ? 'index' : slug}
-            </p>
-            <h1 className="mt-3 font-heading text-4xl font-bold tracking-[-0.03em] text-foreground lg:text-5xl">
+            <h1 className="font-heading text-4xl font-bold tracking-[-0.03em] text-foreground lg:text-5xl">
               {page.title}
             </h1>
           </header>

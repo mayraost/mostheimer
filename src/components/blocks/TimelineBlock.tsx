@@ -30,25 +30,27 @@ export function TimelineBlock({ block }: { block: TimelineBlockData }) {
           {/* Rail */}
           <span
             aria-hidden="true"
-            className="absolute left-[7px] top-2 bottom-2 w-px bg-border md:left-[119px]"
+            className="absolute left-[7px] top-2 bottom-2 w-px bg-border md:left-[171px]"
           />
 
           {entries.map((entry: TimelineEntry, index) => (
             <li
               key={entry.id ?? entry.company}
-              className="relative grid grid-cols-1 gap-x-8 gap-y-1 pb-8 pl-7 last:pb-0 md:grid-cols-[96px_minmax(0,1fr)] md:pl-0"
+              className="relative grid grid-cols-1 gap-x-8 gap-y-1 pb-8 pl-7 last:pb-0 md:grid-cols-[148px_minmax(0,1fr)] md:pl-0"
             >
               {/* Node */}
               <span
                 aria-hidden="true"
-                className="absolute left-0 top-2 flex h-3.5 w-3.5 items-center justify-center md:left-[112px]"
+                className="absolute left-0 top-2 flex h-3.5 w-3.5 items-center justify-center md:left-[164px]"
               >
                 <span className="h-3.5 w-3.5 rounded-full border border-primary/60 bg-background" />
                 <span className="absolute h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
               </span>
 
               <div className="md:pr-4 md:text-right">
-                <p className="mono-label text-muted-foreground">{entry.period || '—'}</p>
+                <p className="mono-label leading-relaxed text-muted-foreground">
+                  {entry.period || '—'}
+                </p>
                 <p className="mono-label mt-1 text-primary/70">
                   {String(index + 1).padStart(2, '0')}
                 </p>
