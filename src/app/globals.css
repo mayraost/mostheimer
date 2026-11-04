@@ -95,7 +95,7 @@ body {
   /* ─── Text ───────────────────────────────────────────── */
   --color-foreground: #f8fafc;
   --color-text: #f8fafc;
-  --color-muted-foreground: #64748b;
+  --color-muted-foreground: #94a3b8;
 
   /* ─── Border ─────────────────────────────────────────── */
   --color-border: rgba(255, 255, 255, 0.08);
@@ -146,7 +146,7 @@ body {
 
     --color-foreground: #f8fafc;
     --color-text: #f8fafc;
-    --color-muted-foreground: #64748b;
+    --color-muted-foreground: #94a3b8;
 
     --color-border: rgba(255, 255, 255, 0.08);
     --color-border-strong: rgba(255, 255, 255, 0.14);
@@ -183,7 +183,7 @@ body {
 
     --color-foreground: #0f172a;
     --color-text: #0f172a;
-    --color-muted-foreground: #64748b;
+    --color-muted-foreground: #475569;
 
     --color-border: #e2e8f0;
     --color-border-strong: #cbd5e1;
@@ -221,7 +221,7 @@ body {
 
     --color-foreground: #f8fafc;
     --color-text: #f8fafc;
-    --color-muted-foreground: #64748b;
+    --color-muted-foreground: #94a3b8;
 
     --color-border: rgba(255, 255, 255, 0.08);
     --color-border-strong: rgba(255, 255, 255, 0.14);
