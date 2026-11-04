@@ -9,6 +9,10 @@ import { BentoGridBlock } from './blocks/BentoGridBlock';
 import { StatusBlock } from './blocks/StatusBlock';
 import { TechSectionBlock } from './blocks/TechSectionBlock';
 import { SkillsetBlock } from './blocks/SkillsetBlock';
+import { CaseStudyBlock } from './blocks/CaseStudyBlock';
+import { TimelineBlock } from './blocks/TimelineBlock';
+import { TestimonialBlock } from './blocks/TestimonialBlock';
+import { TechRadarBlock } from './blocks/TechRadarBlock';
 
 export type PageBlock = NonNullable<Page['layout']>[number];
 
@@ -32,6 +36,14 @@ export function BlockRenderer({ block }: { block: PageBlock }) {
       return <TechSectionBlock block={block} />;
     case 'skillset':
       return <SkillsetBlock block={block} />;
+    case 'caseStudy':
+      return <CaseStudyBlock block={block} />;
+    case 'timeline':
+      return <TimelineBlock block={block} />;
+    case 'testimonial':
+      return <TestimonialBlock block={block} />;
+    case 'techRadar':
+      return <TechRadarBlock block={block} />;
     default:
       return (
         <div className="py-8 text-center text-red-500 border border-red-500 rounded my-4">
@@ -51,4 +63,8 @@ export {
   StatusBlock,
   TechSectionBlock,
   SkillsetBlock,
+  CaseStudyBlock,
+  TimelineBlock,
+  TestimonialBlock,
+  TechRadarBlock,
 };
