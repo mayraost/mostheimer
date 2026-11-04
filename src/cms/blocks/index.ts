@@ -4,6 +4,7 @@ import { FeatureGrid } from './FeatureGrid';
 import { Hero } from './Hero';
 import { ImageText } from './ImageText';
 import { RichText } from './RichText';
+import { Skillset } from './Skillset';
 import { StatusBlock } from './StatusBlock';
 import { TechSection } from './TechSection';
 
@@ -14,6 +15,7 @@ export const allBlocks = [
   Hero,
   ImageText,
   RichText,
+  Skillset,
   StatusBlock,
   TechSection,
 ];

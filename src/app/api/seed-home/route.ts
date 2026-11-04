@@ -79,7 +79,7 @@ export async function POST(req: Request) {
 
   try {
     // -----------------------------------------------------------------------
-    // PARALLEL EXECUTION: Volle Ladung für alle 9 Seiten
+    // PARALLEL EXECUTION: Volle Ladung für alle 10 Seiten
     // -----------------------------------------------------------------------
     await Promise.all([
       // --- 1. HOME ---
@@ -171,6 +171,43 @@ export async function POST(req: Request) {
                 },
               ],
             },
+            {
+              blockType: 'skillset',
+              heading: 'Skills & Expertise',
+              description:
+                'Senior full-stack focus with a modern TypeScript stack — plus AI-assisted development, PHP/CMS depth and infrastructure practice.',
+              ctaLabel: 'View all skills →',
+              ctaLink: '/en/skills',
+              items: [
+                {
+                  name: 'TypeScript & Next.js',
+                  level: 'Expert',
+                  iconName: 'Braces',
+                  highlight: true,
+                },
+                {
+                  name: 'AI-assisted Development',
+                  level: 'Expert',
+                  iconName: 'Bot',
+                  highlight: true,
+                },
+                {
+                  name: 'PHP & Symfony',
+                  level: 'Very confident',
+                  iconName: 'FileCode',
+                },
+                {
+                  name: 'Performance & Accessibility',
+                  level: 'Solid',
+                  iconName: 'Gauge',
+                },
+                {
+                  name: 'Team Management',
+                  level: 'Very confident',
+                  iconName: 'Users',
+                },
+              ],
+            },
           ],
         },
         {
@@ -254,6 +291,43 @@ export async function POST(req: Request) {
                   ctaLink: '/de/off-screen',
                   iconName: 'Heart',
                   featured: false,
+                },
+              ],
+            },
+            {
+              blockType: 'skillset',
+              heading: 'Skills & Know-how',
+              description:
+                'Senior Full-Stack-Fokus mit modernem TypeScript-Stack — dazu KI-gestützte Entwicklung, PHP-/CMS-Tiefe und Infrastruktur-Praxis.',
+              ctaLabel: 'Alle Skills ansehen →',
+              ctaLink: '/de/skills',
+              items: [
+                {
+                  name: 'TypeScript & Next.js',
+                  level: 'Experte',
+                  iconName: 'Braces',
+                  highlight: true,
+                },
+                {
+                  name: 'KI-gestützte Entwicklung',
+                  level: 'Experte',
+                  iconName: 'Bot',
+                  highlight: true,
+                },
+                {
+                  name: 'PHP & Symfony',
+                  level: 'Sehr sicher',
+                  iconName: 'FileCode',
+                },
+                {
+                  name: 'Performance & Accessibility',
+                  level: 'Sicher',
+                  iconName: 'Gauge',
+                },
+                {
+                  name: 'Teammanagement',
+                  level: 'Sehr sicher',
+                  iconName: 'Users',
                 },
               ],
             },
@@ -1048,6 +1122,375 @@ export async function POST(req: Request) {
               heading: 'Datenschutzerklärung.',
               body: 'Dieses Portfolio ist statisch generiert. Kein Tracking, keine Analyse-Cookies, kein Data-Harvesting.',
               keyFacts: [],
+            },
+          ],
+        },
+      ),
+      // --- 10. SKILLS ---
+      seedLocalizedPage(
+        payload,
+        user,
+        'skills',
+        {
+          title: 'Skills',
+          layout: [
+            {
+              blockType: 'skillset',
+              heading: 'Full-Stack Web Development',
+              items: [
+                {
+                  name: 'TypeScript & Node.js',
+                  level: 'Expert',
+                  description: 'End-to-end typed modern JavaScript, on server and in the browser',
+                  iconName: 'Braces',
+                  highlight: true,
+                },
+                {
+                  name: 'React & Next.js',
+                  level: 'Expert',
+                  description: 'React with App Router, Server Components and Server Actions',
+                  iconName: 'Layers',
+                  highlight: true,
+                },
+                {
+                  name: 'Software Architecture & Tooling',
+                  level: 'Expert',
+                  description: 'Software architecture, linting, build tools and automation',
+                  iconName: 'Blocks',
+                },
+                {
+                  name: 'APIs',
+                  level: 'Expert',
+                  description: 'GraphQL, REST, OpenAPI, end-to-end type safety',
+                  iconName: 'Network',
+                },
+                {
+                  name: 'Testing',
+                  level: 'Expert',
+                  description: 'Cypress and Playwright E2E, Jest unit tests, visual regression',
+                  iconName: 'FlaskConical',
+                },
+                {
+                  name: 'CSS & Styling',
+                  level: 'Expert',
+                  description: 'Modern CSS, Tailwind CSS v4, CSS-in-JS',
+                  iconName: 'Palette',
+                },
+              ],
+            },
+            {
+              blockType: 'skillset',
+              heading: 'AI-assisted Development',
+              items: [
+                {
+                  name: 'Agentic Coding',
+                  level: 'Expert',
+                  description: 'Everyday development with AI coding agents and workflow automation',
+                  iconName: 'Bot',
+                },
+                {
+                  name: 'MCP Development',
+                  level: 'Very confident',
+                  description:
+                    'Building custom Model Context Protocol servers and tooling to connect AI assistants with real systems',
+                  iconName: 'Plug',
+                },
+                {
+                  name: 'MCP UI',
+                  level: 'Very confident',
+                  description: 'Integrating MCP tools directly into own admin UIs and workflows',
+                  iconName: 'PanelTop',
+                },
+                {
+                  name: 'AI Chat Development',
+                  level: 'Very confident',
+                  description:
+                    'Own private AI chat with LLM APIs, streaming responses and context handling',
+                  iconName: 'MessageSquare',
+                },
+              ],
+            },
+            {
+              blockType: 'skillset',
+              heading: 'PHP, CMS & Symfony',
+              items: [
+                {
+                  name: 'PHP',
+                  level: 'Very confident',
+                  description: 'Modern PHP development with Composer and clean project structures',
+                  iconName: 'FileCode',
+                },
+                {
+                  name: 'Symfony',
+                  level: 'Very confident',
+                  description: 'Framework, bundles and Twig templating',
+                  iconName: 'ServerCog',
+                },
+                {
+                  name: 'Pimcore',
+                  level: 'Solid',
+                  description: 'Data objects, documents and CMS projects',
+                  iconName: 'Boxes',
+                },
+                {
+                  name: 'Payload CMS',
+                  level: 'Expert',
+                  description: 'TypeScript-first headless CMS configuration and custom blocks',
+                  iconName: 'Box',
+                },
+                {
+                  name: 'Databases',
+                  level: 'Solid',
+                  description: 'MySQL, PostgreSQL and ORMs; MongoDB basics',
+                  iconName: 'Database',
+                },
+              ],
+            },
+            {
+              blockType: 'skillset',
+              heading: 'Hosting, Security & CI/CD',
+              items: [
+                {
+                  name: 'Hosting & DevOps',
+                  level: 'Very confident',
+                  description: 'Linux, Nginx/Apache, Docker, Vercel, Cloudflare and cloud hosting',
+                  iconName: 'Server',
+                },
+                {
+                  name: 'Security Hardening',
+                  level: 'Solid',
+                  description: 'OWASP, CSP, secure cookies, dependency audits and code reviews',
+                  iconName: 'ShieldCheck',
+                },
+                {
+                  name: 'CI/CD',
+                  level: 'Solid',
+                  description: 'GitHub Actions, Jenkins and GitLab CI pipelines',
+                  iconName: 'Workflow',
+                },
+              ],
+            },
+            {
+              blockType: 'skillset',
+              heading: 'Quality, Performance & Team',
+              items: [
+                {
+                  name: 'Performance Optimization',
+                  level: 'Expert',
+                  description:
+                    'Memory leaks, virtualization, web workers, caching and Core Web Vitals',
+                  iconName: 'Gauge',
+                  highlight: true,
+                },
+                {
+                  name: 'Accessibility',
+                  level: 'Solid',
+                  description: 'WCAG 2.0, BITV and screen-reader-friendly frontends',
+                  iconName: 'Accessibility',
+                },
+                {
+                  name: 'Team Management',
+                  level: 'Very confident',
+                  description: 'Leading projects and teams, mentoring and clear communication',
+                  iconName: 'Users',
+                  highlight: true,
+                },
+                {
+                  name: 'Agile Processes',
+                  level: 'Solid',
+                  description: 'Scrum with Redmine, Trello and Jenkins tooling',
+                  iconName: 'SquareKanban',
+                },
+                {
+                  name: 'UX Prototyping',
+                  level: 'Solid',
+                  description: 'Figma and Zeplin based design handoff and prototyping',
+                  iconName: 'PenTool',
+                },
+              ],
+            },
+          ],
+        },
+        {
+          title: 'Skills',
+          layout: [
+            {
+              blockType: 'skillset',
+              heading: 'Full-Stack Webentwicklung',
+              items: [
+                {
+                  name: 'TypeScript & Node.js',
+                  level: 'Experte',
+                  description:
+                    'Modernes TypeScript auf Server und im Browser (ES6+ bis ES2023, Generics)',
+                  iconName: 'Braces',
+                  highlight: true,
+                },
+                {
+                  name: 'React & Next.js',
+                  level: 'Experte',
+                  description: 'React mit App Router, Server Components und Server Actions',
+                  iconName: 'Layers',
+                  highlight: true,
+                },
+                {
+                  name: 'Software-Architektur & Tooling',
+                  level: 'Experte',
+                  description: 'Software-Architektur, Linting, Build-Tools und Automatisierung',
+                  iconName: 'Blocks',
+                },
+                {
+                  name: 'APIs',
+                  level: 'Experte',
+                  description: 'GraphQL, REST, OpenAPI, End-to-End-Typsicherheit',
+                  iconName: 'Network',
+                },
+                {
+                  name: 'Testing',
+                  level: 'Experte',
+                  description: 'Cypress- und Playwright-E2E, Jest-Unit-Tests, Visual Regression',
+                  iconName: 'FlaskConical',
+                },
+                {
+                  name: 'CSS & Styling',
+                  level: 'Experte',
+                  description: 'Modernes CSS, Tailwind CSS v4, CSS-in-JS',
+                  iconName: 'Palette',
+                },
+              ],
+            },
+            {
+              blockType: 'skillset',
+              heading: 'KI-gestützte Entwicklung',
+              items: [
+                {
+                  name: 'Agentic Coding',
+                  level: 'Experte',
+                  description:
+                    'Entwicklung im Alltag mit KI-Coding-Agents und Workflow-Automatisierung',
+                  iconName: 'Bot',
+                },
+                {
+                  name: 'MCP-Entwicklung',
+                  level: 'Sehr sicher',
+                  description:
+                    'Eigene Model-Context-Protocol-Server und Tooling, um KI-Assistenten mit echten Systemen zu verbinden',
+                  iconName: 'Plug',
+                },
+                {
+                  name: 'MCP-UI',
+                  level: 'Sehr sicher',
+                  description: 'KI-Tools direkt in eigene Admin-UIs und Workflows einbinden',
+                  iconName: 'PanelTop',
+                },
+                {
+                  name: 'KI-Chat-Entwicklung',
+                  level: 'Sehr sicher',
+                  description:
+                    'Eigener privater KI-Chat mit LLM-APIs, Streaming-Responses und Kontext-Handling',
+                  iconName: 'MessageSquare',
+                },
+              ],
+            },
+            {
+              blockType: 'skillset',
+              heading: 'PHP, CMS & Symfony',
+              items: [
+                {
+                  name: 'PHP',
+                  level: 'Sehr sicher',
+                  description:
+                    'Moderne PHP-Entwicklung mit Composer und sauberen Projektstrukturen',
+                  iconName: 'FileCode',
+                },
+                {
+                  name: 'Symfony',
+                  level: 'Sehr sicher',
+                  description: 'Framework, Bundles und Twig-Templating',
+                  iconName: 'ServerCog',
+                },
+                {
+                  name: 'Pimcore',
+                  level: 'Sicher',
+                  description: 'Datenobjekte, Dokumente und CMS-Projekte',
+                  iconName: 'Boxes',
+                },
+                {
+                  name: 'Payload CMS',
+                  level: 'Experte',
+                  description: 'TypeScript-first Headless-CMS-Konfiguration und eigene Blocks',
+                  iconName: 'Box',
+                },
+                {
+                  name: 'Datenbanken',
+                  level: 'Sicher',
+                  description: 'MySQL, PostgreSQL und ORMs; MongoDB-Grundlagen',
+                  iconName: 'Database',
+                },
+              ],
+            },
+            {
+              blockType: 'skillset',
+              heading: 'Hosting, Security & CI/CD',
+              items: [
+                {
+                  name: 'Hosting & DevOps',
+                  level: 'Sehr sicher',
+                  description: 'Linux, Nginx/Apache, Docker, Vercel, Cloudflare und Cloud-Hosting',
+                  iconName: 'Server',
+                },
+                {
+                  name: 'Security Hardening',
+                  level: 'Sicher',
+                  description: 'OWASP, CSP, Secure Cookies, Dependency-Audits und Code-Reviews',
+                  iconName: 'ShieldCheck',
+                },
+                {
+                  name: 'CI/CD',
+                  level: 'Sicher',
+                  description: 'GitHub-Actions-, Jenkins- und GitLab-CI-Pipelines',
+                  iconName: 'Workflow',
+                },
+              ],
+            },
+            {
+              blockType: 'skillset',
+              heading: 'Qualität, Performance & Team',
+              items: [
+                {
+                  name: 'Performance-Optimierung',
+                  level: 'Experte',
+                  description:
+                    'Memory Leaks, Virtualisierung, Web Worker, Caching und Core Web Vitals',
+                  iconName: 'Gauge',
+                  highlight: true,
+                },
+                {
+                  name: 'Accessibility (A11y)',
+                  level: 'Sicher',
+                  description: 'WCAG 2.0, BITV und Screenreader-taugliche Frontends',
+                  iconName: 'Accessibility',
+                },
+                {
+                  name: 'Teammanagement',
+                  level: 'Sehr sicher',
+                  description: 'Projekt- und Teamleitung, Mentoring und klare Kommunikation',
+                  iconName: 'Users',
+                  highlight: true,
+                },
+                {
+                  name: 'Agile Prozesse',
+                  level: 'Sicher',
+                  description: 'Scrum mit Redmine-, Trello- und Jenkins-Werkzeugen',
+                  iconName: 'SquareKanban',
+                },
+                {
+                  name: 'UX-Prototyping',
+                  level: 'Sicher',
+                  description: 'Figma- und Zeplin-basierter Design-Handoff und Prototyping',
+                  iconName: 'PenTool',
+                },
+              ],
             },
           ],
         },
