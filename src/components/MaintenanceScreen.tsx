@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 const MESSAGES = {
   en: {
     title: 'Under maintenance',
@@ -35,6 +37,32 @@ export function MaintenanceScreen({ locale }: { locale: 'en' | 'de' }) {
           </a>
         </p>
       </footer>
+    </div>
+  );
+}
+
+/**
+ * Kleines fixed Info-Badge für eingeloggte CMS-User während des
+ * Wartungsmodus: sie sehen das normale Layout und müssen erkennen
+ * können, dass Nicht-Eingeloggte aktuell die Wartungsseite sehen.
+ */
+export function MaintenanceBadge({ locale }: { locale: 'en' | 'de' }) {
+  const t = MESSAGES[locale] ?? MESSAGES.en;
+
+  return (
+    <div
+      className="fixed bottom-4 left-4 z-50 max-w-64 rounded-lg border border-border bg-surface px-3 py-2 shadow-lg"
+      aria-live="polite"
+    >
+      <p className="text-xs font-semibold text-warning-foreground">
+        <span className="mr-1 inline-block h-2 w-2 rounded-full bg-warning align-middle" />
+        {t.title}
+      </p>
+      <p className="mt-1 text-[11px] text-muted-foreground">
+        <Link href="/admin" className="hover:underline">
+          /admin
+        </Link>
+      </p>
     </div>
   );
 }

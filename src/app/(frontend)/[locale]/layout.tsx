@@ -17,7 +17,9 @@ import {
 } from '@/cms/cache/frontend/frontendCache';
 import type { FrontendLocale } from '@/cms/cache/frontend/frontendCache';
 import { envConfig } from '@/envConfig';
-import { MaintenanceScreen } from '@/components/MaintenanceScreen';
+import { MaintenanceScreen, MaintenanceBadge } from '@/components/MaintenanceScreen';
+import { getPayload } from 'payload';
+import configPromise from '@payload-config';
 
 const averia = Averia_Serif_Libre({
   weight: ['300', '400', '700'],
@@ -174,9 +176,28 @@ async function LayoutShell({
     getCachedNavigation(locale),
   ]);
 
+  const payload = await getPayload({ config: configPromise });
+  const { user } = await payload.auth({ headers: await headers() });
+
   // Wartungsmodus: Komplett-Screen ohne Header/Footer/Inhalt auf jeder Seite
   if (siteSettings.maintenanceMode) {
-    return <MaintenanceScreen locale={locale} />;
+    if (!user) {
+      return <MaintenanceScreen locale={locale} />;
+    }
+    return (
+      <>
+        <MaintenanceBadge locale={locale} />
+        <TranslationsProvider translations={translations}>
+          <SettingsProvider>
+            <div className="flex flex-col min-h-screen">
+              <Header locale={locale} navLinks={navigation.headerLinks ?? []} />
+              <main className="flex-1 py-10 px-4 md:px-8">{children}</main>
+              <Footer locale={locale} navLinks={navigation.footerLinks ?? []} />
+            </div>
+          </SettingsProvider>
+        </TranslationsProvider>
+      </>
+    );
   }
 
   return (
