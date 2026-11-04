@@ -37,7 +37,9 @@ export const Pages: CollectionConfig = {
   // rendern). Public-Fetch-Kette bleibt draft:false → published-only.
   versions: { drafts: true },
   hooks: {
-    // ISR/OSR: Publish/Update/Delete flusten den Route-Cache punktgenau.
+    // ISR/OSR: Publish/Update/Delete flusten den Route-Cache punktgenau
+    // (blockierend, siehe cache/frontend/revalidate.ts — 'max'-SWR liess
+    // Pages auf Prod stale, Findings v2 B1).
     // Slug-Umbenennung flust zusaetzlich den alten Pfad (muss fortan 404
     // liefern statt dem alten Inhalt).
     afterChange: [

@@ -15,68 +15,84 @@ export function SettingsPageClient() {
   const settings = t.settings;
   const common = t.common;
 
-  return (
-    <div className="max-w-2xl mx-auto py-8 font-geist-mono">
-      {settings.title}
+  const optionBase =
+    'mono-label inline-flex min-h-11 items-center justify-center rounded-[6px] border px-4 transition-colors';
+  const optionActive = 'border-primary bg-primary text-primary-foreground';
+  const optionIdle =
+    'border-border bg-surface-raised/50 text-muted-foreground hover:border-border-strong hover:text-foreground';
 
-      <div className="space-y-8 bg-header p-6 rounded-lg border border-border">
+  return (
+    <div className="mx-auto w-full max-w-3xl py-6">
+      <div className="mb-6 border-b border-border pb-4">
+        <p className="mono-label mb-2 text-primary">&gt;_ settings</p>
+        <h1 className="font-heading text-3xl font-bold tracking-tight text-foreground">
+          {settings.title}
+        </h1>
+      </div>
+
+      <div className="grid gap-2">
         {/* Theme Settings */}
-        <div className="space-y-4">
-          <h2 className="font-averia text-2xl font-bold">{settings.themeHeading}</h2>
-          <p className="text-gray-500 text-sm">{settings.themeDescription}</p>
-          <div className="flex flex-col sm:flex-row gap-4">
-            {(['system', 'light', 'dark'] as const).map((themeType) => (
+        <section className="rounded-[6px] border border-border bg-surface p-6">
+          <h2 className="mb-1 font-heading text-lg font-semibold text-foreground">
+            {settings.themeHeading}
+          </h2>
+          <p className="mb-4 text-sm text-muted-foreground">{settings.themeDescription}</p>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            {(['dark', 'light', 'system'] as const).map((themeType) => (
               <button
                 key={themeType}
+                type="button"
                 onClick={() => setTheme(themeType)}
-                className={`py-2 px-4 rounded-md border text-sm font-semibold capitalize transition-colors
-                  ${theme === themeType ? 'bg-primary text-white border-primary' : 'bg-transparent border-border hover:bg-background'}`}
+                aria-pressed={theme === themeType}
+                className={`${optionBase} ${theme === themeType ? optionActive : optionIdle}`}
               >
                 {common[themeType as keyof typeof common]}
               </button>
             ))}
           </div>
-        </div>
-
-        <hr className="border-border" />
+        </section>
 
         {/* Font Size Settings */}
-        <div className="space-y-4">
-          <h2 className="font-averia text-2xl font-bold">{settings.fontSizeHeading}</h2>
-          <p className="text-gray-500 text-sm">{settings.fontSizeDescription}</p>
-          <div className="flex gap-4">
+        <section className="rounded-[6px] border border-border bg-surface p-6">
+          <h2 className="mb-1 font-heading text-lg font-semibold text-foreground">
+            {settings.fontSizeHeading}
+          </h2>
+          <p className="mb-4 text-sm text-muted-foreground">{settings.fontSizeDescription}</p>
+          <div className="flex gap-2">
             {(['normal', 'large'] as const).map((size) => (
               <button
                 key={size}
+                type="button"
                 onClick={() => setFontSize(size)}
-                className={`py-2 px-4 rounded-md border text-sm font-semibold capitalize transition-colors
-                  ${fontSize === size ? 'bg-primary text-white border-primary' : 'bg-transparent border-border hover:bg-background'}`}
+                aria-pressed={fontSize === size}
+                className={`${optionBase} ${fontSize === size ? optionActive : optionIdle}`}
               >
                 {common[size as keyof typeof common]}
               </button>
             ))}
           </div>
-        </div>
-
-        <hr className="border-border" />
+        </section>
 
         {/* Animations Settings */}
-        <div className="space-y-4">
-          <h2 className="font-averia text-2xl font-bold">{settings.animationsHeading}</h2>
-          <p className="text-gray-500 text-sm">{settings.animationsDescription}</p>
-          <div className="flex gap-4">
+        <section className="rounded-[6px] border border-border bg-surface p-6">
+          <h2 className="mb-1 font-heading text-lg font-semibold text-foreground">
+            {settings.animationsHeading}
+          </h2>
+          <p className="mb-4 text-sm text-muted-foreground">{settings.animationsDescription}</p>
+          <div className="flex flex-wrap gap-2">
             {(['system', 'on', 'off'] as const).map((anim) => (
               <button
                 key={anim}
+                type="button"
                 onClick={() => setAnimations(anim)}
-                className={`py-2 px-4 rounded-md border text-sm font-semibold capitalize transition-colors
-                  ${animations === anim ? 'bg-primary text-white border-primary' : 'bg-transparent border-border hover:bg-background'}`}
+                aria-pressed={animations === anim}
+                className={`${optionBase} ${animations === anim ? optionActive : optionIdle}`}
               >
                 {common[anim as keyof typeof common]}
               </button>
             ))}
           </div>
-        </div>
+        </section>
       </div>
     </div>
   );

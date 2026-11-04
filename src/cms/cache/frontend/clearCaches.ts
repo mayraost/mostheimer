@@ -14,7 +14,7 @@ import { headers } from 'next/headers';
 import { getPayload } from 'payload';
 import configPromise from '@payload-config';
 import { CACHE_TAGS } from './constants';
-import { safeRevalidate } from './revalidate';
+import { collectRevalidationResults } from './revalidate';
 
 type ClearCachesResult = { ok: true; tags: string[] } | { ok: false; error: string };
 
@@ -48,21 +48,19 @@ export async function clearAllFrontendCaches(): Promise<ClearCachesResult> {
   }
 
   // Breiter Flush: alle Scalar-Tags dieser App + RSC/HTML-Shell per
-  // revalidatePath (Notanker des Skills fuer Sonderfaelle wie Home-Route).
-  // Breiter Flush: alle Scalar-Tags dieser App + RSC/HTML-Shell per
-  // revalidatePath (Notanker des Skills fuer Sonderfaelle wie Home-Route).
-  const tags: string[] = [
-    CACHE_TAGS.ALL,
-    CACHE_TAGS.pages,
-    CACHE_TAGS.sitemap,
-    CACHE_TAGS.siteSettings,
-    CACHE_TAGS.navigation,
-    CACHE_TAGS.translations,
-    CACHE_TAGS.notFound,
+  // revalidatePath (Notanker fuer Sonderfaelle wie die Home-Route).
+  // Blocking-Invalidierung ({ expire: 0 }, siehe revalidate.ts) — der
+  // naechste Request muss garantiert frische CMS-Daten sehen.
+  const tags = [
+    { tag: CACHE_TAGS.ALL, label: `manual flush by user ${user.email}` },
+    { tag: CACHE_TAGS.pages, label: 'manual flush: pages' },
+    { tag: CACHE_TAGS.sitemap, label: 'manual flush: sitemap' },
+    { tag: CACHE_TAGS.siteSettings, label: 'manual flush: site settings' },
+    { tag: CACHE_TAGS.navigation, label: 'manual flush: navigation' },
+    { tag: CACHE_TAGS.translations, label: 'manual flush: translations' },
+    { tag: CACHE_TAGS.notFound, label: 'manual flush: not-found' },
   ];
-  for (const tag of tags) {
-    safeRevalidate(tag, `manual flush by user ${user.email}`);
-  }
+  const { done } = collectRevalidationResults(tags);
 
   try {
     revalidatePath('/', 'layout');
@@ -70,5 +68,5 @@ export async function clearAllFrontendCaches(): Promise<ClearCachesResult> {
     console.warn('[cms-cache] revalidatePath im manuellen Flush uebersprungen.', error);
   }
 
-  return { ok: true, tags };
+  return { ok: true, tags: done };
 }

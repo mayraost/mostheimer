@@ -17,17 +17,20 @@ function TypingHeadingEffect({ text, animationsOn }: { text: string; animationsO
           clearInterval(typingInterval);
         }
       }
-    }, 100);
+    }, 55);
 
     return () => clearInterval(typingInterval);
   }, [text]);
 
   return (
-    <span className="flex items-center justify-center min-h-[4rem] sm:min-h-[5rem] lg:min-h-[6rem]">
+    <span className="inline-flex min-h-[1.1em] flex-wrap items-baseline">
       <span>{text.slice(0, progress)}</span>
       {animationsOn && (
         <span
-          className={`inline-block w-[0.1em] h-[1em] ml-1 bg-primary ${isTyping ? '' : 'animate-[blink_1s_step-end_infinite]'}`}
+          aria-hidden="true"
+          className={`ml-1 inline-block h-[0.8em] w-[0.5ch] bg-primary align-baseline ${
+            isTyping ? '' : 'animate-blink'
+          }`}
         />
       )}
     </span>
@@ -38,11 +41,7 @@ export function TypingHeading({ text }: { text: string }) {
   const { currentAnimations } = useSettings();
 
   if (currentAnimations === 'off') {
-    return (
-      <span className="flex items-center justify-center min-h-[4rem] sm:min-h-[5rem] lg:min-h-[6rem]">
-        <span>{text}</span>
-      </span>
-    );
+    return <span className="inline-flex min-h-[1.1em] flex-wrap items-baseline">{text}</span>;
   }
 
   return (

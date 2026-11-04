@@ -19,9 +19,17 @@ interface SettingsContextType {
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
+/**
+ * Default-Theme = 'dark' (Dark-Industrial-Rebrand): die App startet auch
+ * auf light-preferring OS dunkel. Der Pre-Hydration-Bootstrap im Layout
+ * (THEME_BOOTSTRAP) setzt dieselbe Basis, daher kein Flash. Der manuelle
+ * Toggle ('light'/'system') bleibt voll funktionsfähig.
+ */
+const DEFAULT_THEME: Theme = 'dark';
+
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('system');
-  const [currentTheme, setCurrentTheme] = useState<SettingsContextType['currentTheme']>('light');
+  const [theme, setTheme] = useState<Theme>(DEFAULT_THEME);
+  const [currentTheme, setCurrentTheme] = useState<SettingsContextType['currentTheme']>('dark');
   const [fontSize, setFontSize] = useState<FontSize>('normal');
   const [animations, setAnimations] = useState<Animations>('system');
   const [currentAnimations, setCurrentAnimations] =
@@ -30,7 +38,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTheme((localStorage.getItem('theme') as Theme) || 'system');
+    setTheme((localStorage.getItem('theme') as Theme) || DEFAULT_THEME);
 
     setFontSize((localStorage.getItem('fontSize') as FontSize) || 'normal');
 

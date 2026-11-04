@@ -17,26 +17,32 @@ export function MaintenanceScreen({ locale }: { locale: 'en' | 'de' }) {
   const t = MESSAGES[locale] ?? MESSAGES.en;
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 text-center">
-      <h1 className="font-averia text-3xl font-bold text-foreground">{t.title}</h1>
-      <p className="mt-3 max-w-md text-muted-foreground">{t.body}</p>
-
-      <footer className="mt-12 text-xs text-muted-foreground">
-        <h2 className="mb-1 font-semibold uppercase tracking-wide opacity-70">
-          {t.imprintHeading}
-        </h2>
-        <p>
-          Mayra Ostheimer · Ringstraße 60 · 25368 Kiebitzreihe
-          <br />
-          <a href="mailto:mail@mostheimer.de" className="hover:underline">
-            mail@mostheimer.de
-          </a>{' '}
-          ·{' '}
-          <a href="tel:+4917663787951" className="hover:underline">
-            0176 63787951
-          </a>
+    <div className="dot-grid flex min-h-screen flex-col items-center justify-center bg-background px-4 text-center">
+      <div className="w-full max-w-md rounded-[8px] border border-border bg-surface p-8">
+        <p className="mono-label mb-6 text-warning">
+          <span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-warning align-middle" />
+          Systemstatus · Maintenance
         </p>
-      </footer>
+        <h1 className="mb-3 font-heading text-3xl font-bold tracking-tight text-foreground">
+          {t.title}
+        </h1>
+        <p className="text-base text-muted-foreground">{t.body}</p>
+
+        <div className="mt-8 border-t border-border pt-6">
+          <h2 className="mono-label mb-2 text-foreground">{t.imprintHeading}</h2>
+          <p className="mono-meta text-muted-foreground">
+            Mayra Ostheimer · Ringstraße 60 · 25368 Kiebitzreihe
+            <br />
+            <a href="mailto:mail@mostheimer.de" className="text-primary hover:underline">
+              mail@mostheimer.de
+            </a>{' '}
+            ·{' '}
+            <a href="tel:+4917663787951" className="text-primary hover:underline">
+              0176 63787951
+            </a>
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -51,15 +57,15 @@ export function MaintenanceBadge({ locale }: { locale: 'en' | 'de' }) {
 
   return (
     <div
-      className="fixed bottom-4 left-4 z-50 max-w-64 rounded-lg border border-border bg-surface px-3 py-2 shadow-lg"
+      className="fixed bottom-4 left-4 z-50 max-w-64 rounded-[6px] border border-warning/50 bg-surface-raised px-3 py-2 shadow-lg"
       aria-live="polite"
     >
-      <p className="text-xs font-semibold text-warning-foreground">
-        <span className="mr-1 inline-block h-2 w-2 rounded-full bg-warning align-middle" />
+      <p className="mono-label text-warning">
+        <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-warning align-middle" />
         {t.title}
       </p>
-      <p className="mt-1 text-[11px] text-muted-foreground">
-        <Link href="/admin" className="hover:underline">
+      <p className="mono-meta mt-1 text-muted-foreground">
+        <Link href="/admin" className="text-primary hover:underline">
           /admin
         </Link>
       </p>

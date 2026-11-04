@@ -1,76 +1,159 @@
 import React from 'react';
 import type { Page } from '@/payload-types';
 import { Icon } from './Icon';
+import {
+  BentoTile,
+  Chip,
+  CornerTicks,
+  Eyebrow,
+  GaugeRing,
+  StatusDot,
+  stableGaugeValue,
+} from '../ui/industrial';
 
 type BentoGridBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'bentoGrid' }>;
 type BentoItem = NonNullable<BentoGridBlockData['items']>[number];
 
-function BentoCard({ item }: { item: BentoItem }) {
-  const content = (
-    <div
+/**
+ * Bento-Mosaik der Architektur-Säulen (Home-Zentrepiece).
+ *
+ * Layout: 4-Spalten-Raster, 8px-Gaps. `featured`-Tiles spannen 2 Spalten
+ * auf lg (1 Spalte mobile/tablet). Beauty liegt im Rhythmus: Icon in
+ * kreisrundem Hairline-Rahmen, Mono-"Säule 0X"-Label, Emerald/Cyan-
+ * Border-State je nach Index (Emerald = aktiv/Betonung, Cyan = sekundär).
+ */
+function BentoCard({ item, index }: { item: BentoItem; index: number }) {
+  // Wechselnde Akzent-Zustände: jede Karte bekommt entweder Emerald-
+  // (Betonung) oder Hairline-State; `highlight` + `featured` gewinnen Emerald.
+  const isEmphasis = Boolean(item.featured || item.highlight) || index % 3 === 0;
+  const emphasis = isEmphasis ? 'primary' : 'secondary';
+
+  const card = (
+    <BentoTile
       className={[
-        'group relative flex flex-col justify-between h-full min-h-[200px] p-6 rounded-2xl border border-border bg-header',
-        'transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5',
-        item.ctaLink ? 'cursor-pointer' : '',
+        'group h-full transition-colors duration-200',
+        isEmphasis
+          ? 'border-primary/40 bg-surface hover:border-primary hover:shadow-[0_0_28px_-10px_rgba(16,185,129,0.55)]'
+          : 'border-border bg-surface hover:border-secondary/60 hover:shadow-[0_0_28px_-10px_rgba(6,182,212,0.45)]',
       ].join(' ')}
     >
-      {/* Background accent on hover */}
-      <div className="absolute inset-0 rounded-2xl bg-primary/0 group-hover:bg-primary/[0.03] transition-colors duration-300 pointer-events-none" />
+      <div className="dot-grid-dense absolute inset-0 opacity-[0.35]" aria-hidden="true" />
+      <CornerTicks />
 
-      <div className="relative z-10">
-        {item.iconName && (
-          <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4">
-            <Icon name={item.iconName} className="w-5 h-5" />
-          </div>
-        )}
-
-        {item.highlight && (
-          <p className="font-geist-mono text-xs font-bold text-primary/70 uppercase tracking-widest mb-2">
-            {item.highlight}
-          </p>
-        )}
-
-        <h3 className="text-lg lg:text-xl font-averia font-bold text-text mb-3">{item.title}</h3>
-
-        {item.description && (
-          <p className="font-geist-mono text-sm opacity-70 leading-relaxed">{item.description}</p>
-        )}
-      </div>
-
-      {item.ctaLabel && (
-        <div className="relative z-10 mt-4 pt-4 border-t border-border/50">
-          <span className="font-geist-mono text-xs font-semibold text-primary group-hover:underline">
-            {item.ctaLabel} →
+      <div className="relative flex h-full flex-col p-5">
+        <div className="mb-5 flex items-start justify-between gap-3">
+          <span
+            className={['mono-label', isEmphasis ? 'text-primary' : 'text-muted-foreground'].join(
+              ' ',
+            )}
+          >
+            Säule {String(index + 1).padStart(2, '0')}
+          </span>
+          <span className="mono-label flex items-center gap-1.5 text-muted-foreground">
+            <StatusDot tone={emphasis === 'primary' ? 'primary' : 'secondary'} />
+            {item.featured ? 'featured' : 'core'}
           </span>
         </div>
-      )}
-    </div>
+
+        <div className="mb-4 flex items-center gap-3">
+          {/* Icon nur bei gesetztem iconName (Fix: leere Slots dekorativ auffangen) */}
+          {item.iconName ? (
+            <span
+              className={[
+                'flex h-11 w-11 shrink-0 items-center justify-center rounded-full border',
+                isEmphasis
+                  ? 'border-primary/50 bg-primary-muted text-primary'
+                  : 'border-secondary/40 bg-secondary/10 text-secondary',
+              ].join(' ')}
+            >
+              <Icon name={item.iconName} className="h-5 w-5" />
+            </span>
+          ) : (
+            <span
+              aria-hidden="true"
+              className="mono-label flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-dashed border-border-strong text-muted-foreground"
+            >
+              +
+            </span>
+          )}
+          {item.featured && (
+            <GaugeRing
+              value={stableGaugeValue(item.title ?? String(index))}
+              label="maturity"
+              size={52}
+            />
+          )}
+        </div>
+
+        {item.highlight && (
+          <p className="mono-label mb-2 text-muted-foreground">{item.highlight}</p>
+        )}
+
+        <h3 className="mb-2 font-heading text-lg font-semibold leading-snug tracking-tight text-foreground lg:text-xl">
+          {item.title}
+        </h3>
+
+        {item.description && (
+          <p className="text-sm leading-relaxed text-muted-foreground">{item.description}</p>
+        )}
+
+        {item.ctaLabel && (
+          <div className="mt-auto flex items-center gap-2 border-t border-border pt-4">
+            <span className="mono-label text-muted-foreground">{'->'}</span>
+            <span
+              className={[
+                'mono-label transition-colors',
+                isEmphasis ? 'text-primary' : 'text-secondary',
+              ].join(' ')}
+            >
+              {item.ctaLabel}
+            </span>
+          </div>
+        )}
+      </div>
+    </BentoTile>
   );
+
+  const spanClass = item.featured ? 'lg:col-span-2' : '';
 
   if (item.ctaLink) {
     return (
-      <a href={item.ctaLink} className={item.featured ? 'md:col-span-2' : ''}>
-        {content}
+      <a
+        href={item.ctaLink}
+        className={`${spanClass} block h-full rounded-[6px] focus-visible:outline-none`}
+      >
+        {card}
       </a>
     );
   }
 
-  return <div className={item.featured ? 'md:col-span-2' : ''}>{content}</div>;
+  return <div className={spanClass}>{card}</div>;
 }
 
 export function BentoGridBlock({ block }: { block: BentoGridBlockData }) {
-  return (
-    <section className="w-full py-16 my-4">
-      <div className="max-w-5xl mx-auto px-4">
-        {block.heading && (
-          <h2 className="text-3xl lg:text-4xl font-averia font-bold text-text mb-10">
-            {block.heading}
-          </h2>
-        )}
+  const items = block.items ?? [];
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-fr">
-          {block.items?.map((item) => (
-            <BentoCard key={item.id ?? item.title} item={item} />
+  return (
+    /* id="architektur": Ziel des Hero-CTAs "Architektur-Ansatz entdecken" */
+    <section id="architektur" className="w-full scroll-mt-24 py-16">
+      <div className="mx-auto w-full max-w-6xl">
+        <div className="mb-8 border-b border-border pb-6">
+          <Eyebrow>Architektur-Ansatz</Eyebrow>
+          {block.heading && (
+            <h2 className="mt-3 font-heading text-3xl font-bold tracking-[-0.02em] text-foreground lg:text-4xl">
+              {block.heading}
+            </h2>
+          )}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <Chip variant="fill">{items.length} Säulen</Chip>
+            <Chip variant="outline">Systemarchitektur</Chip>
+            <Chip variant="solid">composable</Chip>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          {items.map((item, index) => (
+            <BentoCard key={item.id ?? item.title} item={item} index={index} />
           ))}
         </div>
       </div>

@@ -62,11 +62,33 @@ export default async function Page({ params }: PageProps<'/[locale]/[[...slug]]'
     });
   }
 
+  // Semantic-<h1>-Garantie (Findings v2 B5): case-studies / tech-radar /
+  // career hatten keinen h1, weil keiner ihrer Blocks einen emittiert.
+  // Der Page-Title wird AUSSCHLIESSLICH dann als h1 gerendert, wenn kein
+  // Hero-Block vorhanden ist (Hero emittiert bereits seinen eigenen h1 —
+  // kein Duplikat, "one h1 per page" bleibt gewahrt).
+  const layout = page.layout ?? [];
+  const hasHeroBlock = layout.some((block) => block.blockType === 'hero');
+
   return (
     <>
       {jsonLd ? <JsonLdScript data={jsonLd} /> : null}
-      <article className="max-w-6xl mx-auto w-full">
-        {page.layout?.map((block, index: number) => (
+      <article className="mx-auto w-full max-w-6xl">
+        {!hasHeroBlock && (
+          <header className="mb-8 border-b border-border pb-6">
+            <p className="mono-label flex items-center gap-2 text-primary">
+              <span
+                aria-hidden="true"
+                className="inline-block h-1.5 w-1.5 rounded-full bg-primary"
+              />
+              {slug === 'home' ? 'index' : slug}
+            </p>
+            <h1 className="mt-3 font-heading text-4xl font-bold tracking-[-0.03em] text-foreground lg:text-5xl">
+              {page.title}
+            </h1>
+          </header>
+        )}
+        {layout.map((block, index: number) => (
           <BlockRenderer key={index} block={block} />
         ))}
       </article>

@@ -1,154 +1,158 @@
-@import "tailwindcss";
+@import 'tailwindcss';
+
+/**
+ * ─── Design System: Dark Industrial / High-Performance Edge ───────────────
+ *
+ * Dark-first, dense, data-driven. Minimalist bento grid (8px gaps),
+ * hairline 1px translucent borders, 6px card / 8px container radii,
+ * emerald primary + cyan secondary accents, dot-grid texture.
+ *
+ * Token-Parität: Identische Vokabeln in allen vier Deklarationsorten
+ * (@theme, prefers-color-scheme:dark :root, .dark, .light). Nur die WERTE
+ * unterscheiden sich pro Modus. .dark/.light überschreiben ohne
+ * !important — die Klassen-Spezifität (0,1,0) gewinnt gegen @theme ohne
+ * !important, weil @theme-Variablen den Default-Modus repräsentieren.
+ * !important auf Token-Variablen hat zuvor die Dark-Fallback-Kette
+ * zerstört (jedes .dark-Kind überschrieb per Kaskade den System-Modus).
+ */
 
 @theme {
   /* ─── Typography ─────────────────────────────────────── */
-  --font-averia: var(--font-averia), "serif";
-  --font-geist-mono: var(--font-geist-mono), "monospace";
+  --font-heading: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, monospace;
+  --font-sans: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
 
-  /* ─── Primary (Rose / Pink) ──────────────────────────── */
-  --color-primary: #c2185b;
-  --color-primary-hover: #ad1457;
-  --color-primary-foreground: #ffffff;
-  --color-primary-muted: #fce4ec;
+  /* Legacy-Aliase (Migration): ältere Klassenreferenzen zeigen auf dieselben
+     Stacks, damit kein 404-Font aus dem Fallback der Browser-Serif fällt. */
+  --font-averia: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-geist-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 
-  /* ─── Secondary (Violet) ─────────────────────────────── */
-  --color-secondary: #6d28d9;
-  --color-secondary-hover: #5b21b6;
-  --color-secondary-foreground: #ffffff;
+  /* ─── Primary (Emerald-500) ──────────────────────────── */
+  --color-primary: #10b981;
+  --color-primary-hover: #34d399;
+  --color-primary-foreground: #04120b;
+  --color-primary-muted: rgba(16, 185, 129, 0.12);
 
-  /* ─── Accent (Amber) ─────────────────────────────────── */
-  --color-accent: #f59e0b;
-  --color-accent-foreground: #1a1a1a;
+  /* ─── Secondary (Cyan-500) ───────────────────────────── */
+  --color-secondary: #06b6d4;
+  --color-secondary-hover: #22d3ee;
+  --color-secondary-foreground: #04171c;
+
+  /* ─── Accent (Cyan-500) ──────────────────────────────── */
+  --color-accent: #06b6d4;
+  --color-accent-foreground: #04171c;
 
   /* ─── Backgrounds & Surfaces ─────────────────────────── */
-  --color-background: #ffffff;
-  --color-surface: #f8f8f8;
-  --color-surface-raised: #f0f0f0;
-  --color-header: #f8f8f8;
+  --color-background: #090a0d;
+  --color-surface: #16181d;
+  --color-surface-raised: #1c1f26;
+  --color-header: #16181d;
 
   /* ─── Text ───────────────────────────────────────────── */
-  --color-foreground: #1a1a1a;
-  --color-text: #1a1a1a;
-  --color-muted-foreground: #6b6b6b;
+  --color-foreground: #f8fafc;
+  --color-text: #f8fafc;
+  --color-muted-foreground: #64748b;
 
   /* ─── Border ─────────────────────────────────────────── */
-  --color-border: #e5e5e5;
-  --color-border-strong: #cccccc;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.14);
 
   /* ─── Feedback ───────────────────────────────────────── */
-  --color-success: #16a34a;
-  --color-success-foreground: #ffffff;
-  --color-warning: #d97706;
-  --color-warning-foreground: #ffffff;
-  --color-error: #dc2626;
-  --color-error-foreground: #ffffff;
-  --color-info: #2563eb;
-  --color-info-foreground: #ffffff;
+  --color-success: #10b981;
+  --color-success-foreground: #04120b;
+  --color-warning: #f59e0b;
+  --color-warning-foreground: #04120b;
+  --color-error: #ef4444;
+  --color-error-foreground: #04120b;
+  --color-info: #06b6d4;
+  --color-info-foreground: #04120b;
+
+  /* ─── Radii (Industrial: strict 6/8) ─────────────────── */
+  --radius-card: 6px;
+  --radius-container: 8px;
+
+  /* ─── Motion ─────────────────────────────────────────── */
+  --animate-blink: blink 1s step-end infinite;
+  --animate-status-pulse: status-pulse 2.4s ease-in-out infinite;
 }
 
+/* ─── Light variant (OS prefers light → .light via SettingsProvider) ─── */
 @layer base {
-  /* ─── System dark mode ───────────────────────────────── */
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --color-primary: #f06292;
-      --color-primary-hover: #ec407a;
-      --color-primary-muted: #3d1a26;
-
-      --color-secondary: #a78bfa;
-      --color-secondary-hover: #8b5cf6;
-
-      --color-accent: #fbbf24;
-      --color-accent-foreground: #1a1a1a;
-
-      --color-background: #121212;
-      --color-surface: #1e1e1e;
-      --color-surface-raised: #252525;
-      --color-header: #1e1e1e;
-
-      --color-foreground: #ededed;
-      --color-text: #ededed;
-      --color-muted-foreground: #9e9e9e;
-
-      --color-border: #333333;
-      --color-border-strong: #444444;
-
-      --color-success: #4ade80;
-      --color-success-foreground: #121212;
-      --color-warning: #fbbf24;
-      --color-warning-foreground: #121212;
-      --color-error: #f87171;
-      --color-error-foreground: #121212;
-      --color-info: #60a5fa;
-      --color-info-foreground: #121212;
-    }
-  }
-
-  /* ─── Explicit dark class ────────────────────────────── */
-  .dark {
-    --color-primary: #f06292 !important;
-    --color-primary-hover: #ec407a !important;
-    --color-primary-muted: #3d1a26 !important;
-
-    --color-secondary: #a78bfa !important;
-    --color-secondary-hover: #8b5cf6 !important;
-
-    --color-accent: #fbbf24 !important;
-    --color-accent-foreground: #1a1a1a !important;
-
-    --color-background: #121212 !important;
-    --color-surface: #1e1e1e !important;
-    --color-surface-raised: #252525 !important;
-    --color-header: #1e1e1e !important;
-
-    --color-foreground: #ededed !important;
-    --color-text: #ededed !important;
-    --color-muted-foreground: #9e9e9e !important;
-
-    --color-border: #333333 !important;
-    --color-border-strong: #444444 !important;
-
-    --color-success: #4ade80 !important;
-    --color-success-foreground: #121212 !important;
-    --color-warning: #fbbf24 !important;
-    --color-warning-foreground: #121212 !important;
-    --color-error: #f87171 !important;
-    --color-error-foreground: #121212 !important;
-    --color-info: #60a5fa !important;
-    --color-info-foreground: #121212 !important;
-  }
-
-  /* ─── Explicit light class ───────────────────────────── */
+  :root,
   .light {
-    --color-primary: #c2185b !important;
-    --color-primary-hover: #ad1457 !important;
-    --color-primary-muted: #fce4ec !important;
+    color-scheme: light;
 
-    --color-secondary: #6d28d9 !important;
-    --color-secondary-hover: #5b21b6 !important;
+    --color-primary: #059669;
+    --color-primary-hover: #047857;
+    --color-primary-foreground: #f8fafc;
+    --color-primary-muted: rgba(5, 150, 105, 0.1);
 
-    --color-accent: #f59e0b !important;
-    --color-accent-foreground: #1a1a1a !important;
+    --color-secondary: #0891b2;
+    --color-secondary-hover: #0e7490;
+    --color-secondary-foreground: #f8fafc;
 
-    --color-background: #ffffff !important;
-    --color-surface: #f8f8f8 !important;
-    --color-surface-raised: #f0f0f0 !important;
-    --color-header: #f8f8f8 !important;
+    --color-accent: #0891b2;
+    --color-accent-foreground: #f8fafc;
 
-    --color-foreground: #1a1a1a !important;
-    --color-text: #1a1a1a !important;
-    --color-muted-foreground: #6b6b6b !important;
+    --color-background: #f8fafc;
+    --color-surface: #ffffff;
+    --color-surface-raised: #f1f5f9;
+    --color-header: #ffffff;
 
-    --color-border: #e5e5e5 !important;
-    --color-border-strong: #cccccc !important;
+    --color-foreground: #0f172a;
+    --color-text: #0f172a;
+    --color-muted-foreground: #64748b;
 
-    --color-success: #16a34a !important;
-    --color-success-foreground: #ffffff !important;
-    --color-warning: #d97706 !important;
-    --color-warning-foreground: #ffffff !important;
-    --color-error: #dc2626 !important;
-    --color-error-foreground: #ffffff !important;
-    --color-info: #2563eb !important;
-    --color-info-foreground: #ffffff !important;
+    --color-border: #e2e8f0;
+    --color-border-strong: #cbd5e1;
+
+    --color-success: #059669;
+    --color-success-foreground: #f8fafc;
+    --color-warning: #d97706;
+    --color-warning-foreground: #f8fafc;
+    --color-error: #dc2626;
+    --color-error-foreground: #f8fafc;
+    --color-info: #0891b2;
+    --color-info-foreground: #f8fafc;
+  }
+
+  /* ─── Explicit dark class (manual toggle) ────────────── */
+  .dark {
+    color-scheme: dark;
+
+    --color-primary: #10b981;
+    --color-primary-hover: #34d399;
+    --color-primary-foreground: #04120b;
+    --color-primary-muted: rgba(16, 185, 129, 0.12);
+
+    --color-secondary: #06b6d4;
+    --color-secondary-hover: #22d3ee;
+    --color-secondary-foreground: #04171c;
+
+    --color-accent: #06b6d4;
+    --color-accent-foreground: #04171c;
+
+    --color-background: #090a0d;
+    --color-surface: #16181d;
+    --color-surface-raised: #1c1f26;
+    --color-header: #16181d;
+
+    --color-foreground: #f8fafc;
+    --color-text: #f8fafc;
+    --color-muted-foreground: #64748b;
+
+    --color-border: rgba(255, 255, 255, 0.08);
+    --color-border-strong: rgba(255, 255, 255, 0.14);
+
+    --color-success: #10b981;
+    --color-success-foreground: #04120b;
+    --color-warning: #f59e0b;
+    --color-warning-foreground: #04120b;
+    --color-error: #ef4444;
+    --color-error-foreground: #04120b;
+    --color-info: #06b6d4;
+    --color-info-foreground: #04120b;
   }
 
   html.large-font {
@@ -157,15 +161,318 @@
 }
 
 @layer base {
+  html {
+    /* Horizontal scroll aus dem off-canvas Menü-Drawer (translate-x-full
+       kollidiert sonst mit dem Viewport). clip statt hidden: bricht
+       position: sticky am Header nicht. */
+    overflow-x: clip;
+    scroll-padding-top: 6rem; /* sticky Header + In-Page-Anker */
+  }
+
   body {
+    overflow-x: clip;
     background-color: var(--color-background);
     color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: 1rem; /* ~16px einzige Body-Größe (Spec: 16px / 1.6) */
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
     transition-property: background-color, color;
     transition-duration: 0.3s;
   }
 
-  body.no-animations * {
+  body.no-animations *,
+  body.no-animations *::before,
+  body.no-animations *::after {
     transition: none !important;
     animation: none !important;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    color: var(--color-text);
+    text-wrap: balance;
+  }
+
+  code,
+  kbd,
+  pre,
+  samp {
+    font-family: var(--font-mono);
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-primary) 32%, transparent);
+    color: var(--color-text);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ─── Industrial Utility Layer ───────────────────────────────────────────── */
+@utility dot-grid {
+  /* Radial-Gradient-Punktmatrix, sehr niedrige Opazität (Spec) */
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--color-foreground) 14%, transparent) 1px,
+    transparent 1px
+  );
+  background-size: 24px 24px;
+  background-position: center;
+}
+
+@utility dot-grid-dense {
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--color-foreground) 10%, transparent) 1px,
+    transparent 1px
+  );
+  background-size: 16px 16px;
+  background-position: center;
+}
+
+@utility grid-matrix {
+  background-image:
+    linear-gradient(
+      to right,
+      color-mix(in srgb, var(--color-foreground) 4%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--color-foreground) 4%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 48px 48px;
+}
+
+/* Hairline card shell: 1px translucent border, 6px radius, onyx fill */
+@utility card-industrial {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background-color: var(--color-surface);
+}
+
+/* Border-glow states (Spec: active = emerald + soft outer glow,
+   secondary emphasis = cyan, inactive = hairline) */
+@utility glow-primary {
+  border-color: var(--color-primary);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-primary) 35%, transparent),
+    0 0 24px -6px color-mix(in srgb, var(--color-primary) 45%, transparent);
+}
+
+@utility glow-secondary {
+  border-color: var(--color-secondary);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-secondary) 32%, transparent),
+    0 0 24px -6px color-mix(in srgb, var(--color-secondary) 42%, transparent);
+}
+
+@utility text-glow-primary {
+  text-shadow: 0 0 18px rgba(16, 185, 129, 0.35);
+}
+
+@utility text-glow-secondary {
+  text-shadow: 0 0 18px rgba(6, 182, 212, 0.35);
+}
+
+/* Mono label (Badges, Metadaten, Timestamps, Metrics) */
+@utility mono-label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem; /* 12px */
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+@utility mono-meta {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem; /* 13px */
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+}
+
+/* Gauge/Ring-Motiv: emerald→cyan Gradient-Ring */
+@utility ring-gauge {
+  background: conic-gradient(from 180deg, var(--color-primary) 0deg, var(--color-secondary) 360deg);
+}
+
+/* Section-Rule: thin hairline with a short emerald/cyan underline accent */
+@utility rule-accent {
+  position: relative;
+  border-top: 1px solid var(--color-border);
+}
+@utility rule-accent-mark {
+  position: absolute;
+  top: -1px;
+  left: 0;
+  height: 1px;
+  width: 56px;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-secondary));
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes status-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.86);
+  }
+}
+
+/* ─── Lexical Rich-Text Typography (RichTextBlock / ImageTextBlock) ──────── */
+@layer components {
+  .prose-industrial {
+    font-family: var(--font-body);
+    font-size: 1rem;
+    line-height: 1.7;
+    color: var(--color-text);
+  }
+
+  .prose-industrial > * + * {
+    margin-top: 1rem;
+  }
+
+  .prose-industrial h2,
+  .prose-industrial h3,
+  .prose-industrial h4 {
+    margin-top: 2rem;
+    color: var(--color-text);
+  }
+
+  .prose-industrial h2 {
+    font-size: 1.5rem;
+  }
+
+  .prose-industrial h3 {
+    font-size: 1.25rem;
+  }
+
+  .prose-industrial h4 {
+    font-size: 1.125rem;
+  }
+
+  .prose-industrial a {
+    color: var(--color-primary);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .prose-industrial a:hover {
+    color: var(--color-primary-hover);
+  }
+
+  .prose-industrial strong {
+    color: var(--color-text);
+    font-weight: 600;
+  }
+
+  .prose-industrial ul,
+  .prose-industrial ol {
+    padding-left: 1.25rem;
+  }
+
+  .prose-industrial ul {
+    list-style: none;
+  }
+
+  .prose-industrial ul > li {
+    position: relative;
+    padding-left: 0.25rem;
+  }
+
+  .prose-industrial ul > li::before {
+    content: '';
+    position: absolute;
+    left: -1rem;
+    top: 0.65em;
+    width: 4px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--color-primary);
+  }
+
+  .prose-industrial ol {
+    list-style: decimal;
+  }
+
+  .prose-industrial > * + ol > li,
+  .prose-industrial > * + ul > li {
+    margin-top: 0.4rem;
+  }
+
+  .prose-industrial blockquote {
+    border-left: 2px solid var(--color-primary);
+    padding-left: 1rem;
+    color: var(--color-muted-foreground);
+  }
+
+  .prose-industrial code {
+    font-family: var(--font-mono);
+    font-size: 0.875em;
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-raised);
+    color: var(--color-secondary);
+  }
+
+  .prose-industrial pre {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    line-height: 1.55;
+    padding: 1rem;
+    overflow-x: auto;
+    border-radius: var(--radius-card);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-raised);
+  }
+
+  .prose-industrial pre code {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: inherit;
+  }
+
+  .prose-industrial hr {
+    border-color: var(--color-border);
   }
 }

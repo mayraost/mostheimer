@@ -16,19 +16,23 @@ export default async function NotFound() {
   const notFoundData = await getCachedNotFound(locale);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[50vh] text-center w-full px-4">
-      <h1 className="text-4xl md:text-5xl font-averia font-bold text-primary mb-4">
-        {notFoundData.title}
-      </h1>
-      <p className="text-lg md:text-xl opacity-80 mb-8 max-w-xl mx-auto font-geist-mono">
-        {notFoundData.message}
-      </p>
-      <Link
-        href={notFoundData.buttonLink || `/${locale}`}
-        className="px-6 py-3 bg-primary text-white border-2 border-primary rounded-full font-medium transition-transform hover:scale-105"
-      >
-        {notFoundData.buttonLabel}
-      </Link>
+    <div className="dot-grid flex min-h-[50vh] w-full flex-col items-center justify-center px-4 text-center">
+      <div className="w-full max-w-lg rounded-[8px] border border-border bg-surface p-8">
+        <p className="mono-label mb-4 text-error">
+          <span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-error align-middle" />
+          HTTP 404 · Not Found
+        </p>
+        <h1 className="mb-3 font-heading text-4xl font-bold tracking-tight text-foreground">
+          {notFoundData.title}
+        </h1>
+        <p className="mb-8 text-base text-muted-foreground">{notFoundData.message}</p>
+        <Link
+          href={notFoundData.buttonLink || `/${locale}`}
+          className="mono-label inline-flex min-h-11 items-center justify-center rounded-[6px] bg-primary px-6 text-primary-foreground transition-colors hover:bg-primary-hover"
+        >
+          {notFoundData.buttonLabel}
+        </Link>
+      </div>
     </div>
   );
 }
