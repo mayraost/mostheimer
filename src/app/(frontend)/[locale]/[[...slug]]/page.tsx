@@ -1,19 +1,43 @@
+import type { Metadata } from 'next';
 import type { FrontendLocale } from '@/cms/cache/frontend/frontendCache';
+import type { Page as CmsPage } from '@/payload-types';
 import { notFound } from 'next/navigation';
 import { connection } from 'next/server';
 import { BlockRenderer } from '@/components/blocks';
 import { envConfig } from '@/envConfig';
 import { getCachedPageBySlug, getCachedSiteSettings } from '@/cms/cache/frontend/frontendCache';
-import { JsonLdScript, buildProfilePageJsonLd, buildSiteJsonLd } from '@/components/StructuredData';
+import {
+  JsonLdScript,
+  buildCareerJsonLd,
+  buildCaseStudiesJsonLd,
+  buildProfilePageJsonLd,
+  buildSiteJsonLd,
+  buildWebPageJsonLd,
+} from '@/components/StructuredData';
+import type { JsonLdObject } from '@/components/StructuredData';
+import { derivePageDescription } from '@/cms/aeo/pageMetadata';
 import { ogImageUrl } from '@/components/og/ogCard';
 
 /**
  * Über-Mich-artige Slugs → ProfilePage-JSON-LD (AEO-Layer, Research
  * aeo-discovery-layer: ProfilePage deckt die „About Me"-Page ab; die
- * Homepage selbst ist WebSite-Kandidat). Nicht-Profil-Seiten bekommen
- * bewusst kein Structured Data (kein erfundenes @type).
+ * Homepage selbst ist WebSite-Kandidat).
+ *
+ * Weitere Content-Slugs bekommen ihren Knoten in `buildPageJsonLd`:
+ * Career → ProfilePage mit `hasOccupation` aus der Timeline,
+ * Case-Studies → WebPage + ItemList aus den Case-Study-Blöcken,
+ * Tech-Radar/Leadership/Contact → schlanke WebPage (Contact zusätzlich
+ * mit den Person-Kontaktfakten).
+ *
+ * Unbekannte Slugs bekommen keinen erfundenen `@type` — nur einen
+ * neutralen WebPage-Knoten über `buildWebPageJsonLd`.
  */
 const PROFILE_PAGE_SLUGS = new Set(['about', 'about-me', 'ueber-mich', 'ueber']);
+
+/** Kanonischer Pfad einer Seite (mit Locale-Präfix). */
+function pagePath(locale: FrontendLocale, slug: string): string {
+  return slug === 'home' ? `/${locale}` : `/${locale}/${slug}`;
+}
 
 // Locales sind build-statisch (kein DB-Lookup noetig) — ohne diese
 // generateStaticParams bricht der Build-Prerender-Versuch ab (Root-Param).
@@ -25,6 +49,65 @@ export function generateStaticParams() {
 // erlaubt (siehe page.tsx-Kommentar) — verhindert Dev-Nagging
 // (connection() ohne Route-eigenes Suspense-Boundary).
 export const instant = false;
+
+/**
+ * Page-Level-JSON-LD, rein serverseitig aus den bereits gecachten
+ * Page-Daten (kein zusätzlicher DB-Read, kein Client-JS).
+ */
+function buildPageJsonLd(
+  slug: string,
+  locale: FrontendLocale,
+  page: CmsPage,
+  description: string | null,
+  siteName: string,
+): JsonLdObject {
+  const path = pagePath(locale, slug);
+
+  if (slug === 'home') {
+    return buildSiteJsonLd({ locale, siteName, description });
+  }
+
+  if (PROFILE_PAGE_SLUGS.has(slug)) {
+    return buildProfilePageJsonLd({
+      locale,
+      path,
+      name: page.title,
+      description,
+      dateModified: page.updatedAt ?? null,
+    });
+  }
+
+  if (slug === 'career') {
+    return buildCareerJsonLd({
+      locale,
+      path,
+      name: page.title,
+      description,
+      dateModified: page.updatedAt ?? null,
+      layout: page.layout ?? [],
+    });
+  }
+
+  if (slug === 'case-studies') {
+    return buildCaseStudiesJsonLd({
+      locale,
+      path,
+      name: page.title,
+      description,
+      dateModified: page.updatedAt ?? null,
+      layout: page.layout ?? [],
+    });
+  }
+
+  return buildWebPageJsonLd({
+    locale,
+    path,
+    name: page.title,
+    description,
+    dateModified: page.updatedAt ?? null,
+    includeContact: slug === 'contact',
+  });
+}
 
 export default async function Page({ params }: PageProps<'/[locale]/[[...slug]]'>) {
   // connection() stoppt den Build-Prerender-Versuch (Coolify-Docker-Build
@@ -44,23 +127,17 @@ export default async function Page({ params }: PageProps<'/[locale]/[[...slug]]'
   }
 
   // JSON-LD (AEO-Layer): Homepage → WebSite + Person; Profil-Slugs →
-  // ProfilePage mit mainEntity. Lässt sich rein serverseitig aus den
-  // 'use cache'-Queries lösen (kein zusätzlicher Client-JS-Weight).
-  let jsonLd: Record<string, unknown> | null = null;
-  if (slug === 'home') {
-    const siteSettings = await getCachedSiteSettings(locale);
-    jsonLd = buildSiteJsonLd({
-      locale,
-      siteName: siteSettings.siteName || 'Mostheimer',
-      description: siteSettings.siteDescription,
-    });
-  } else if (PROFILE_PAGE_SLUGS.has(slug)) {
-    jsonLd = buildProfilePageJsonLd({
-      locale,
-      path: `${locale === 'de' ? '/de' : '/en'}/${slug}`,
-      dateModified: page.updatedAt ?? null,
-    });
-  }
+  // ProfilePage; career/case-studies/tech-radar/leadership/contact →
+  // passende WebPage-Varianten. SiteSettings-Read ist gecacht und läuft
+  // ohnehin im Layout (gleicher Cache-Entry).
+  const siteSettings = await getCachedSiteSettings(locale);
+  const jsonLd = buildPageJsonLd(
+    slug,
+    locale,
+    page,
+    derivePageDescription(page),
+    siteSettings.siteName || 'Mostheimer',
+  );
 
   // Semantic-<h1>-Garantie (Findings v2 B5): case-studies / tech-radar /
   // career hatten keinen h1, weil keiner ihrer Blocks einen emittiert.
@@ -72,7 +149,7 @@ export default async function Page({ params }: PageProps<'/[locale]/[[...slug]]'
 
   return (
     <>
-      {jsonLd ? <JsonLdScript data={jsonLd} /> : null}
+      <JsonLdScript data={jsonLd} />
       <article className="mx-auto w-full max-w-6xl">
         {!hasHeroBlock && (
           <header className="mb-8 border-b border-border pb-6 pt-6 lg:pt-10">
@@ -89,7 +166,9 @@ export default async function Page({ params }: PageProps<'/[locale]/[[...slug]]'
   );
 }
 
-export async function generateMetadata({ params }: PageProps<'/[locale]/[[...slug]]'>) {
+export async function generateMetadata({
+  params,
+}: PageProps<'/[locale]/[[...slug]]'>): Promise<Metadata> {
   const resolvedParams = await params;
   const locale = (resolvedParams.locale as FrontendLocale) || 'en';
   const slug = resolvedParams.slug ? resolvedParams.slug.join('/') : 'home';
@@ -98,10 +177,18 @@ export async function generateMetadata({ params }: PageProps<'/[locale]/[[...slu
   if (!page) return { title: 'Mostheimer 404' };
 
   const baseUrl = envConfig.serverUrl;
-  const slugPath = slug === 'home' ? '' : `/${slug}`;
+  const canonical = `${baseUrl}${pagePath(locale, slug)}`;
+  // Per-Page-Description aus dem CMS-Inhalt; Fallback = Layout-Default
+  // (kein eigenes description-Feld am Node, damit Next den Layout-Wert
+  // erbt statt ein leeres Tag zu rendern).
+  const description = derivePageDescription(page);
 
   return {
-    title: `${page.title} - Mostheimer`,
+    // `absolute`: der Layout-Titel trägt die Brand ohne Template — ohne
+    // absolute würde Next das `%s`-Template (falls später ergänzt) doppelt
+    // anwenden. Der Brand-Suffix bleibt pro Seite einheitlich.
+    title: { absolute: `${page.title} - Mostheimer` },
+    ...(description ? { description } : {}),
     // AEO-Layer OG/Twitter-Parity (Research P2): per-Page-Karte via
     // /og-Route (opengraph-image-Dateikonvention ist im [[...slug]]-
     // Catch-All nicht möglich — siehe src/app/og/route.tsx).
@@ -109,20 +196,25 @@ export async function generateMetadata({ params }: PageProps<'/[locale]/[[...slu
       title: page.title,
       type: 'website',
       siteName: 'Mostheimer',
-      url: `${baseUrl}/${locale}${slugPath}`,
+      url: canonical,
+      locale: locale === 'de' ? 'de_DE' : 'en_US',
+      ...(description ? { description } : {}),
       images: [ogImageUrl(page.title, locale)],
     },
-    twitter: { card: 'summary_large_image' },
+    twitter: {
+      card: 'summary_large_image',
+      ...(description ? { description } : {}),
+    },
     alternates: {
-      canonical: `${baseUrl}/${locale}${slugPath}`,
+      canonical,
       languages: {
-        en: `${baseUrl}/en${slugPath}`,
-        de: `${baseUrl}/de${slugPath}`,
+        en: `${baseUrl}/en${slug === 'home' ? '' : `/${slug}`}`,
+        de: `${baseUrl}/de${slug === 'home' ? '' : `/${slug}`}`,
+        // x-default → deutsche Fassung (Primäraudienz ist de; die
+        // Startseite unterscheidet sich sprachlich, die übrigen Seiten
+        // haben identische Slugs).
+        'x-default': `${baseUrl}/de${slug === 'home' ? '' : `/${slug}`}`,
       },
-      // x-default bewusst HELD BACK (unverified-marker im Research: der
-      // Key-Passthrough ist in der Next-16.4-Doku nicht dokumentiert).
-      // Wird erst ergänzt, nachdem nach Deploy Rich Results Test +
-      // URL-Inspection den Passthrough verifiziert haben.
     },
   };
 }

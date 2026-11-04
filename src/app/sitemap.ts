@@ -24,16 +24,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const sitemapEntries: MetadataRoute.Sitemap = [];
 
   docs.forEach((page) => {
+    const slugPath = page.slug === 'home' ? '' : `/${page.slug}`;
+    // `updatedAt` gilt dokumentweit (nicht pro Locale) — beide Sprach-
+    // varianten tragen denselben lastmod-Stempel.
+    const lastModified = page.updatedAt ? new Date(page.updatedAt) : undefined;
     locales.forEach((locale) => {
-      const slugPath = page.slug === 'home' ? '' : `/${page.slug}`;
       sitemapEntries.push({
         url: `${baseUrl}/${locale}${slugPath}`,
-        lastModified: page.updatedAt,
+        lastModified,
         changeFrequency: 'monthly',
         alternates: {
           languages: {
             en: `${baseUrl}/en${slugPath}`,
             de: `${baseUrl}/de${slugPath}`,
+            // x-default → deutsche Fassung (Primäraudienz de).
+            'x-default': `${baseUrl}/de${slugPath}`,
           },
         },
       });
