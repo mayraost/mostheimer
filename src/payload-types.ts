@@ -273,7 +273,21 @@ export interface Page {
   title: string;
   slug: string;
   layout?:
-    | (BentoGrid | CallToAction | FeatureGrid | Hero | ImageText | RichText | Skillset | StatusBlock | TechSection)[]
+    | (
+        | BentoGrid
+        | CallToAction
+        | CaseStudy
+        | FeatureGrid
+        | Hero
+        | ImageText
+        | RichText
+        | Skillset
+        | StatusBlock
+        | TechRadar
+        | TechSection
+        | Testimonial
+        | Timeline
+      )[]
     | null;
   createdBy?: {
     relationTo: 'users';
@@ -2356,6 +2370,51 @@ export interface CallToAction {
   id?: string | null;
   blockName?: string | null;
   blockType: 'callToAction';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "CaseStudy".
+ */
+export interface CaseStudy {
+  /**
+   * Client / project name
+   */
+  client: string;
+  /**
+   * e.g. "2024 – Heute"
+   */
+  period?: string | null;
+  /**
+   * Kontext & Herausforderung
+   */
+  context?: string | null;
+  /**
+   * Technische Architektur & Lösung
+   */
+  solution?: string | null;
+  /**
+   * Mein Beitrag & Impact
+   */
+  contribution?: string | null;
+  /**
+   * Role title
+   */
+  role?: string | null;
+  /**
+   * External link (e.g. aduardo.com)
+   */
+  link?: string | null;
+  /**
+   * Link label (only rendered if link is set)
+   */
+  linkLabel?: string | null;
+  /**
+   * e.g. client names
+   */
+  tags?: string[] | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'caseStudy';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -6536,6 +6595,33 @@ export interface StatusBlock {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TechRadar".
+ */
+export interface TechRadar {
+  /**
+   * Optional section heading
+   */
+  heading?: string | null;
+  quadrants?:
+    | {
+        title: string;
+        items?:
+          | {
+              name: string;
+              tier: 'core' | 'proven' | 'focus';
+              description?: string | null;
+              id?: string | null;
+            }[]
+          | null;
+        id?: string | null;
+      }[]
+    | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'techRadar';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "TechSection".
  */
 export interface TechSection {
@@ -6561,6 +6647,52 @@ export interface TechSection {
   id?: string | null;
   blockName?: string | null;
   blockType: 'techSection';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "Testimonial".
+ */
+export interface Testimonial {
+  /**
+   * Optional section heading
+   */
+  heading?: string | null;
+  items?:
+    | {
+        quote: string;
+        author: string;
+        role?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'testimonial';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "Timeline".
+ */
+export interface Timeline {
+  /**
+   * Optional section heading
+   */
+  heading?: string | null;
+  entries?:
+    | {
+        /**
+         * e.g. "Seit 09/2024 – Heute"
+         */
+        period: string;
+        company: string;
+        role?: string | null;
+        highlights?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'timeline';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -6791,6 +6923,21 @@ export interface PagesSelect<T extends boolean = true> {
               id?: T;
               blockName?: T;
             };
+        caseStudy?:
+          | T
+          | {
+              client?: T;
+              period?: T;
+              context?: T;
+              solution?: T;
+              contribution?: T;
+              role?: T;
+              link?: T;
+              linkLabel?: T;
+              tags?: T;
+              id?: T;
+              blockName?: T;
+            };
         featureGrid?:
           | T
           | {
@@ -6872,6 +7019,27 @@ export interface PagesSelect<T extends boolean = true> {
               id?: T;
               blockName?: T;
             };
+        techRadar?:
+          | T
+          | {
+              heading?: T;
+              quadrants?:
+                | T
+                | {
+                    title?: T;
+                    items?:
+                      | T
+                      | {
+                          name?: T;
+                          tier?: T;
+                          description?: T;
+                          id?: T;
+                        };
+                    id?: T;
+                  };
+              id?: T;
+              blockName?: T;
+            };
         techSection?:
           | T
           | {
@@ -6883,6 +7051,37 @@ export interface PagesSelect<T extends boolean = true> {
                 | {
                     label?: T;
                     value?: T;
+                    id?: T;
+                  };
+              id?: T;
+              blockName?: T;
+            };
+        testimonial?:
+          | T
+          | {
+              heading?: T;
+              items?:
+                | T
+                | {
+                    quote?: T;
+                    author?: T;
+                    role?: T;
+                    id?: T;
+                  };
+              id?: T;
+              blockName?: T;
+            };
+        timeline?:
+          | T
+          | {
+              heading?: T;
+              entries?:
+                | T
+                | {
+                    period?: T;
+                    company?: T;
+                    role?: T;
+                    highlights?: T;
                     id?: T;
                   };
               id?: T;
