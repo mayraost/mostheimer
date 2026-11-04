@@ -199,7 +199,7 @@ export function CommandPalette({ locale, items }: { locale: string; items: Comma
         type="button"
         onClick={openPalette}
         className="mono-label group hidden h-9 items-center gap-2 rounded-[6px] border border-border bg-surface-raised/60 px-3 text-muted-foreground transition-colors hover:border-primary/60 hover:text-foreground md:inline-flex"
-        aria-label="Befehlspalette öffnen (Cmd K)"
+        aria-label="Suche — Befehlspalette öffnen (Cmd K)"
         aria-haspopup="dialog"
       >
         <Search className="h-3.5 w-3.5" aria-hidden="true" />
