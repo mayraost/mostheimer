@@ -40,7 +40,7 @@ export function TestimonialBlock({ block }: { block: TestimonialBlockData }) {
                 &rdquo;
               </span>
 
-              <blockquote className="relative text-base leading-relaxed text-foreground/90">
+              <blockquote className="relative text-base leading-relaxed text-foreground">
                 {item.quote}
               </blockquote>
 
