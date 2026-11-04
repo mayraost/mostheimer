@@ -35,9 +35,11 @@ async function seedLocalizedPage(
       user,
       overrideAccess: false,
       locale: 'en',
+      draft: false,
       data: {
         title: enData.title,
         layout: enData.layout,
+        _status: 'published',
       },
     });
   } else {
@@ -46,10 +48,15 @@ async function seedLocalizedPage(
       user,
       overrideAccess: false,
       locale: 'en',
+      draft: false,
       data: {
         title: enData.title,
         slug: slug,
         layout: enData.layout,
+        // Drafts-enabled Collection: Local-API-Create defaultet _status 'draft'
+        // Seed-Seiten wären sonst für die published-only Public-Reads unsichtbar
+        // (404). Bewusst published seeden.
+        _status: 'published',
       },
     });
     pageId = created.id;
@@ -61,9 +68,11 @@ async function seedLocalizedPage(
     user,
     overrideAccess: false,
     locale: 'de',
+    draft: false,
     data: {
       title: deData.title,
       layout: deData.layout,
+      _status: 'published',
     },
   });
 
