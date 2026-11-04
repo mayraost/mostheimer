@@ -2,6 +2,7 @@ import React from 'react';
 import Image from 'next/image';
 import type { Page, Media } from '@/payload-types';
 import { TypingHeading } from '../TypingHeading';
+import { Chip, StatusDot } from '../ui/industrial';
 
 type HeroBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'hero' }>;
 
@@ -16,67 +17,101 @@ export function HeroBlock({ block }: { block: HeroBlockData }) {
       : null;
 
   return (
-    <section className="relative min-h-[70vh] w-full flex flex-col items-center justify-center text-center overflow-hidden py-32 lg:py-48">
-      {/* Animated Blobs */}
-      <div className="absolute top-1/2 left-1/4 w-72 h-72 bg-primary/20 rounded-full mix-blend-multiply filter blur-2xl opacity-70 animate-blob -translate-x-1/2 -translate-y-1/2 dark:mix-blend-screen" />
-      <div className="absolute top-1/2 right-1/4 w-72 h-72 bg-blue-400/20 rounded-full mix-blend-multiply filter blur-2xl opacity-70 animate-blob [animation-delay:2s] -translate-x-1/2 -translate-y-1/2 dark:mix-blend-screen dark:bg-blue-600/30" />
-      <div className="absolute bottom-8 left-1/2 w-72 h-72 bg-purple-400/20 rounded-full mix-blend-multiply filter blur-2xl opacity-70 animate-blob [animation-delay:4s] -translate-x-1/2 -translate-y-1/2 dark:mix-blend-screen dark:bg-purple-600/30" />
+    <section className="relative -mx-4 overflow-hidden border-b border-border md:-mx-8">
+      {/* Textur-Layer: Grid-Matrix + Emerald/Cyan-Glow (kein Blob) */}
+      <div className="grid-matrix absolute inset-0" aria-hidden="true" />
+      <div
+        className="absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_0%,rgba(16,185,129,0.12),transparent_70%)]"
+        aria-hidden="true"
+      />
+      <div
+        className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent"
+        aria-hidden="true"
+      />
 
       {bgImage?.url && (
         <div className="absolute inset-0 -z-10">
           <Image
             src={bgImage.url}
-            alt={bgImage.alt || 'Background'}
+            alt={bgImage.alt || ''}
             fill
-            className="object-cover opacity-10"
+            className="object-cover opacity-15"
           />
         </div>
       )}
 
-      <div className="relative z-10 w-full max-w-4xl mx-auto px-4 flex flex-col items-center">
-        {block.showStackBadge !== false && (
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
-            {STACK_ITEMS.map((item, i) => (
-              <React.Fragment key={item}>
-                <span className="font-geist-mono text-xs text-primary/80 bg-primary/10 border border-primary/20 px-2.5 py-1 rounded-full">
-                  {item}
-                </span>
-                {i < STACK_ITEMS.length - 1 && <span className="text-border select-none">·</span>}
-              </React.Fragment>
-            ))}
-          </div>
-        )}
+      <div className="relative mx-auto flex w-full max-w-6xl flex-col justify-center px-4 py-20 md:px-8 lg:py-32">
+        {/* Status-Zeile */}
+        <div className="mb-10 flex flex-wrap items-center gap-2">
+          <span className="mono-label inline-flex items-center gap-2 rounded-[4px] border border-primary/50 bg-primary-muted px-2.5 py-1.5 text-primary">
+            <StatusDot className="animate-status-pulse" />
+            available for work
+          </span>
+          <span className="mono-label rounded-[4px] border border-secondary/50 bg-secondary/10 px-2.5 py-1.5 text-secondary">
+            remote · DE
+          </span>
+          <span className="mono-label rounded-[4px] border border-border-strong px-2.5 py-1.5 text-muted-foreground">
+            esper / schell
+          </span>
+        </div>
 
-        <h1 className="text-5xl lg:text-7xl font-averia font-bold text-primary mb-6 drop-shadow-sm flex items-center justify-center w-full">
+        <h1 className="mb-6 flex w-full justify-start font-heading text-4xl font-bold leading-[1.05] tracking-[-0.03em] text-foreground sm:text-5xl lg:text-7xl">
           <TypingHeading text={block.heading} />
         </h1>
 
         {block.subheading && (
-          <p className="text-xl lg:text-2xl text-text mb-10 opacity-80 font-geist-mono max-w-3xl mx-auto leading-relaxed">
+          <p className="mb-10 max-w-3xl text-base leading-relaxed text-muted-foreground sm:text-lg">
             {block.subheading}
           </p>
         )}
 
+        {block.showStackBadge !== false && (
+          <div className="mb-10 flex flex-wrap items-center gap-2">
+            <span className="mono-label mr-1 text-muted-foreground">stack</span>
+            {STACK_ITEMS.map((item) => (
+              <Chip key={item} variant="outline">
+                {item}
+              </Chip>
+            ))}
+          </div>
+        )}
+
         {(block.ctaLabel || block.ctaLabel2) && (
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+          <div className="flex flex-wrap items-center gap-3">
             {block.ctaLabel && block.ctaLink && (
               <a
                 href={block.ctaLink}
-                className="inline-block bg-primary text-white border-2 border-primary px-8 py-4 rounded-full font-semibold hover:bg-transparent hover:text-primary transition-all duration-300 font-geist-mono shadow-md hover:shadow-lg transform hover:-translate-y-1"
+                className="mono-label inline-flex min-h-11 items-center gap-2 rounded-[6px] bg-primary px-5 text-primary-foreground transition-colors hover:bg-primary-hover"
               >
                 {block.ctaLabel}
+                <span aria-hidden="true">→</span>
               </a>
             )}
             {block.ctaLabel2 && block.ctaLink2 && (
               <a
                 href={block.ctaLink2}
-                className="inline-block bg-transparent text-primary border-2 border-primary px-8 py-4 rounded-full font-semibold hover:bg-primary hover:text-white transition-all duration-300 font-geist-mono hover:shadow-lg transform hover:-translate-y-1"
+                className="mono-label inline-flex min-h-11 items-center gap-2 rounded-[6px] border border-border-strong px-5 text-foreground transition-colors hover:border-secondary hover:text-secondary"
               >
                 {block.ctaLabel2}
               </a>
             )}
           </div>
         )}
+
+        {/* Mono-Metrik-Zeile (Industrie-Anmutung, rein dekorativ) */}
+        <dl className="mt-14 grid grid-cols-2 gap-2 border-t border-border pt-6 sm:grid-cols-4">
+          {[
+            ['Uptime', '99.98%'],
+            ['Latency p95', '< 120ms'],
+            ['Architektur', 'Composable'],
+            ['Team', 'Lead-ready'],
+          ].map(([label, value]) => (
+            <div key={label}>
+              <dt className="mono-label text-muted-foreground">{label}</dt>
+              <dd className="mt-1 font-mono text-sm font-semibold text-foreground">{value}</dd>
+            </div>
+          ))}
+        </dl>
       </div>
     </section>
   );

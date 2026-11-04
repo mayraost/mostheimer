@@ -1,45 +1,63 @@
 import React from 'react';
 
 import type { Page } from '@/payload-types';
+import { BentoTile, Chip, splitParagraphs } from '../ui/industrial';
 
 type TimelineBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'timeline' }>;
 type TimelineEntry = NonNullable<TimelineBlockData['entries']>[number];
 
 export function TimelineBlock({ block }: { block: TimelineBlockData }) {
+  const entries = block.entries ?? [];
+
   return (
-    <section className="w-full border-t border-border py-14 first:border-t-0">
-      <div className="mx-auto max-w-3xl px-4">
+    <section className="w-full border-t border-border py-14">
+      <div className="mx-auto w-full max-w-4xl">
         {block.heading && (
-          <h2 className="mb-10 text-2xl font-averia font-bold text-text lg:text-3xl">
-            {block.heading}
-          </h2>
+          <div className="mb-8 flex flex-wrap items-end justify-between gap-3">
+            <h2 className="font-heading text-2xl font-bold tracking-[-0.02em] text-foreground lg:text-3xl">
+              {block.heading}
+            </h2>
+            <Chip variant="outline">{entries.length} Stationen</Chip>
+          </div>
         )}
 
-        <ol className="relative ml-3 space-y-10 border-l border-border">
-          {block.entries?.map((entry: TimelineEntry) => (
-            <li key={entry.id ?? entry.company} className="relative pl-8">
+        <ol className="relative space-y-2 border-l border-border pl-6">
+          {entries.map((entry: TimelineEntry, index) => (
+            <li key={entry.id ?? entry.company} className="relative">
+              {/* Rail-Marker: emerald Dot mit Glow */}
               <span
-                className="absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full bg-primary"
                 aria-hidden="true"
-              />
-              <div className="mb-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <h3 className="text-lg font-averia font-bold text-text">{entry.company}</h3>
-                {entry.period && (
-                  <span className="font-geist-mono text-xs text-muted-foreground">
-                    {entry.period}
+                className="absolute -left-[30px] top-6 flex h-2.5 w-2.5 items-center justify-center"
+              >
+                <span className="h-2.5 w-2.5 rounded-full border border-primary bg-primary shadow-[0_0_10px_rgba(16,185,129,0.65)]" />
+              </span>
+
+              <BentoTile className="p-5 transition-colors hover:border-primary/40">
+                <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="mono-label text-primary">
+                    {String(index + 1).padStart(2, '0')}
                   </span>
+                  {entry.period && (
+                    <span className="mono-label text-muted-foreground">{entry.period}</span>
+                  )}
+                </div>
+
+                <h3 className="font-heading text-lg font-semibold tracking-tight text-foreground">
+                  {entry.company}
+                </h3>
+
+                {entry.role && <p className="mono-meta mt-1 text-secondary">{entry.role}</p>}
+
+                {entry.highlights && (
+                  <div className="mt-3 space-y-2 border-t border-border pt-3">
+                    {splitParagraphs(entry.highlights).map((para, i) => (
+                      <p key={i} className="text-sm leading-relaxed text-muted-foreground">
+                        {para}
+                      </p>
+                    ))}
+                  </div>
                 )}
-              </div>
-              {entry.role && (
-                <p className="mb-3 font-geist-mono text-sm font-semibold text-primary">
-                  {entry.role}
-                </p>
-              )}
-              {entry.highlights && (
-                <p className="whitespace-pre-line font-geist-mono text-sm leading-relaxed opacity-80">
-                  {entry.highlights}
-                </p>
-              )}
+              </BentoTile>
             </li>
           ))}
         </ol>

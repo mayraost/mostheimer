@@ -1,6 +1,7 @@
 import React from 'react';
 
 import type { Page } from '@/payload-types';
+import { BentoTile, CardHeader } from '../ui/industrial';
 
 type TestimonialBlockData = Extract<
   NonNullable<Page['layout']>[number],
@@ -9,33 +10,44 @@ type TestimonialBlockData = Extract<
 type TestimonialItem = NonNullable<TestimonialBlockData['items']>[number];
 
 export function TestimonialBlock({ block }: { block: TestimonialBlockData }) {
+  const items = block.items ?? [];
+
   return (
-    <section className="w-full border-t border-border py-14 first:border-t-0">
-      <div className="mx-auto max-w-5xl px-4">
+    <section className="w-full border-t border-border py-14">
+      <div className="mx-auto w-full max-w-6xl">
         {block.heading && (
-          <h2 className="mb-10 text-2xl font-averia font-bold text-text lg:text-3xl">
+          <h2 className="mb-8 font-heading text-2xl font-bold tracking-[-0.02em] text-foreground lg:text-3xl">
             {block.heading}
           </h2>
         )}
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {block.items?.map((item: TestimonialItem) => (
-            <figure
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+          {items.map((item: TestimonialItem, index) => (
+            <BentoTile
+              as="figure"
               key={item.id ?? item.author}
-              className="flex h-full flex-col justify-between gap-5 rounded-2xl border border-border bg-surface p-6"
+              className="h-full justify-between gap-5 p-5 transition-colors hover:border-primary/40"
             >
-              <blockquote className="font-geist-mono text-sm leading-relaxed opacity-80 lg:text-base">
-                &ldquo;{item.quote}&rdquo;
+              <CardHeader
+                label={`ref ${String(index + 1).padStart(2, '0')}`}
+                meta="verified"
+                tone={index % 2 === 0 ? 'primary' : 'secondary'}
+              />
+              <blockquote className="text-base leading-relaxed text-foreground/90">
+                <span aria-hidden="true" className="mr-1 font-mono text-secondary">
+                  &gt;
+                </span>
+                {item.quote}
               </blockquote>
-              <figcaption className="border-t border-border/50 pt-4">
-                <div className="text-base font-averia font-bold text-text">{item.author}</div>
+              <figcaption className="border-t border-border pt-4">
+                <div className="font-heading text-base font-semibold tracking-tight text-foreground">
+                  {item.author}
+                </div>
                 {item.role && (
-                  <div className="mt-0.5 font-geist-mono text-xs text-muted-foreground">
-                    {item.role}
-                  </div>
+                  <div className="mono-label mt-1 text-muted-foreground">{item.role}</div>
                 )}
               </figcaption>
-            </figure>
+            </BentoTile>
           ))}
         </div>
       </div>

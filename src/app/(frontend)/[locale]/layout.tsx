@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { connection } from 'next/server';
 import { headers } from 'next/headers';
-import { Averia_Serif_Libre, Geist_Mono } from 'next/font/google';
+import { Space_Grotesk, JetBrains_Mono } from 'next/font/google';
 import '../../globals.css';
 import { SettingsProvider } from '@/components/SettingsProvider';
 import { Header } from '@/components/Header';
@@ -21,24 +21,28 @@ import { MaintenanceScreen, MaintenanceBadge } from '@/components/MaintenanceScr
 import { getPayload } from 'payload';
 import configPromise from '@payload-config';
 
-const averia = Averia_Serif_Libre({
-  weight: ['300', '400', '700'],
-  variable: '--font-averia',
+// Display + Body: Space Grotesk (Industrial Grotesk, tight tracking im
+// Utility-Layer). Code/Metadaten: JetBrains Mono.
+const spaceGrotesk = Space_Grotesk({
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-space-grotesk',
   subsets: ['latin'],
+  display: 'swap',
 });
 
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
+const jetbrainsMono = JetBrains_Mono({
+  variable: '--font-jetbrains-mono',
   subsets: ['latin'],
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: 'Mostheimer',
-  description: 'Personal Website',
+  title: 'Mostheimer — Web & Application Architect',
+  description:
+    'Mayra Ostheimer — Web & Application Architect und Staff-Level Fullstack Engineer. Composable Architekturen, Next.js/Payload, Team- & Projektleitung für produktionsreife Systeme.',
   metadataBase: new URL(envConfig.serverUrl),
   // AEO-Layer (Research 03.11.2026): OG/Twitter-Basis für alle Segmente;
-  // per-Page-Cards kommen aus der opengraph-image-Dateikonvention
-  // ([locale] + [[...slug]]), twitter.image generiert Next parallel mit.
+  // per-Page-Cards kommen aus der /og-Route (catch-all-Konvention).
   openGraph: { siteName: 'Mostheimer', type: 'website' },
   twitter: { card: 'summary_large_image' },
 };
@@ -53,21 +57,41 @@ export const metadata: Metadata = {
 export const instant = false;
 
 /**
+ * Pre-Hydration-Theme-Bootstrap: setzt die Theme-Klasse VOR dem ersten
+ * Paint, damit Default-Dark (auch bei light-preferring OS) und ein
+ * gespeichertes User-Theme ohne Flash greifen. SettingsProvider liest
+ * dieselbe Quelle ('theme' in localStorage) beim Mount.
+ */
+const THEME_BOOTSTRAP = `(function(){try{var s=localStorage.getItem('theme');var t=(s==='light'||s==='dark'||s==='system')?s:'dark';var c=t==='system'?(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):t;var r=document.documentElement;r.classList.remove('light','dark');r.classList.add(c);}catch(e){document.documentElement.classList.add('dark');}})();`;
+
+/**
  * Statischer Skeleton-Fallback: nur Layout/Deko, KEINE Payload-Reads und
  * keine Dynamic-APIs — bleibt im Prerender statisch erzeugbar.
  */
 function LayoutSkeleton() {
   return (
-    <div className="flex flex-col min-h-screen" aria-hidden="true">
-      <div className="h-16 border-b border-border bg-surface animate-pulse" />
-      <main className="flex-1 py-10 px-4 md:px-8">
-        <div className="max-w-6xl mx-auto w-full space-y-4 animate-pulse">
-          <div className="h-10 w-2/3 mx-auto rounded-lg bg-surface" />
-          <div className="h-40 rounded-2xl bg-surface/60" />
+    <div className="flex min-h-screen flex-col" aria-hidden="true">
+      <div className="h-16 animate-pulse border-b border-border bg-surface" />
+      <main className="flex-1 px-4 py-10 md:px-8">
+        <div className="mx-auto w-full max-w-6xl animate-pulse space-y-2">
+          <div className="h-8 w-2/3 rounded-[6px] bg-surface" />
+          <div className="h-40 rounded-[6px] bg-surface/60" />
         </div>
       </main>
-      <div className="h-24 border-t border-border bg-surface animate-pulse" />
+      <div className="h-24 animate-pulse border-t border-border bg-surface" />
     </div>
+  );
+}
+
+function SkipLink({ locale }: { locale: string }) {
+  const label = locale === 'de' ? 'Zum Inhalt springen' : 'Skip to content';
+  return (
+    <a
+      href="#main-content"
+      className="sr-only rounded-[6px] border border-primary bg-surface-raised px-4 py-2 font-mono text-sm text-primary focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:inline-block"
+    >
+      {label}
+    </a>
   );
 }
 
@@ -76,8 +100,12 @@ export default async function RootLayout({ children, params }: LayoutProps<'/[lo
   const locale = (resolvedParams.locale as FrontendLocale) || 'en';
 
   return (
-    <html lang={locale}>
-      <body className={`${averia.variable} ${geistMono.variable} antialiased`}>
+    <html lang={locale} className="dark">
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
+      </head>
+      <body className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} font-body antialiased`}>
+        <SkipLink locale={locale} />
         <NotFoundGate locale={locale}>
           <Suspense fallback={<LayoutSkeleton />}>
             <LayoutShell locale={locale}>{children}</LayoutShell>
@@ -189,9 +217,11 @@ async function LayoutShell({
         <MaintenanceBadge locale={locale} />
         <TranslationsProvider translations={translations}>
           <SettingsProvider>
-            <div className="flex flex-col min-h-screen">
+            <div className="flex min-h-screen flex-col">
               <Header locale={locale} navLinks={navigation.headerLinks ?? []} />
-              <main className="flex-1 py-10 px-4 md:px-8">{children}</main>
+              <main id="main-content" tabIndex={-1} className="flex-1 px-4 py-10 md:px-8">
+                {children}
+              </main>
               <Footer locale={locale} navLinks={navigation.footerLinks ?? []} />
             </div>
           </SettingsProvider>
@@ -201,16 +231,16 @@ async function LayoutShell({
   }
 
   return (
-    <>
-      <TranslationsProvider translations={translations}>
-        <SettingsProvider>
-          <div className="flex flex-col min-h-screen">
-            <Header locale={locale} navLinks={navigation.headerLinks ?? []} />
-            <main className="flex-1 py-10 px-4 md:px-8">{children}</main>
-            <Footer locale={locale} navLinks={navigation.footerLinks ?? []} />
-          </div>
-        </SettingsProvider>
-      </TranslationsProvider>
-    </>
+    <TranslationsProvider translations={translations}>
+      <SettingsProvider>
+        <div className="flex min-h-screen flex-col">
+          <Header locale={locale} navLinks={navigation.headerLinks ?? []} />
+          <main id="main-content" tabIndex={-1} className="flex-1 px-4 py-10 md:px-8">
+            {children}
+          </main>
+          <Footer locale={locale} navLinks={navigation.footerLinks ?? []} />
+        </div>
+      </SettingsProvider>
+    </TranslationsProvider>
   );
 }

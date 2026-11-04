@@ -1,11 +1,19 @@
 import React from 'react';
-import * as LucideIcons from 'lucide-react';
 import { icons } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
+/**
+ * Lucide-Icon-Lookup über den CMS-Select-Wert.
+ *
+ * Leerer/ungesetzter `iconName` → KEIN Icon (null). Die Blocks rendern
+ * dann dekorativen Platzhalter statt eines irreführenden CircleHelp-
+ * Fallbacks (Findings v2 #9: 6 Säulen / 5 Icons).
+ */
 export function Icon({ name, className }: { name?: string | null; className?: string }) {
-  const IconComponent: LucideIcon | undefined = name
-    ? ((icons as Record<string, LucideIcon | undefined>)[name] ?? LucideIcons.CircleHelp)
-    : LucideIcons.CircleHelp;
-  return <IconComponent className={className} />;
+  if (!name) return null;
+
+  const IconComponent = (icons as Record<string, LucideIcon | undefined>)[name];
+  if (!IconComponent) return null;
+
+  return <IconComponent className={className} aria-hidden="true" />;
 }
