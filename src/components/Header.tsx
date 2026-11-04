@@ -5,8 +5,10 @@ import { usePathname } from 'next/navigation';
 import { useSettings } from './SettingsProvider';
 import { useTranslations } from './TranslationsProvider';
 import { Moon, Sun, SunMoon, Settings, Menu, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Logo } from './Logo';
+import { CommandPalette } from './ui/CommandPalette';
+import type { CommandItem } from './ui/CommandPalette';
 
 type NavLink = {
   label: string;
@@ -15,32 +17,89 @@ type NavLink = {
   id?: string | null;
 };
 
-export function Header({ locale, navLinks }: { locale: string; navLinks?: NavLink[] }) {
+export function Header({
+  locale,
+  navLinks,
+  commandItems = [],
+}: {
+  locale: string;
+  navLinks?: NavLink[];
+  commandItems?: CommandItem[];
+}) {
   const { theme, currentTheme, setTheme } = useSettings();
   const translations = useTranslations();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const pathname = usePathname();
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Prevent scrolling when sidebar is open
+  /**
+   * Scroll-Lock (Bugfix 04.11.2026): NUR `overflow-y` toggeln und den
+   * vorherigen Inline-Wert zurückschreiben. Der frühere Code setzte das
+   * `overflow`-Shorthand auf 'hidden' und beim Schließen auf 'unset' —
+   * 'unset' überschreibt das CSS `overflow-x: clip` aus globals.css
+   * (Inline-Style gewinnt) und brachte damit den horizontalen Scroll nach
+   * einmal Öffnen/Schließen zurück. `overflow-x: clip` + `overflow-y: hidden`
+   * ist zudem die einzige Kombination, die iOS-Safari-Rubber-Banding am
+   * Dokument zuverlässig stoppt, ohne `position: fixed` (Scroll-Position
+   * bleibt erhalten).
+   */
   useEffect(() => {
-    if (isSidebarOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
+    if (!isSidebarOpen) return;
+    const body = document.body;
+    const previousOverflowY = body.style.overflowY;
+    body.style.overflowY = 'hidden';
     return () => {
-      document.body.style.overflow = 'unset';
+      body.style.overflowY = previousOverflowY;
     };
   }, [isSidebarOpen]);
 
-  // Escape schließt den Drawer (Tastatur-A11y)
+  // Esc schließt, Tab zykelt im Drawer, Fokus geht zurück zum Hamburger.
   useEffect(() => {
     if (!isSidebarOpen) return;
+    const drawer = drawerRef.current;
+    const menuButton = menuButtonRef.current;
+    const body = document.body;
+    const previousOverflowY = body.style.overflowY;
+    body.style.overflowY = 'hidden';
+
+    // Fokus beim Öffnen in den Drawer (Schließen-Button ist das stabilste Ziel)
+    closeButtonRef.current?.focus();
+
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsSidebarOpen(false);
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setIsSidebarOpen(false);
+        menuButton?.focus();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+
+      const focusables = drawer?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusables || focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      }
     };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      body.style.overflowY = previousOverflowY;
+      // Beim Schließen Fokus restaurieren, wenn er noch im Drawer steckt
+      if (drawer?.contains(document.activeElement)) {
+        menuButton?.focus();
+      }
+    };
   }, [isSidebarOpen]);
 
   const handleThemeToggle = () => {
@@ -58,6 +117,10 @@ export function Header({ locale, navLinks }: { locale: string; navLinks?: NavLin
   // bleiben das sichtbare Label, der volle Name steht im aria-label.
   const targetLanguageName = targetLocale === 'de' ? 'Deutsch' : 'English (EN)';
   const languageSwitchLabel = `Sprache wechseln zu ${targetLanguageName}`;
+
+  // Lokalisierung des Schließen-Buttons ohne Schema-Änderung am
+  // Translations-Global: der Accessible Name folgt der aktiven Locale.
+  const closeLabel = locale === 'de' ? 'Menü schließen' : 'Close menu';
 
   const iconButtonClass =
     'flex h-9 w-9 items-center justify-center rounded-[6px] border border-border bg-surface-raised/60 text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground';
@@ -80,6 +143,9 @@ export function Header({ locale, navLinks }: { locale: string; navLinks?: NavLin
         </Link>
 
         <div className="flex items-center gap-2">
+          {/* Command Palette (⌘K / Ctrl+K) */}
+          <CommandPalette locale={locale} items={commandItems} />
+
           {/* Language Toggle */}
           <Link
             href={languageSwitchHref}
@@ -115,6 +181,7 @@ export function Header({ locale, navLinks }: { locale: string; navLinks?: NavLin
 
           {/* Sidebar Toggle */}
           <button
+            ref={menuButtonRef}
             onClick={() => setIsSidebarOpen(true)}
             className="flex h-9 w-9 items-center justify-center rounded-[6px] border border-primary/60 bg-primary-muted text-primary transition-colors hover:border-primary hover:text-primary-hover"
             aria-label={translations.common.menu}
@@ -134,12 +201,20 @@ export function Header({ locale, navLinks }: { locale: string; navLinks?: NavLin
           (Chrome zählt transformierte Positions-Boxen in scrollWidth). */}
       <div
         aria-hidden={!isSidebarOpen}
-        className={`fixed inset-0 z-[60] ${isSidebarOpen ? '' : 'pointer-events-none'}`}
+        /*
+         * overflow-hidden ist PFLICHT (Bugfix 04.11.2026): der geschlossene
+         * Drawer sitzt auf `translate-x-full`; `invisible` blendet ihn aus,
+         * entzieht seine Layout-Box aber NICHT der Overflow-Berechnung.
+         * Ohne Clip auf dem Wrapper wächst scrollWidth des Dokuments um die
+         * Drawer-Breite (375px-Viewport → 694px) und die Seite scrollt
+         * horizontal. Der Clip hier ist unabhängig von html/body-Reihenfolge.
+         */
+        className={`fixed inset-0 z-[60] overflow-hidden ${isSidebarOpen ? '' : 'pointer-events-none'}`}
       >
         {/* Backdrop */}
         <div
           className={`absolute inset-0 h-dvh bg-background/70 backdrop-blur-sm transition-opacity duration-200 ${
-            isSidebarOpen ? 'opacity-100' : 'opacity-0'
+            isSidebarOpen ? 'touch-none opacity-100' : 'pointer-events-none opacity-0'
           }`}
           onClick={() => setIsSidebarOpen(false)}
           aria-hidden="true"
@@ -147,17 +222,24 @@ export function Header({ locale, navLinks }: { locale: string; navLinks?: NavLin
 
         {/* Sidebar Drawer */}
         <div
+          ref={drawerRef}
           id="site-menu-drawer"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="site-menu-title"
           className={`absolute top-0 right-0 flex h-[100dvh] w-[85%] max-w-sm flex-col border-l border-border bg-surface transition-transform duration-300 ${
             isSidebarOpen ? 'translate-x-0' : 'invisible translate-x-full opacity-0'
           }`}
         >
           <div className="flex h-16 items-center justify-between border-b border-border px-4">
-            <span className="mono-label text-primary">&gt;_ {translations.common.menu}</span>
+            <span id="site-menu-title" className="mono-label text-primary">
+              &gt;_ {translations.common.menu}
+            </span>
             <button
+              ref={closeButtonRef}
               onClick={() => setIsSidebarOpen(false)}
               className={iconButtonClass}
-              aria-label="Close Menu"
+              aria-label={closeLabel}
               type="button"
               tabIndex={isSidebarOpen ? undefined : -1}
             >
@@ -165,7 +247,10 @@ export function Header({ locale, navLinks }: { locale: string; navLinks?: NavLin
             </button>
           </div>
 
-          <nav className="flex-1 overflow-y-auto p-4" aria-label={translations.common.menu}>
+          <nav
+            className="flex-1 overflow-y-auto overscroll-contain p-4"
+            aria-label={translations.common.menu}
+          >
             <ul className="flex flex-col gap-2">
               {navLinks?.map((item, index) => (
                 <li key={item.id || index}>
