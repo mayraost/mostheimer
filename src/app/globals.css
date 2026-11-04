@@ -77,10 +77,10 @@
   --animate-status-pulse: status-pulse 2.4s ease-in-out infinite;
 }
 
-/* ─── Light variant (OS prefers light → .light via SettingsProvider) ─── */
+/* ─── Theme-Varianten ────────────────────────────────────────────────────
+   Dark ist der App-Default (auch bei light-preferring OS): :root ist immer
+   dunkel, nur .light (SettingsProvider-Toggle) schaltet hell. */
 @layer base {
-  /* Dark ist der App-Default (auch bei light-preferring OS): :root und das
-     System-Dark-Prefs sind identisch dunkel. Nur .light schaltet hell. */
   :root {
     color-scheme: dark;
 
