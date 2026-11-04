@@ -39,6 +39,14 @@ COPY --from=build --chown=nextjs:nodejs /app/src/public ./public
 # Nur media-Dir fuer Volume-Mount vorbereiten (chown nur dieses Verzeichnis,
 # nicht rekursiv über den ganzen Runner)
 RUN mkdir -p /app/public/media && chown nextjs:nodejs /app/public/media
+# '/app' selbst gehoert root (COPY --chown faerbt nur die kopierten INHALTE).
+# Next schreibt zur Laufzeit den 'use cache'-Store nach /app/.next/cache —
+# ohne beschreibbares Ziel scheitern alle Cache-Writes still, und die
+# On-Demand-Invalidierung (revalidateTag aus Payload-Hooks) greift
+# inkonsistent: einzelne Routen bleiben dauerhaft auf einem alten Snapshot
+# (gemessen 04.11.2026: /en-Home behielt den Stand von vor einer
+# Content-Aenderung, waehrend /de korrekt aktualisierte).
+RUN mkdir -p /app/.next/cache && chown -R nextjs:nodejs /app/.next/cache
 USER nextjs
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

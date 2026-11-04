@@ -9,6 +9,7 @@ import * as migration_20261104_165006_add_skillset_blocks from './20261104_16500
 import * as migration_20261104_165445_add_mcp_api_keys from './20261104_165445_add_mcp_api_keys';
 import * as migration_20261104_192059_add_spec_blocks from './20261104_192059_add_spec_blocks';
 import * as migration_20261104_211055_add_architecture_diagram from './20261104_211055_add_architecture_diagram';
+import * as migration_20261104_232628_add_command_palette_translations from './20261104_232628_add_command_palette_translations';
 
 export const migrations = [
   {
@@ -65,5 +66,10 @@ export const migrations = [
     up: migration_20261104_211055_add_architecture_diagram.up,
     down: migration_20261104_211055_add_architecture_diagram.down,
     name: '20261104_211055_add_architecture_diagram',
+  },
+  {
+    up: migration_20261104_232628_add_command_palette_translations.up,
+    down: migration_20261104_232628_add_command_palette_translations.down,
+    name: '20261104_232628_add_command_palette_translations',
   },
 ];
