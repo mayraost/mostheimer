@@ -379,10 +379,12 @@ await payload.delete({ collection: 'posts', id: '123' });
   startet mit `DEFAULT_THEME='dark'`; ein Pre-Hydration-`<script>`
   (`THEME_BOOTSTRAP` im `[locale]/layout.tsx`) setzt die Klasse vor dem
   ersten Paint (kein Flash). `<html className="dark">` ist der SSR-Default.
-- **Wichtig:** Token-Overrides in `.dark`/`.light` NICHT mit `!important`
-  setzen — `.dark`-Kinder erben sonst per Kaskade den System-Fallback statt
-  der Klassenwerte. Ohne `!important` gewinnt die Klassen-Spezifität (0,1,0)
-  sauber gegen `@theme`.
+- **`:`root` ist IMMER dunkel** — nur `.light` schaltet hell (auch bei
+  light-preferring OS gilt Dark als App-Default). Kein
+  `@media (prefers-color-scheme: …)`-Token-Block mehr.
+- **Token-Overrides in `.dark`/`.light` NICHT mit `!important`** — sonst
+  erben `.dark`-Kinder per Kaskade den falschen Fallback-Wert. Ohne
+  `!important` gewinnt die Klassen-Spezifität (0,1,0) korrekt.
 
 ### Design Tokens (`src/app/globals.css`)
 

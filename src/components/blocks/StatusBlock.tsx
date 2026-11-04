@@ -1,55 +1,62 @@
 import React from 'react';
 import type { Page } from '@/payload-types';
-import { Chip, CornerTicks, GaugeRing, StatusDot, stableGaugeValue } from '../ui/industrial';
+import { GaugeRing, StatusDot, stableGaugeValue } from '../ui/industrial';
 
 type StatusBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'statusBlock' }>;
 
+/**
+ * Status-Strip: flache, horizontale System-Status-Leiste (bewusst KEIN
+ * Karten-Panel wie die anderen Blöcke) — Emerald-Dots, Mono-Metriken,
+ * Hairline-Separatoren und ein Gauge-Ring als rechter Anker.
+ */
 export function StatusBlock({ block }: { block: StatusBlockData }) {
   const topics = block.networkTopics ?? [];
 
   return (
-    <section className="w-full py-12">
-      <div className="mx-auto w-full max-w-4xl">
-        <div className="relative overflow-hidden rounded-[8px] border border-primary/40 bg-surface shadow-[0_0_40px_-16px_rgba(16,185,129,0.55)]">
-          <div className="dot-grid absolute inset-0 opacity-40" aria-hidden="true" />
+    <section className="w-full py-10" aria-label={block.title}>
+      <div className="mx-auto w-full max-w-6xl">
+        <div className="relative overflow-hidden rounded-[6px] border border-border bg-surface">
           <div
-            className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary to-transparent"
+            className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-primary via-secondary to-transparent"
             aria-hidden="true"
           />
-          <CornerTicks />
 
-          <div className="relative flex flex-col gap-6 p-6 lg:flex-row lg:items-center lg:p-8">
-            <div className="min-w-0 flex-1">
-              {block.badgeLabel && (
-                <p className="mono-label mb-4 inline-flex items-center gap-2 rounded-[4px] border border-primary bg-primary-muted px-2.5 py-1.5 text-primary">
-                  <StatusDot className="animate-status-pulse" />
-                  {block.badgeLabel}
+          <div className="flex flex-col gap-6 p-5 lg:flex-row lg:items-center lg:gap-8 lg:p-6">
+            <div className="flex items-center gap-3 lg:border-r lg:border-border lg:pr-8">
+              <GaugeRing
+                value={stableGaugeValue(block.title ?? 'status', 74, 98)}
+                label="signal"
+                size={72}
+              />
+              <div className="min-w-0">
+                {block.badgeLabel && (
+                  <p className="mono-label flex items-center gap-2 text-primary">
+                    <StatusDot className="animate-status-pulse" />
+                    {block.badgeLabel}
+                  </p>
+                )}
+                <p className="mt-1 font-heading text-base font-semibold leading-snug tracking-tight text-foreground">
+                  {block.title}
                 </p>
-              )}
-
-              <h2 className="mb-3 font-heading text-xl font-bold tracking-[-0.02em] text-foreground lg:text-2xl">
-                {block.title}
-              </h2>
-
-              <p className="text-base leading-relaxed text-muted-foreground">{block.description}</p>
-
-              {topics.length > 0 && (
-                <div className="mt-5 flex flex-wrap gap-1.5">
-                  {topics.map((item) => (
-                    <Chip key={item.id ?? item.topic} variant="outline">
-                      {item.topic}
-                    </Chip>
-                  ))}
-                </div>
-              )}
+              </div>
             </div>
 
-            <div className="flex shrink-0 items-center justify-center gap-4 lg:flex-col">
-              <GaugeRing
-                value={stableGaugeValue(block.title ?? 'status', 70, 98)}
-                label="signal"
-                size={96}
-              />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm leading-relaxed text-muted-foreground">{block.description}</p>
+
+              {topics.length > 0 && (
+                <ul className="mt-4 grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-2">
+                  {topics.map((item) => (
+                    <li
+                      key={item.id ?? item.topic}
+                      className="flex items-start gap-2 text-sm text-foreground/85"
+                    >
+                      <StatusDot className="mt-[0.45rem]" />
+                      <span className="min-w-0">{item.topic}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
         </div>
