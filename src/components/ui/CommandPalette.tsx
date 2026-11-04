@@ -1,0 +1,337 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Search, Command, CornerDownLeft } from 'lucide-react';
+
+export type CommandItem = {
+  /** Stabile ID (Page-Slug + optional Anker). */
+  id: string;
+  /** Anzeige-Label, z. B. "Case Studies". */
+  label: string;
+  /** Zielpfad, locale-bereinigt, z. B. "/case-studies" oder "#architektur". */
+  href: string;
+  /** Gruppe für die Ergebnisliste. */
+  group: string;
+  /** Optionale Suchbegriffe (Synonyme, deutsche/englische Begriffe). */
+  keywords?: string[];
+};
+
+/**
+ * Command-Palette (Spec §2.3) — ⌘K / Ctrl+K.
+ *
+ * A11y-Vertrag:
+ * - `role="dialog" aria-modal="true"` mit `aria-labelledby` auf den Titel.
+ * - Fokus wird beim Öffnen in das Suchfeld gesetzt und beim Schließen an das
+ *   auslösende Element zurückgegeben.
+ * - Fokus-Trap: Tab/Shift+Tab zyklen innerhalb der Dialog-Ebene (Input,
+ *   Ergebnisliste, Schließen-Button).
+ * - ↑/↓ bewegen die aktive Option (`aria-activedescendant`), Enter öffnet,
+ *   Esc schließt. Die Ergebnisanzahl wird über `aria-live="polite"`
+ *   angesagt.
+ * - `aria-hidden` + `inert`-freie Unmount-Strategie: der Dialog existiert im
+ *   DOM nur, wenn er offen ist → kein Offscreen-Fokus, kein Layout-Overflow.
+ */
+const isSubsequence = (needle: string, haystack: string): boolean => {
+  if (!needle) return true;
+  let i = 0;
+  for (let j = 0; j < haystack.length && i < needle.length; j += 1) {
+    if (haystack[j] === needle[i]) i += 1;
+  }
+  return i === needle.length;
+};
+
+export function CommandPalette({ locale, items }: { locale: string; items: CommandItem[] }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [activeIndex, setActiveIndex] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const triggerRef = useRef<Element | null>(null);
+
+  const close = useCallback(() => {
+    setOpen(false);
+    setQuery('');
+    setActiveIndex(0);
+    const trigger = triggerRef.current as HTMLElement | null;
+    trigger?.focus?.();
+  }, []);
+
+  const openPalette = useCallback(() => {
+    triggerRef.current = document.activeElement;
+    setOpen(true);
+  }, []);
+
+  // Globale Tastenkürzel: ⌘K / Ctrl+K toggelt, "/" öffnet nur außerhalb von
+  // Eingabefeldern (kein Überraschungsfokus beim Tippen in Formularen).
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const isCommandK = event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey);
+      if (isCommandK) {
+        event.preventDefault();
+        setOpen((prev) => {
+          if (!prev) triggerRef.current = document.activeElement;
+          return !prev;
+        });
+        return;
+      }
+      if (event.key === 'Escape') {
+        setOpen((prev) => {
+          if (prev) {
+            const trigger = triggerRef.current as HTMLElement | null;
+            trigger?.focus?.();
+          }
+          return false;
+        });
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  // Fokus beim Öffnen + Scroll-Lock
+  useEffect(() => {
+    if (!open) return;
+    const frame = window.requestAnimationFrame(() => inputRef.current?.focus());
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
+
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return items;
+    return items
+      .map((item) => {
+        const haystack = [item.label, item.group, ...(item.keywords ?? [])].join(' ').toLowerCase();
+        const label = item.label.toLowerCase();
+        let score = 0;
+        if (label.startsWith(q)) score = 3;
+        else if (label.includes(q)) score = 2;
+        else if (haystack.includes(q)) score = 1;
+        else if (isSubsequence(q, haystack)) score = 0.5;
+        return { item, score };
+      })
+      .filter((entry) => entry.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map((entry) => entry.item);
+  }, [items, query]);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, CommandItem[]>();
+    for (const item of results) {
+      const list = map.get(item.group) ?? [];
+      list.push(item);
+      map.set(item.group, list);
+    }
+    return [...map.entries()];
+  }, [results]);
+
+  // Flache Reihenfolge für die aktive Option (stabil über Gruppen hinweg).
+  const flat = useMemo(() => grouped.flatMap(([, groupItems]) => groupItems), [grouped]);
+
+  // Geklemmter Index ohne Effect: wenn die Trefferliste schrumpft (Query
+  // ändert sich), bleibt der aktive Eintrag im gültigen Bereich.
+  const effectiveIndex = flat.length === 0 ? 0 : Math.min(activeIndex, flat.length - 1);
+
+  const run = useCallback(
+    (item: CommandItem) => {
+      const isAnchor = item.href.startsWith('#');
+      const target = isAnchor ? item.href : `/${locale}${item.href}`;
+      close();
+      if (isAnchor) {
+        // Anker derselben Page: sanft scrollen + Fokus setzen (a11y).
+        const el = document.querySelector(item.href);
+        el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        (el as HTMLElement | null)?.focus?.({ preventScroll: true });
+      } else {
+        router.push(target);
+      }
+    },
+    [close, locale, router],
+  );
+
+  const onListKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setActiveIndex((prev) => (flat.length ? (prev + 1) % flat.length : 0));
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setActiveIndex((prev) => (flat.length ? (prev - 1 + flat.length) % flat.length : 0));
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      const item = flat[effectiveIndex];
+      if (item) run(item);
+    } else if (event.key === 'Tab') {
+      // Fokus-Trap: nur Elemente innerhalb des Dialogs
+      const focusables = dialogRef.current?.querySelectorAll<HTMLElement>(
+        'input, button, [href], [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusables || focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      }
+    }
+  };
+
+  // Aktive Option in den sichtbaren Bereich holen (ohne Layout-Shift der Seite)
+  useEffect(() => {
+    if (!open) return;
+    const list = listRef.current;
+    const active = list?.querySelector<HTMLElement>('[data-active="true"]');
+    active?.scrollIntoView({ block: 'nearest' });
+  }, [effectiveIndex, open]);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={openPalette}
+        className="mono-label group hidden h-9 items-center gap-2 rounded-[6px] border border-border bg-surface-raised/60 px-3 text-muted-foreground transition-colors hover:border-primary/60 hover:text-foreground md:inline-flex"
+        aria-label="Befehlspalette öffnen (Cmd K)"
+        aria-haspopup="dialog"
+      >
+        <Search className="h-3.5 w-3.5" aria-hidden="true" />
+        <span className="hidden lg:inline">Suche</span>
+        <kbd className="ml-1 inline-flex items-center gap-0.5 rounded-[3px] border border-border-strong px-1 py-0.5 font-mono text-[10px] text-muted-foreground">
+          <Command className="h-2.5 w-2.5" aria-hidden="true" />K
+        </kbd>
+      </button>
+
+      {/* Mobile Trigger */}
+      <button
+        type="button"
+        onClick={openPalette}
+        className="flex h-9 w-9 items-center justify-center rounded-[6px] border border-border bg-surface-raised/60 text-muted-foreground transition-colors hover:border-primary/60 hover:text-foreground md:hidden"
+        aria-label="Befehlspalette öffnen"
+        aria-haspopup="dialog"
+      >
+        <Search className="h-4 w-4" aria-hidden="true" />
+      </button>
+
+      {open && (
+        <div
+          className="fixed inset-0 z-[80] flex items-start justify-center bg-background/80 p-4 backdrop-blur-sm sm:pt-[12vh]"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) close();
+          }}
+        >
+          <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="command-palette-title"
+            onKeyDown={onListKeyDown}
+            className="w-full max-w-xl overflow-hidden rounded-[8px] border border-border-strong bg-surface shadow-[0_0_60px_-20px_rgba(16,185,129,0.5)]"
+          >
+            <h2 id="command-palette-title" className="sr-only">
+              Befehlspalette
+            </h2>
+
+            <div className="flex items-center gap-3 border-b border-border px-4">
+              <Search className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+              <input
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setActiveIndex(0);
+                }}
+                placeholder="Seite, Abschnitt oder Technologie suchen …"
+                aria-label="Suche"
+                aria-controls="command-palette-results"
+                aria-activedescendant={
+                  flat[effectiveIndex] ? `command-option-${flat[effectiveIndex].id}` : undefined
+                }
+                role="combobox"
+                aria-expanded="true"
+                aria-autocomplete="list"
+                autoComplete="off"
+                spellCheck={false}
+                className="h-12 w-full bg-transparent font-mono text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+              />
+              <kbd className="mono-label shrink-0 rounded-[3px] border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                esc
+              </kbd>
+            </div>
+
+            <p aria-live="polite" className="sr-only">
+              {results.length} Ergebnis{results.length === 1 ? '' : 'se'}
+            </p>
+
+            <ul
+              ref={listRef}
+              id="command-palette-results"
+              role="listbox"
+              aria-label="Ergebnisse"
+              className="max-h-[min(60vh,28rem)] overflow-y-auto p-2"
+            >
+              {grouped.length === 0 && (
+                <li className="mono-label px-3 py-6 text-center text-muted-foreground">
+                  keine treffer
+                </li>
+              )}
+              {grouped.map(([group, groupItems]) => (
+                <li key={group}>
+                  <p className="mono-label px-3 pb-1 pt-3 text-muted-foreground">{group}</p>
+                  <ul>
+                    {groupItems.map((item) => {
+                      const index = flat.indexOf(item);
+                      const active = index === effectiveIndex;
+                      return (
+                        <li key={item.id}>
+                          <button
+                            type="button"
+                            id={`command-option-${item.id}`}
+                            role="option"
+                            aria-selected={active}
+                            data-active={active}
+                            tabIndex={-1}
+                            onClick={() => run(item)}
+                            onMouseMove={() => setActiveIndex(index)}
+                            className={[
+                              'flex w-full items-center justify-between gap-3 rounded-[4px] px-3 py-2 text-left transition-colors',
+                              active
+                                ? 'bg-primary-muted text-foreground ring-1 ring-primary'
+                                : 'text-muted-foreground hover:bg-surface-raised',
+                            ].join(' ')}
+                          >
+                            <span className="truncate text-sm">{item.label}</span>
+                            {active && (
+                              <CornerDownLeft
+                                className="h-3.5 w-3.5 shrink-0 text-primary"
+                                aria-hidden="true"
+                              />
+                            )}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </li>
+              ))}
+            </ul>
+
+            <div className="flex items-center justify-between border-t border-border px-4 py-2">
+              <span className="mono-label text-[10px] text-muted-foreground">↑↓ navigieren</span>
+              <span className="mono-label text-[10px] text-muted-foreground">↵ öffnen</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

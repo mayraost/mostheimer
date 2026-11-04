@@ -17,17 +17,43 @@
  */
 
 @theme {
-  /* ─── Typography ─────────────────────────────────────── */
-  --font-heading: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
-  --font-body: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, monospace;
-  --font-sans: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  /* Font-Familien werden NICHT über diese Namespace-Variablen aufgelöst —
+     siehe den :root-Block direkt unter @theme (Runtime-Bugfix
+     04.11.2026: `--font-sans`/`--font-body` verhalten sich als
+     *Invalid-on-theme-namespace*; `var(--font-body)` evaluiert dann leer
+     und der Browser fällt auf die Preflight-Systemschrift zurück). */
 
+  /* ─── Radii (Industrial: strict 6/8) ─────────────────── */
+  --radius-card: 6px;
+  --radius-container: 8px;
+
+  /* ─── Motion ─────────────────────────────────────────── */
+  --animate-blink: blink 1s step-end infinite;
+  --animate-status-pulse: status-pulse 2.4s ease-in-out infinite;
+}
+
+/* ─── Font-Stack (ausserhalb @theme, verlässlich auflösbar) ───────────── */
+:root {
+  --font-space-grotesk-stack: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-jetbrains-mono-stack:
+    var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --font-sans: var(--font-space-grotesk-stack);
+  --font-heading: var(--font-space-grotesk-stack);
+  --font-body: var(--font-space-grotesk-stack);
+  --font-mono: var(--font-jetbrains-mono-stack);
   /* Legacy-Aliase (Migration): ältere Klassenreferenzen zeigen auf dieselben
-     Stacks, damit kein 404-Font aus dem Fallback der Browser-Serif fällt. */
-  --font-averia: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
-  --font-geist-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+     Stacks, damit kein Browser-Serif-Fallback greift. */
+  --font-averia: var(--font-space-grotesk-stack);
+  --font-geist-mono: var(--font-jetbrains-mono-stack);
 
+  /* Preflight-Defaults aus demselben Stack speisen: html/body erben
+     --default-font-family, code/kbd/pre --default-mono-font-family. */
+  --default-font-family: var(--font-body);
+  --default-mono-font-family: var(--font-mono);
+}
+
+@theme {
   /* ─── Primary (Emerald-500) ──────────────────────────── */
   --color-primary: #10b981;
   --color-primary-hover: #34d399;
@@ -208,7 +234,12 @@
   }
 
   body {
+    /* DER eigentliche Fix (04.11.2026): der Scroll-Box des Dokuments gehört
+       bei normalem Fluss dem <body>; `overflow-x: clip` nur auf <html>
+       clippt nicht, was Nachfahren von <body> über den Rand hinausragen
+       lassen (mobile: scrollWidth 694 bei 375px Viewport). */
     overflow-x: clip;
+    max-width: 100%;
     background-color: var(--color-background);
     color: var(--color-text);
     font-family: var(--font-body);
