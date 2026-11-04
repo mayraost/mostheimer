@@ -51,9 +51,7 @@ export function TimelineBlock({ block }: { block: TimelineBlockData }) {
                 <p className="mono-label leading-relaxed text-muted-foreground">
                   {entry.period || '—'}
                 </p>
-                <p className="mono-label mt-1 text-primary/70">
-                  {String(index + 1).padStart(2, '0')}
-                </p>
+                <p className="mono-label mt-1 text-primary">{String(index + 1).padStart(2, '0')}</p>
               </div>
 
               <div className="min-w-0 md:pl-4">

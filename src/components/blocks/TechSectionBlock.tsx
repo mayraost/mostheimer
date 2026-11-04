@@ -24,7 +24,7 @@ export function TechSectionBlock({ block }: { block: TechSectionBlockData }) {
 
           <div className="space-y-4">
             {paragraphs.map((para, i) => (
-              <p key={i} className="text-base leading-relaxed text-foreground/85">
+              <p key={i} className="text-base leading-relaxed text-foreground">
                 {para}
               </p>
             ))}
