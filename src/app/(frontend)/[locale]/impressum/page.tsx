@@ -18,31 +18,40 @@ export function generateStaticParams() {
 // (instant=false deaktiviert nur die Instant-Navigation-Validation).
 export const ensureStatic = 'shell';
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: PageProps<'/[locale]/impressum'>): Promise<Metadata> {
   const baseUrl = envConfig.serverUrl;
+  const resolvedParams = await params;
+  const locale: 'de' | 'en' = resolvedParams.locale === 'en' ? 'en' : 'de';
+  const title = locale === 'de' ? 'Impressum' : 'Imprint';
+  const description =
+    locale === 'de'
+      ? 'Impressum und rechtliche Angaben gemäß § 5 DDG: Anbieter, Kontakt, E-Mail und Telefonnummer von Mayra Ostheimer.'
+      : 'Legal notice under § 5 DDG (German law): provider, contact, email and phone number of Mayra Ostheimer.';
+  const canonical = `${baseUrl}/${locale}/impressum`;
+
   return {
-    title: 'Impressum - Mostheimer',
-    // AEO-Layer OG/Twitter-Parity (Profile der Catch-All-Pages, ohne eigenes
-    // og-title: Plattformen übernehmen <title>/og:title-Fallback).
-    // AEO-Layer OG/Twitter-Parity (per-Page-Karte via /og-Route —
-    // opengraph-image-Dateikonvention ist im Catch-All nicht möglich,
-    // siehe src/app/og/route.tsx).
+    title: { absolute: `${title} - Mostheimer` },
+    description,
     openGraph: {
-      title: 'Impressum',
+      title,
+      description,
       type: 'website',
       siteName: 'Mostheimer',
-      url: `${baseUrl}/de/impressum`,
-      images: [ogImageUrl('Impressum', 'de')],
+      url: canonical,
+      locale: locale === 'de' ? 'de_DE' : 'en_US',
+      images: [ogImageUrl(title, locale)],
     },
-    twitter: { card: 'summary_large_image' },
+    twitter: { card: 'summary_large_image', description },
     alternates: {
-      canonical: `${baseUrl}/de/impressum`,
+      canonical,
       languages: {
         en: `${baseUrl}/en/impressum`,
         de: `${baseUrl}/de/impressum`,
+        // x-default → deutsche Fassung (Primäraudienz de).
+        'x-default': `${baseUrl}/de/impressum`,
       },
-      // x-default held back — unverified Key-Passthrough (siehe
-      // [[...slug]]/page.tsx generateMetadata).
     },
   };
 }
