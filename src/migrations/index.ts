@@ -8,6 +8,7 @@ import * as migration_20261102_001219_fix_pages_draft_status_published from './2
 import * as migration_20261104_165006_add_skillset_blocks from './20261104_165006_add_skillset_blocks';
 import * as migration_20261104_165445_add_mcp_api_keys from './20261104_165445_add_mcp_api_keys';
 import * as migration_20261104_192059_add_spec_blocks from './20261104_192059_add_spec_blocks';
+import * as migration_20261104_211055_add_architecture_diagram from './20261104_211055_add_architecture_diagram';
 
 export const migrations = [
   {
@@ -59,5 +60,10 @@ export const migrations = [
     up: migration_20261104_192059_add_spec_blocks.up,
     down: migration_20261104_192059_add_spec_blocks.down,
     name: '20261104_192059_add_spec_blocks',
+  },
+  {
+    up: migration_20261104_211055_add_architecture_diagram.up,
+    down: migration_20261104_211055_add_architecture_diagram.down,
+    name: '20261104_211055_add_architecture_diagram',
   },
 ];

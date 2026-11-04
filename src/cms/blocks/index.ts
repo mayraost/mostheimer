@@ -1,3 +1,4 @@
+import { ArchitectureDiagram } from './ArchitectureDiagram';
 import { BentoGrid } from './BentoGrid';
 import { CallToAction } from './CallToAction';
 import { CaseStudy } from './CaseStudy';
@@ -13,17 +14,18 @@ import { Testimonial } from './Testimonial';
 import { Timeline } from './Timeline';
 
 export const allBlocks = [
-  BentoGrid,
-  CallToAction,
-  CaseStudy,
-  FeatureGrid,
   Hero,
+  StatusBlock,
+  BentoGrid,
+  ArchitectureDiagram,
+  TechSection,
+  CaseStudy,
+  TechRadar,
+  Skillset,
+  Timeline,
+  Testimonial,
+  FeatureGrid,
   ImageText,
   RichText,
-  Skillset,
-  StatusBlock,
-  TechRadar,
-  TechSection,
-  Testimonial,
-  Timeline,
+  CallToAction,
 ];

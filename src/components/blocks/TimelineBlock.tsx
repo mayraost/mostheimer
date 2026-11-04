@@ -1,11 +1,16 @@
 import React from 'react';
 
 import type { Page } from '@/payload-types';
-import { BentoTile, Chip, splitParagraphs } from '../ui/industrial';
+import { Chip, splitParagraphs } from '../ui/industrial';
 
 type TimelineBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'timeline' }>;
 type TimelineEntry = NonNullable<TimelineBlockData['entries']>[number];
 
+/**
+ * Timeline: vertikale Hairline-Rail mit Emerald-Nodes, Mono-Perioden in
+ * eigener Spalte, dichte Company/Role-Typografie. Bewusst OHNE Karten-Rahmen
+ * pro Eintrag — die Rail ist der Rhythmus.
+ */
 export function TimelineBlock({ block }: { block: TimelineBlockData }) {
   const entries = block.entries ?? [];
 
@@ -21,35 +26,41 @@ export function TimelineBlock({ block }: { block: TimelineBlockData }) {
           </div>
         )}
 
-        <ol className="relative space-y-2 border-l border-border pl-6">
+        <ol className="relative">
+          {/* Rail */}
+          <span
+            aria-hidden="true"
+            className="absolute left-[7px] top-2 bottom-2 w-px bg-border md:left-[119px]"
+          />
+
           {entries.map((entry: TimelineEntry, index) => (
-            <li key={entry.id ?? entry.company} className="relative">
-              {/* Rail-Marker: emerald Dot mit Glow */}
+            <li
+              key={entry.id ?? entry.company}
+              className="relative grid grid-cols-1 gap-x-8 gap-y-1 pb-8 pl-7 last:pb-0 md:grid-cols-[96px_minmax(0,1fr)] md:pl-0"
+            >
+              {/* Node */}
               <span
                 aria-hidden="true"
-                className="absolute -left-[30px] top-6 flex h-2.5 w-2.5 items-center justify-center"
+                className="absolute left-0 top-2 flex h-3.5 w-3.5 items-center justify-center md:left-[112px]"
               >
-                <span className="h-2.5 w-2.5 rounded-full border border-primary bg-primary shadow-[0_0_10px_rgba(16,185,129,0.65)]" />
+                <span className="h-3.5 w-3.5 rounded-full border border-primary/60 bg-background" />
+                <span className="absolute h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
               </span>
 
-              <BentoTile className="p-5 transition-colors hover:border-primary/40">
-                <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <span className="mono-label text-primary">
-                    {String(index + 1).padStart(2, '0')}
-                  </span>
-                  {entry.period && (
-                    <span className="mono-label text-muted-foreground">{entry.period}</span>
-                  )}
-                </div>
+              <div className="md:pr-4 md:text-right">
+                <p className="mono-label text-muted-foreground">{entry.period || '—'}</p>
+                <p className="mono-label mt-1 text-primary/70">
+                  {String(index + 1).padStart(2, '0')}
+                </p>
+              </div>
 
+              <div className="min-w-0 md:pl-4">
                 <h3 className="font-heading text-lg font-semibold tracking-tight text-foreground">
                   {entry.company}
                 </h3>
-
                 {entry.role && <p className="mono-meta mt-1 text-secondary">{entry.role}</p>}
-
                 {entry.highlights && (
-                  <div className="mt-3 space-y-2 border-t border-border pt-3">
+                  <div className="mt-3 space-y-2">
                     {splitParagraphs(entry.highlights).map((para, i) => (
                       <p key={i} className="text-sm leading-relaxed text-muted-foreground">
                         {para}
@@ -57,7 +68,7 @@ export function TimelineBlock({ block }: { block: TimelineBlockData }) {
                     ))}
                   </div>
                 )}
-              </BentoTile>
+              </div>
             </li>
           ))}
         </ol>

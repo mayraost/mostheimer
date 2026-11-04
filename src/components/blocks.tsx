@@ -13,6 +13,7 @@ import { CaseStudyBlock } from './blocks/CaseStudyBlock';
 import { TimelineBlock } from './blocks/TimelineBlock';
 import { TestimonialBlock } from './blocks/TestimonialBlock';
 import { TechRadarBlock } from './blocks/TechRadarBlock';
+import { ArchitectureDiagramBlock } from './blocks/ArchitectureDiagramBlock';
 
 export type PageBlock = NonNullable<Page['layout']>[number];
 
@@ -44,9 +45,11 @@ export function BlockRenderer({ block }: { block: PageBlock }) {
       return <TestimonialBlock block={block} />;
     case 'techRadar':
       return <TechRadarBlock block={block} />;
+    case 'architectureDiagram':
+      return <ArchitectureDiagramBlock block={block} />;
     default:
       return (
-        <div className="py-8 text-center text-red-500 border border-red-500 rounded my-4">
+        <div className="mono-label my-4 rounded-[6px] border border-error/50 bg-surface px-4 py-8 text-center text-error">
           Unsupported block type
         </div>
       );
@@ -67,4 +70,5 @@ export {
   TimelineBlock,
   TestimonialBlock,
   TechRadarBlock,
+  ArchitectureDiagramBlock,
 };

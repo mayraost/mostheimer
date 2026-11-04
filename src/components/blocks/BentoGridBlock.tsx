@@ -1,15 +1,7 @@
 import React from 'react';
 import type { Page } from '@/payload-types';
 import { Icon } from './Icon';
-import {
-  BentoTile,
-  Chip,
-  CornerTicks,
-  Eyebrow,
-  GaugeRing,
-  StatusDot,
-  stableGaugeValue,
-} from '../ui/industrial';
+import { BentoTile, Chip, CornerTicks, Eyebrow, StatusDot } from '../ui/industrial';
 
 type BentoGridBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'bentoGrid' }>;
 type BentoItem = NonNullable<BentoGridBlockData['items']>[number];
@@ -17,16 +9,16 @@ type BentoItem = NonNullable<BentoGridBlockData['items']>[number];
 /**
  * Bento-Mosaik der Architektur-Säulen (Home-Zentrepiece).
  *
- * Layout: 4-Spalten-Raster, 8px-Gaps. `featured`-Tiles spannen 2 Spalten
- * auf lg (1 Spalte mobile/tablet). Beauty liegt im Rhythmus: Icon in
- * kreisrundem Hairline-Rahmen, Mono-"Säule 0X"-Label, Emerald/Cyan-
- * Border-State je nach Index (Emerald = aktiv/Betonung, Cyan = sekundär).
+ * Layout: 4-Spalten-Raster, 8px-Gaps. `featured`-Tiles spannen 2 Spalten auf
+ * lg (1 Spalte mobile/tablet). Icon in kreisrundem Hairline-Rahmen,
+ * Mono-"Säule 0X"-Label, Emerald/Cyan-Border-State je nach Position.
+ *
+ * OHNE Reifegrad-Vokabular (User-Entscheid 04.11.2026): kein
+ * "featured/core"-Chip und kein Maturity-Gauge — die Hervorhebung ist rein
+ * räumlich (Spanning) plus Beschreibungstiefe.
  */
 function BentoCard({ item, index }: { item: BentoItem; index: number }) {
-  // Wechselnde Akzent-Zustände: jede Karte bekommt entweder Emerald-
-  // (Betonung) oder Hairline-State; `highlight` + `featured` gewinnen Emerald.
   const isEmphasis = Boolean(item.featured || item.highlight) || index % 3 === 0;
-  const emphasis = isEmphasis ? 'primary' : 'secondary';
 
   const card = (
     <BentoTile
@@ -42,21 +34,17 @@ function BentoCard({ item, index }: { item: BentoItem; index: number }) {
 
       <div className="relative flex h-full flex-col p-5">
         <div className="mb-5 flex items-start justify-between gap-3">
-          <span
-            className={['mono-label', isEmphasis ? 'text-primary' : 'text-muted-foreground'].join(
-              ' ',
-            )}
-          >
+          <span className={`mono-label ${isEmphasis ? 'text-primary' : 'text-muted-foreground'}`}>
             Säule {String(index + 1).padStart(2, '0')}
           </span>
           <span className="mono-label flex items-center gap-1.5 text-muted-foreground">
-            <StatusDot tone={emphasis === 'primary' ? 'primary' : 'secondary'} />
+            <StatusDot tone={isEmphasis ? 'primary' : 'secondary'} />
             {item.featured ? 'featured' : 'core'}
           </span>
         </div>
 
         <div className="mb-4 flex items-center gap-3">
-          {/* Icon nur bei gesetztem iconName (Fix: leere Slots dekorativ auffangen) */}
+          {/* Icon nur bei gesetztem iconName (leere Slots dekorativ auffangen) */}
           {item.iconName ? (
             <span
               className={[
@@ -75,13 +63,6 @@ function BentoCard({ item, index }: { item: BentoItem; index: number }) {
             >
               +
             </span>
-          )}
-          {item.featured && (
-            <GaugeRing
-              value={stableGaugeValue(item.title ?? String(index))}
-              label="maturity"
-              size={52}
-            />
           )}
         </div>
 
