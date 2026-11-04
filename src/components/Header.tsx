@@ -147,7 +147,7 @@ export function Header({
         navLinks={navLinks ?? []}
         title={translations.common.menu}
         closeLabel={locale === 'de' ? 'Menü schließen' : 'Close menu'}
-        statusLabel="Status · Available"
+        statusLabel={`Kiebitzreihe · ${locale.toUpperCase()}`}
       />
     </header>
   );

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Command, CornerDownLeft } from 'lucide-react';
+import { useTranslations } from '../TranslationsProvider';
 
 export type CommandItem = {
   /** Stabile ID (Page-Slug + optional Anker). */
@@ -43,6 +44,7 @@ const isSubsequence = (needle: string, haystack: string): boolean => {
 
 export function CommandPalette({ locale, items }: { locale: string; items: CommandItem[] }) {
   const router = useRouter();
+  const t = useTranslations().commandPalette;
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
@@ -199,11 +201,11 @@ export function CommandPalette({ locale, items }: { locale: string; items: Comma
         type="button"
         onClick={openPalette}
         className="mono-label group hidden h-9 items-center gap-2 rounded-[6px] border border-border bg-surface-raised/60 px-3 text-muted-foreground transition-colors hover:border-primary/60 hover:text-foreground md:inline-flex"
-        aria-label="SucheK — Befehlspalette öffnen"
+        aria-label={`${t.triggerText}K — ${t.triggerLabel}`}
         aria-haspopup="dialog"
       >
         <Search className="h-3.5 w-3.5" aria-hidden="true" />
-        <span className="hidden lg:inline">Suche</span>
+        <span className="hidden lg:inline">{t.triggerText}</span>
         <kbd className="ml-1 inline-flex items-center gap-0.5 rounded-[3px] border border-border-strong px-1 py-0.5 font-mono text-[10px] text-muted-foreground">
           <Command className="h-2.5 w-2.5" aria-hidden="true" />K
         </kbd>
@@ -214,7 +216,7 @@ export function CommandPalette({ locale, items }: { locale: string; items: Comma
         type="button"
         onClick={openPalette}
         className="flex h-9 w-9 items-center justify-center rounded-[6px] border border-border bg-surface-raised/60 text-muted-foreground transition-colors hover:border-primary/60 hover:text-foreground md:hidden"
-        aria-label="Befehlspalette öffnen"
+        aria-label={t.triggerLabel}
         aria-haspopup="dialog"
       >
         <Search className="h-4 w-4" aria-hidden="true" />
@@ -237,7 +239,7 @@ export function CommandPalette({ locale, items }: { locale: string; items: Comma
             className="w-full max-w-xl overflow-hidden rounded-[8px] border border-border-strong bg-surface shadow-[0_0_60px_-20px_rgba(16,185,129,0.5)]"
           >
             <h2 id="command-palette-title" className="sr-only">
-              Befehlspalette
+              {t.title}
             </h2>
 
             <div className="flex items-center gap-3 border-b border-border px-4">
@@ -250,8 +252,8 @@ export function CommandPalette({ locale, items }: { locale: string; items: Comma
                   setQuery(event.target.value);
                   setActiveIndex(0);
                 }}
-                placeholder="Seite, Abschnitt oder Technologie suchen …"
-                aria-label="Suche"
+                placeholder={t.placeholder}
+                aria-label={t.searchLabel}
                 aria-controls="command-palette-results"
                 aria-activedescendant={
                   flat[effectiveIndex] ? `command-option-${flat[effectiveIndex].id}` : undefined
@@ -269,24 +271,27 @@ export function CommandPalette({ locale, items }: { locale: string; items: Comma
             </div>
 
             <p aria-live="polite" className="sr-only">
-              {results.length} Ergebnis{results.length === 1 ? '' : 'se'}
+              {results.length} {t.resultCount}
+              {results.length === 1 ? '' : t.resultCountPlural}
             </p>
 
             <ul
               ref={listRef}
               id="command-palette-results"
               role="listbox"
-              aria-label="Ergebnisse"
+              aria-label={t.resultsLabel}
               className="max-h-[min(60vh,28rem)] overflow-y-auto p-2"
             >
               {grouped.length === 0 && (
                 <li className="mono-label px-3 py-6 text-center text-muted-foreground">
-                  keine treffer
+                  {t.emptyLabel}
                 </li>
               )}
               {grouped.map(([group, groupItems]) => (
                 <li key={group}>
-                  <p className="mono-label px-3 pb-1 pt-3 text-muted-foreground">{group}</p>
+                  <p className="mono-label px-3 pb-1 pt-3 text-muted-foreground">
+                    {group === 'pages' ? t.groupPages : t.groupSections}
+                  </p>
                   <ul>
                     {groupItems.map((item) => {
                       const index = flat.indexOf(item);
@@ -326,8 +331,8 @@ export function CommandPalette({ locale, items }: { locale: string; items: Comma
             </ul>
 
             <div className="flex items-center justify-between border-t border-border px-4 py-2">
-              <span className="mono-label text-[10px] text-muted-foreground">↑↓ navigieren</span>
-              <span className="mono-label text-[10px] text-muted-foreground">↵ öffnen</span>
+              <span className="mono-label text-[10px] text-muted-foreground">{t.hintNavigate}</span>
+              <span className="mono-label text-[10px] text-muted-foreground">{t.hintOpen}</span>
             </div>
           </div>
         </div>

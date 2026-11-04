@@ -7330,6 +7330,27 @@ export interface Translation {
     settingsButtonAria: string;
     menu: string;
   };
+  commandPalette: {
+    /**
+     * Accessible name of the header search button
+     */
+    triggerLabel: string;
+    triggerText: string;
+    title: string;
+    placeholder: string;
+    searchLabel: string;
+    resultsLabel: string;
+    emptyLabel: string;
+    hintNavigate: string;
+    hintOpen: string;
+    /**
+     * Singular; the plural appends the `resultCountPlural` value
+     */
+    resultCount: string;
+    resultCountPlural: string;
+    groupPages: string;
+    groupSections: string;
+  };
   createdBy?: {
     relationTo: 'users';
     value: number | User;
@@ -7426,6 +7447,23 @@ export interface TranslationsSelect<T extends boolean = true> {
         theme?: T;
         settingsButtonAria?: T;
         menu?: T;
+      };
+  commandPalette?:
+    | T
+    | {
+        triggerLabel?: T;
+        triggerText?: T;
+        title?: T;
+        placeholder?: T;
+        searchLabel?: T;
+        resultsLabel?: T;
+        emptyLabel?: T;
+        hintNavigate?: T;
+        hintOpen?: T;
+        resultCount?: T;
+        resultCountPlural?: T;
+        groupPages?: T;
+        groupSections?: T;
       };
   createdBy?: T;
   updatedBy?: T;
