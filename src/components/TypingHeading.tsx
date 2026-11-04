@@ -6,30 +6,41 @@ import { useSettings } from './SettingsProvider';
 /**
  * Typing-Effekt auf dem Hero-Display (Client-Insel).
  *
- * A11y-Entscheidung (Findings-Driven): Der volle Text steht von Anfang an
- * im Accessible-Name (`aria-label` auf dem Wrapper) und im sr-only-Fallback;
- * die sichtbare Tipp-Animation ist `aria-hidden` und Layout-neutral
- * (fester 2-Zeilen-Rahmen im Display, damit kein CLS durch Zeilenumbruch
- * entsteht, während die Zeichen erscheinen).
+ * A11y: Der volle Text steht von Anfang an im Accessible-Name
+ * (`aria-label` am Wrapper) und im sr-only-Fallback; die sichtbare
+ * Tipp-Animation ist `aria-hidden`.
+ *
+ * Performance (04.11.2026): Der frühere Effekt rendert pro Zeichen ein
+ * React-Update (18ms-Takt über einen langen Hero-Text) — auf dem Home trägt
+ * das messbar zur Main-Thread-Arbeit bei (Lighthouse mobile 84 vs. 100 auf
+ * allen anderen Seiten). Jetzt laufen die Zeichen in EINEM rAF-Loop mit
+ * mehreren Zeichen pro Frame, das Tippen bleibt sichtbar.
  */
 function TypingHeadingEffect({ text, animationsOn }: { text: string; animationsOn: boolean }) {
   const [progress, setProgress] = useState(0);
   const isTyping = progress < text.length;
 
   useEffect(() => {
-    // Respect disabled animations inside the effect too: nothing to reveal.
     if (!animationsOn) return;
 
-    let i = 0;
-    const typingInterval = setInterval(() => {
-      i += 1;
-      if (i <= text.length) {
-        setProgress(i);
-        if (i === text.length) clearInterval(typingInterval);
-      }
-    }, 18);
+    let raf = 0;
+    let shown = 0;
+    let last = 0;
+    const msPerChar = 9;
 
-    return () => clearInterval(typingInterval);
+    const tick = (now: number) => {
+      if (now - last >= msPerChar) {
+        last = now;
+        // 3 Zeichen pro Update statt 1 — dieselbe Lesbarkeit, 3x weniger
+        // React-Renders über die gesamte Animation.
+        shown = Math.min(text.length, shown + 3);
+        setProgress(shown);
+      }
+      if (shown < text.length) raf = window.requestAnimationFrame(tick);
+    };
+
+    raf = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(raf);
   }, [text, animationsOn]);
 
   return (
