@@ -13,7 +13,7 @@ export function TechSectionBlock({ block }: { block: TechSectionBlockData }) {
   const paragraphs = splitParagraphs(block.body);
 
   return (
-    <section className="w-full border-t border-border py-14">
+    <section className="w-full border-t border-border pt-6 pb-14 lg:py-14">
       <div className="mx-auto w-full max-w-4xl">
         <BentoTile className="p-5 lg:p-8">
           {block.sectionLabel && <CardHeader label={block.sectionLabel} meta="tech section" />}

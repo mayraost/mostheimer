@@ -43,7 +43,7 @@ function NarrativeColumn({ sectionKey, body }: { sectionKey: SectionKey; body?: 
  */
 export function CaseStudyBlock({ block }: { block: CaseStudyBlockData }) {
   return (
-    <section className="w-full py-4">
+    <section className="w-full pt-6 pb-4 lg:py-4">
       <div className="mx-auto w-full max-w-6xl">
         <BentoTile as="article" className="p-5 lg:p-8">
           <CardHeader label="case study" meta={block.period || '—'} />

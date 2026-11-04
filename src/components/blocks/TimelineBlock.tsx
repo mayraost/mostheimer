@@ -15,7 +15,7 @@ export function TimelineBlock({ block }: { block: TimelineBlockData }) {
   const entries = block.entries ?? [];
 
   return (
-    <section className="w-full border-t border-border py-14">
+    <section className="w-full border-t border-border pt-6 pb-14 lg:py-14">
       <div className="mx-auto w-full max-w-4xl">
         {block.heading && (
           <div className="mb-8 flex flex-wrap items-end justify-between gap-3">

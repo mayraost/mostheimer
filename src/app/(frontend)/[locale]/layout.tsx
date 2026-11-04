@@ -73,7 +73,7 @@ function LayoutSkeleton() {
   return (
     <div className="flex min-h-screen flex-col" aria-hidden="true">
       <div className="h-16 animate-pulse border-b border-border bg-surface" />
-      <main className="flex-1 px-4 py-10 md:px-8">
+      <main className="flex-1 px-4 md:px-8">
         <div className="mx-auto w-full max-w-6xl animate-pulse space-y-2">
           <div className="h-8 w-2/3 rounded-[6px] bg-surface" />
           <div className="h-40 rounded-[6px] bg-surface/60" />
@@ -227,7 +227,7 @@ async function LayoutShell({
                 navLinks={navigation.headerLinks ?? []}
                 commandItems={commandItems}
               />
-              <main id="main-content" tabIndex={-1} className="flex-1 px-4 py-10 md:px-8">
+              <main id="main-content" tabIndex={-1} className="flex-1 px-4 md:px-8">
                 {children}
               </main>
               <Footer locale={locale} navLinks={navigation.footerLinks ?? []} />
@@ -247,7 +247,7 @@ async function LayoutShell({
             navLinks={navigation.headerLinks ?? []}
             commandItems={commandItems}
           />
-          <main id="main-content" tabIndex={-1} className="flex-1 px-4 py-10 md:px-8">
+          <main id="main-content" tabIndex={-1} className="flex-1 px-4 md:px-8">
             {children}
           </main>
           <Footer locale={locale} navLinks={navigation.footerLinks ?? []} />

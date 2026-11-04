@@ -81,7 +81,7 @@ export function ArchitectureDiagramBlock({ block }: { block: ArchitectureDiagram
   return (
     <section
       id="architektur-schaubild"
-      className="w-full scroll-mt-24 py-16"
+      className="w-full scroll-mt-24 pt-6 pb-16 lg:py-16"
       aria-labelledby="architecture-diagram-heading"
     >
       <div className="mx-auto w-full max-w-6xl">
