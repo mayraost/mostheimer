@@ -13,7 +13,7 @@ export function StatusBlock({ block }: { block: StatusBlockData }) {
   const topics = block.networkTopics ?? [];
 
   return (
-    <section className="w-full py-10" aria-label={block.title}>
+    <section className="w-full pt-6 pb-10 lg:py-10" aria-label={block.title}>
       <div className="mx-auto w-full max-w-6xl">
         <div className="relative overflow-hidden rounded-[6px] border border-border bg-surface">
           <div

@@ -116,7 +116,7 @@ export function BentoGridBlock({ block }: { block: BentoGridBlockData }) {
 
   return (
     /* id="architektur": Ziel des Hero-CTAs "Architektur-Ansatz entdecken" */
-    <section id="architektur" className="w-full scroll-mt-24 py-16">
+    <section id="architektur" className="w-full scroll-mt-24 pt-6 pb-16 lg:py-16">
       <div className="mx-auto w-full max-w-6xl">
         <div className="mb-8 border-b border-border pb-6">
           <Eyebrow>Architektur-Ansatz</Eyebrow>

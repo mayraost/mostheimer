@@ -48,7 +48,7 @@ function SkillsetCard({ item, index }: { item: SkillsetItem; index: number }) {
 
 export function SkillsetBlock({ block }: { block: SkillsetBlockData }) {
   return (
-    <section className="w-full border-t border-border py-14">
+    <section className="w-full border-t border-border pt-6 pb-14 lg:py-14">
       <div className="mx-auto w-full max-w-6xl">
         <div className="mb-8">
           <CardHeader label="skillset" meta={`${block.items?.length ?? 0} items`} />

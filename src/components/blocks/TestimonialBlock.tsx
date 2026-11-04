@@ -18,7 +18,7 @@ export function TestimonialBlock({ block }: { block: TestimonialBlockData }) {
   const items = block.items ?? [];
 
   return (
-    <section className="w-full border-t border-border py-14">
+    <section className="w-full border-t border-border pt-6 pb-14 lg:py-14">
       <div className="mx-auto w-full max-w-6xl">
         {block.heading && (
           <h2 className="mb-8 font-heading text-2xl font-bold tracking-[-0.02em] text-foreground lg:text-3xl">

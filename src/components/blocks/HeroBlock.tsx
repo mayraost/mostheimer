@@ -53,7 +53,7 @@ export function HeroBlock({ block }: { block: HeroBlockData }) {
         </div>
       )}
 
-      <div className="relative mx-auto grid w-full max-w-6xl gap-8 px-4 py-16 md:px-8 lg:grid-cols-[minmax(0,1fr)_260px] lg:py-24">
+      <div className="relative mx-auto grid w-full max-w-6xl gap-8 px-4 pt-6 pb-12 md:px-8 lg:grid-cols-[minmax(0,1fr)_260px] lg:pt-16 lg:pb-20">
         <div className="min-w-0">
           <div className="mb-8 flex flex-wrap items-center gap-2">
             <span className="mono-label inline-flex items-center gap-2 rounded-[4px] border border-primary bg-primary px-2.5 py-1.5 text-primary-foreground">

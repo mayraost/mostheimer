@@ -11,7 +11,7 @@ export function ImageTextBlock({ block }: { block: ImageTextBlockData }) {
   const image = typeof block.image === 'object' ? (block.image as Media) : null;
 
   return (
-    <section className="w-full py-12">
+    <section className="w-full pt-6 pb-12 lg:py-12">
       <div className="mx-auto w-full max-w-6xl">
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:items-stretch">
           <div

@@ -11,7 +11,7 @@ type FeatureItem = NonNullable<FeatureGridBlockData['features']>[number];
 
 export function FeatureGridBlock({ block }: { block: FeatureGridBlockData }) {
   return (
-    <section className="w-full py-16">
+    <section className="w-full pt-6 pb-16 lg:py-16">
       <div className="mx-auto w-full max-w-6xl">
         {block.heading && (
           <div className="mb-8 border-b border-border pb-6">

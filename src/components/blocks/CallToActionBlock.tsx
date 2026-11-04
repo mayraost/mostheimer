@@ -11,7 +11,7 @@ export function CallToActionBlock({ block }: { block: CallToActionBlockData }) {
   const isPrimary = block.style !== 'secondary';
 
   return (
-    <section className="w-full py-14">
+    <section className="w-full pt-6 pb-14 lg:py-14">
       <div className="mx-auto w-full max-w-4xl">
         <div
           className={[
