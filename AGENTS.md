@@ -190,6 +190,7 @@ import type { Page } from '@payload-config'; // Payload-Config-Alias
 
 - `HeroBlock` – Hero-Bereich mit Tipp-Animation; Felder `showStackBadge` (Stack-Badge-Zeile über dem Heading), `ctaLabel/ctaLink` (Primary-Pill) und `ctaLabel2/ctaLink2` (Ghost-Pill) – Pillen nur bei Label+Link
 - `RichTextBlock` – echter Lexical-Renderer via `RichText` aus `@payloadcms/richtext-lexical/react` (kein raw-JSON mehr)
+- `SkillsetBlock` – Skill-Karten (Items: name, level als **Freitext-Badge** — bewusst kein Skill-Balken, description, iconName-Select mit leerer „Kein Icon"-Option, highlight); Block-CTA nur Label+Link; Featured-Sektion auf Home + Wiederverwendung je Kategorie auf `/skills` (Seed `seed-home`). Lucide-Gotcha: `Figma` (Trademark-Removal) und `FileCode2` existieren 2026 nicht mehr → `PenTool`/`FileCode`; iconName leer → gar kein Icon, kein CircleHelp-Fallback im SkillsetBlock.
 - `BentoGridBlock` – Bento-Raster (4-Spalten, `featured` = 2 Spalten); Items: highlight/title/description/iconName/ctaLabel/ctaLink/featured (aktive Tile CTA nur mit Link, Label `… →`)
 - `StatusBlock` – Status-Karte (badgeLabel/title/description) mit `networkTopics`-Array als Tag-Pillen
 - `TechSectionBlock` – Deep-Dive-Sektion (sectionLabel/heading/body, Absätze via `\n\n`) mit `keyFacts`-dl (label/value)

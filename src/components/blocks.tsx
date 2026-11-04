@@ -8,6 +8,7 @@ import { RichTextBlock } from './blocks/RichTextBlock';
 import { BentoGridBlock } from './blocks/BentoGridBlock';
 import { StatusBlock } from './blocks/StatusBlock';
 import { TechSectionBlock } from './blocks/TechSectionBlock';
+import { SkillsetBlock } from './blocks/SkillsetBlock';
 
 export type PageBlock = NonNullable<Page['layout']>[number];
 
@@ -29,6 +30,8 @@ export function BlockRenderer({ block }: { block: PageBlock }) {
       return <StatusBlock block={block} />;
     case 'techSection':
       return <TechSectionBlock block={block} />;
+    case 'skillset':
+      return <SkillsetBlock block={block} />;
     default:
       return (
         <div className="py-8 text-center text-red-500 border border-red-500 rounded my-4">
@@ -47,4 +50,5 @@ export {
   BentoGridBlock,
   StatusBlock,
   TechSectionBlock,
+  SkillsetBlock,
 };
