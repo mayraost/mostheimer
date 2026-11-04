@@ -75,7 +75,7 @@ export default async function Page({ params }: PageProps<'/[locale]/[[...slug]]'
       {jsonLd ? <JsonLdScript data={jsonLd} /> : null}
       <article className="mx-auto w-full max-w-6xl">
         {!hasHeroBlock && (
-          <header className="mb-8 border-b border-border pb-6">
+          <header className="mb-8 border-b border-border pb-6 pt-6 lg:pt-10">
             <h1 className="font-heading text-4xl font-bold tracking-[-0.03em] text-foreground lg:text-5xl">
               {page.title}
             </h1>
