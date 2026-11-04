@@ -66,11 +66,13 @@ export function Header({
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur-xl">
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-3 px-4 md:px-8">
-        <Link
-          href={`/${locale}`}
-          className="group flex items-center gap-3"
-          aria-label="mostheimer — Startseite"
-        >
+        {/*
+         * A11y (label-content-name-mismatch): Der sichtbare Text
+         * ("mostheimer" + "// dev") MUSS im Accessible Name enthalten sein.
+         * Auf Mobile ist der Text ausgeblendet — dann trägt der sr-only-Text
+         * den Namen, statt ein widersprechendes aria-label zu setzen.
+         */}
+        <Link href={`/${locale}`} className="group flex items-center gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-[6px] border border-border bg-surface-raised text-primary transition-colors group-hover:border-primary/60 group-hover:text-primary-hover">
             <Logo className="h-5 w-5" />
           </span>
@@ -78,6 +80,7 @@ export function Header({
             mostheimer
           </span>
           <span className="mono-label hidden text-primary lg:inline">{'//'} dev</span>
+          <span className="sr-only">mostheimer — {locale === 'de' ? 'Startseite' : 'home'}</span>
         </Link>
 
         <div className="flex items-center gap-2">

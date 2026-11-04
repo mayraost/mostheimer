@@ -26,7 +26,7 @@ function NarrativeColumn({ sectionKey, body }: { sectionKey: SectionKey; body?: 
       </p>
       <div className="space-y-3">
         {paragraphs.map((para, i) => (
-          <p key={i} className="text-sm leading-relaxed text-foreground/85">
+          <p key={i} className="text-sm leading-relaxed text-foreground">
             {para}
           </p>
         ))}
@@ -37,9 +37,16 @@ function NarrativeColumn({ sectionKey, body }: { sectionKey: SectionKey; body?: 
 
 /**
  * Case Study im Split-Layout: Mono-Metaspalte (Periode/Rolle/Tags als Chips)
- * links, narrative Spalten (Kontext / Architektur / Impact) rechts. Der
- * Impact wird als eigener hervorgehobener Callout mit Emerald-Left-Bar
- * gerendert — die Geschichte endet auf dem Ergebnis.
+ * links, narrative Spalten (Kontext / Architektur / Impact) rechts.
+ *
+ * A11y-Fixes 04.11.2026 (Lighthouse `/de/case-studies` A11y 91):
+ * - `definition-list`: `<dt>`/`<dd>` müssen direkte Kinder des `<dl>` sein
+ *   (ein Wrapper-`div` dazwischen bricht die Struktur). Jetzt flache
+ *   `dt`/`dd`-Paare; die Gruppierung übernimmt `display: grid` des `<dl>`.
+ * - `heading-order`: Die Karten-Überschrift war `h3` direkt unter dem
+ *   Seiten-`h1` (Sprung 1 → 3). Jetzt `h2` (die Seite hat kein h2 davor).
+ * - `color-contrast`: Fließtext stand auf `text-foreground/85` (~4.1:1);
+ *   jetzt volles `text-foreground` (≥ 7:1 auf Onyx).
  */
 export function CaseStudyBlock({ block }: { block: CaseStudyBlockData }) {
   return (
@@ -48,45 +55,48 @@ export function CaseStudyBlock({ block }: { block: CaseStudyBlockData }) {
         <BentoTile as="article" className="p-5 lg:p-8">
           <CardHeader label="case study" meta={block.period || '—'} />
 
-          <h3 className="mb-6 max-w-4xl font-heading text-2xl font-bold tracking-[-0.025em] text-foreground lg:text-3xl">
+          <h2 className="mb-6 max-w-4xl font-heading text-2xl font-bold tracking-[-0.025em] text-foreground lg:text-3xl">
             {block.client}
-          </h3>
+          </h2>
 
           <div className="grid gap-2 md:grid-cols-[200px_minmax(0,1fr)] lg:grid-cols-[240px_minmax(0,1fr)]">
-            <dl className="flex flex-col gap-4 rounded-[6px] border border-border bg-surface-raised/40 p-4">
+            <dl className="grid gap-4 rounded-[6px] border border-border bg-surface-raised/40 p-4">
               {block.period && (
-                <div>
+                <>
                   <dt className="mono-label text-muted-foreground">periode</dt>
-                  <dd className="mt-1 font-mono text-sm text-foreground">{block.period}</dd>
-                </div>
+                  <dd className="-mt-2 font-mono text-sm text-foreground">{block.period}</dd>
+                </>
               )}
               {block.role && (
-                <div>
+                <>
                   <dt className="mono-label text-muted-foreground">rolle</dt>
-                  <dd className="mt-1 text-sm leading-snug text-primary">{block.role}</dd>
-                </div>
+                  <dd className="-mt-2 text-sm leading-snug text-primary">{block.role}</dd>
+                </>
               )}
               {block.tags && block.tags.length > 0 && (
-                <div>
-                  <dt className="mono-label mb-2 text-muted-foreground">kontext</dt>
-                  <dd className="flex flex-wrap gap-1.5">
+                <>
+                  <dt className="mono-label text-muted-foreground">kontext</dt>
+                  <dd className="-mt-2 flex flex-wrap gap-1.5">
                     {block.tags.map((tag) => (
                       <Chip key={tag} variant="outline">
                         {tag}
                       </Chip>
                     ))}
                   </dd>
-                </div>
+                </>
               )}
               {block.link && (
-                <div className="border-t border-border pt-3">
-                  <a
-                    href={block.link}
-                    className="mono-label inline-flex items-center gap-2 text-primary transition-colors hover:text-primary-hover"
-                  >
-                    {block.linkLabel || 'Link'} <span aria-hidden="true">→</span>
-                  </a>
-                </div>
+                <>
+                  <dt className="sr-only">Referenz-Link</dt>
+                  <dd className="border-t border-border pt-3">
+                    <a
+                      href={block.link}
+                      className="mono-label inline-flex items-center gap-2 text-primary transition-colors hover:text-primary-hover"
+                    >
+                      {block.linkLabel || 'Link'} <span aria-hidden="true">→</span>
+                    </a>
+                  </dd>
+                </>
               )}
             </dl>
 

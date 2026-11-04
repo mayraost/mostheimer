@@ -32,8 +32,18 @@
   --animate-status-pulse: status-pulse 2.4s ease-in-out infinite;
 }
 
-/* ─── Font-Stack (ausserhalb @theme, verlässlich auflösbar) ───────────── */
-:root {
+/* ─── Font-Stack ──────────────────────────────────────────────────────────
+ * KRITISCH (Fix 04.11.2026): `next/font` injiziert die Variablen
+ * (`--font-space-grotesk`, `--font-jetbrains-mono`) als Klassen auf dem
+ * <body>, NICHT auf <html>. Ein Token in `:root`, das `var(--font-space-
+ * grotesk)` referenziert, ist dort *invalid at computed-value time* — der
+ * Wert wird leer vererbt und die GESAMTE Site fällt auf Systemfonts zurück
+ * (gemessen live: `getComputedStyle(h1).fontFamily` = -apple-system,
+ * `document.fonts.check` false, kein einziger Font 'loaded').
+ * Deshalb gehören die Stack-Tokens auf `body` (gleicher Scope wie die von
+ * next/font gesetzten Variablen).
+ */
+body {
   --font-space-grotesk-stack: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
   --font-jetbrains-mono-stack:
     var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -51,6 +61,13 @@
      --default-font-family, code/kbd/pre --default-mono-font-family. */
   --default-font-family: var(--font-body);
   --default-mono-font-family: var(--font-mono);
+}
+
+/* Fallback ohne next/font-Variable (Admin, Error-Shell, bevor die
+   Body-Klasse greift): gleiche Stacks, aber ohne Kit-Variable. */
+:root {
+  --font-sans-fallback: ui-sans-serif, system-ui, sans-serif;
+  --font-mono-fallback: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 @theme {
