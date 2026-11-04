@@ -1,0 +1,28 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "payload": {
+      "type": "remote",
+      "url": "http://localhost:3000/api/mcp",
+      "enabled": true,
+      "headers": {
+        // Deviation from the task template ("Bearer {file:...}"): the installed
+        // @payloadcms/plugin-mcp@4.0.0-beta.6 authenticates via Payload-native
+        // user API keys — header format `Authorization: <authCollectionSlug>
+        // API-Key <value>` (verified in node_modules/payload/dist/auth/
+        // strategies/apiKey.js). `Bearer` = JWT only in this version.
+        "Authorization": "users API-Key {file:/home/devagent/.config/opencode/.secrets/payload-mcp-api-key}"
+      }
+    },
+    // Prod-MCP: https://mosthi.de/api/mcp (Coolify-App mostheimer).
+    // Secret-File wird vom Config-Loader substituiert; Wert nie im Repo/Chat.
+    "payload-prod": {
+      "type": "remote",
+      "url": "https://mosthi.de/api/mcp",
+      "enabled": true,
+      "headers": {
+        "Authorization": "users API-Key {file:/home/devagent/.config/opencode/.secrets/payload-mcp-prod-api-key}"
+      }
+    }
+  }
+}

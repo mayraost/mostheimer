@@ -357,6 +357,15 @@ await payload.delete({ collection: 'posts', id: '123' });
 6. **Draft Status**: `_status`-Feld wird automatisch eingefügt wenn Drafts aktiviert
 7. **Typen**: Werden erst nach `generate:types` aktualisiert
 
+## Payload-MCP (CMS-Zugriff, Stand 04.11.2026)
+
+- **Verbindliche Regel:** Agents bearbeiten CMS-Daten (Pages, Globals, Media, User-Content) ab sofort **ausschließlich via den Payload-MCP-Server** (`mcp`-Server in der Projekt-`opencode.json`). Direkte Writes (Local-API-/Seed-/REST-Scripts, `payload.update`/`create`-One-Shots) nur noch ausdrücklich für **Infra-Fälle** (Migrationen, Seed-Infrastruktur, Tests) — nicht für Inhaltsänderungen.
+- **Server-Bindings** (Projekt-`opencode.json`, beide `type: remote`, Header `Authorization: users API-Key {file:...}` — NICHT Bearer, Beta.6 authentifiziert Payload-native User-API-Keys):
+  - `payload` (lokal): `http://localhost:3000/api/mcp`, Secret-File `~/.config/opencode/.secrets/payload-mcp-api-key`
+  - `payload-prod` (Produktion): `https://mosthi.de/api/mcp`, Secret-File `~/.config/opencode/.secrets/payload-mcp-prod-api-key` (nur Pfad-Referenz — Werte nie lesen/printen)
+- **Plugin:** `@payloadcms/plugin-mcp` exakt `4.0.0-beta.6` (in `src/payload.config.ts`); Scope: alle Built-in-Tools ON bis auf `delete@media`; `users` read-only (`find` via `overrideResponse` redigiert `hash`/`salt`). Machtkontrolle = Permissions des Key-Owner-Users (keine per-Key-Toggles in Beta.6).
+- **Key-Erzwungene Reveal-Kette:** Key = `useAPIKey` am Owner-User (Users-Collection, `reveal: true`); Migration `20261104_165445_add_mcp_api_keys` legt `api_key`/`api_key_index`/`api_key_last4` an; Prod-Key in `~/.config/opencode/.secrets/payload-mcp-prod-api-key` (chmod 600), Secret-Files nie ins Repo.
+
 ## Theming & UI
 
 ### Theme-System
