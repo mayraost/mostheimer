@@ -35,36 +35,36 @@ export function Header({
   const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   /**
-   * Scroll-Lock (Bugfix 04.11.2026): NUR `overflow-y` toggeln und den
-   * vorherigen Inline-Wert zurückschreiben. Der frühere Code setzte das
-   * `overflow`-Shorthand auf 'hidden' und beim Schließen auf 'unset' —
-   * 'unset' überschreibt das CSS `overflow-x: clip` aus globals.css
-   * (Inline-Style gewinnt) und brachte damit den horizontalen Scroll nach
-   * einmal Öffnen/Schließen zurück. `overflow-x: clip` + `overflow-y: hidden`
-   * ist zudem die einzige Kombination, die iOS-Safari-Rubber-Banding am
-   * Dokument zuverlässig stoppt, ohne `position: fixed` (Scroll-Position
-   * bleibt erhalten).
+   * Scroll-Lock + Dialog-Verhalten (Bugfix 04.11.2026).
+   *
+   * Der Effekt läuft IMMER (kein Early-Return vor dem Cleanup): im
+   * geschlossenen Zustand ist er ein No-op. Ein Early-Return-Lock ist
+   * gefährlich, weil der Closed-Drawer seine Tab-Kinder per `invisible`
+   * aus dem Fokusbaum nimmt — beim Schließen unmountet der fokussierte
+   * Knoten, React entfernt dann ggf. den Effect-Cleanup-Kontext, und der
+   * `overflowY`-Lock bliebe für immer stehen (Live-Test: Seite war nach
+   * einem Öffnen/Schließen nicht mehr scrollbar).
+   *
+   * Warum NUR `overflow-y` und Restore des VORHERIGEN Inline-Werts:
+   * der alte Code schrieb das `overflow`-Shorthand und restaurierte es mit
+   * 'unset' — der Inline-Wert überschreibt dann das CSS `overflow-x: clip`
+   * und bringt den horizontalen Scroll zurück.
    */
   useEffect(() => {
-    if (!isSidebarOpen) return;
     const body = document.body;
-    const previousOverflowY = body.style.overflowY;
-    body.style.overflowY = 'hidden';
-    return () => {
-      body.style.overflowY = previousOverflowY;
-    };
-  }, [isSidebarOpen]);
 
-  // Esc schließt, Tab zykelt im Drawer, Fokus geht zurück zum Hamburger.
-  useEffect(() => {
-    if (!isSidebarOpen) return;
+    if (!isSidebarOpen) {
+      // Sicherheitsnetz: nach dem Schließen nie einen hängenden Lock lassen.
+      if (body.style.overflowY === 'hidden') body.style.overflowY = '';
+      return;
+    }
+
     const drawer = drawerRef.current;
     const menuButton = menuButtonRef.current;
-    const body = document.body;
     const previousOverflowY = body.style.overflowY;
     body.style.overflowY = 'hidden';
 
-    // Fokus beim Öffnen in den Drawer (Schließen-Button ist das stabilste Ziel)
+    // Fokus in den Drawer (Schließen-Button ist das stabilste Ziel)
     closeButtonRef.current?.focus();
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -92,8 +92,15 @@ export function Header({
     };
 
     document.addEventListener('keydown', onKeyDown);
+
+    // Overscroll-Chaining stoppen: weitere Geraete-Fälle (Trackpad-Scroll
+    // ueber dem Backdrop) dürfen die Seite hinter dem Drawer nicht bewegen.
+    const lockWheel = (event: WheelEvent) => event.preventDefault();
+    document.addEventListener('wheel', lockWheel, { passive: false });
+
     return () => {
       document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('wheel', lockWheel);
       body.style.overflowY = previousOverflowY;
       // Beim Schließen Fokus restaurieren, wenn er noch im Drawer steckt
       if (drawer?.contains(document.activeElement)) {
