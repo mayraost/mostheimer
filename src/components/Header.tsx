@@ -7,6 +7,8 @@ import { useTranslations } from './TranslationsProvider';
 import { Moon, Sun, SunMoon, Settings, Menu, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Logo } from './Logo';
+import { CommandPalette } from './ui/CommandPalette';
+import type { CommandItem } from './ui/CommandPalette';
 
 type NavLink = {
   label: string;
@@ -15,7 +17,15 @@ type NavLink = {
   id?: string | null;
 };
 
-export function Header({ locale, navLinks }: { locale: string; navLinks?: NavLink[] }) {
+export function Header({
+  locale,
+  navLinks,
+  commandItems = [],
+}: {
+  locale: string;
+  navLinks?: NavLink[];
+  commandItems?: CommandItem[];
+}) {
   const { theme, currentTheme, setTheme } = useSettings();
   const translations = useTranslations();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -97,8 +107,6 @@ export function Header({ locale, navLinks }: { locale: string; navLinks?: NavLin
         menuButton?.focus();
       }
     };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
   }, [isSidebarOpen]);
 
   const handleThemeToggle = () => {
@@ -141,6 +149,9 @@ export function Header({ locale, navLinks }: { locale: string; navLinks?: NavLin
         </Link>
 
         <div className="flex items-center gap-2">
+          {/* Command Palette (⌘K / Ctrl+K) */}
+          <CommandPalette locale={locale} items={commandItems} />
+
           {/* Language Toggle */}
           <Link
             href={languageSwitchHref}

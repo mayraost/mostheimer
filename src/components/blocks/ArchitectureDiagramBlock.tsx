@@ -79,7 +79,11 @@ export function ArchitectureDiagramBlock({ block }: { block: ArchitectureDiagram
   if (count === 0) return null;
 
   return (
-    <section className="w-full py-16" aria-labelledby="architecture-diagram-heading">
+    <section
+      id="architektur-schaubild"
+      className="w-full scroll-mt-24 py-16"
+      aria-labelledby="architecture-diagram-heading"
+    >
       <div className="mx-auto w-full max-w-6xl">
         <div className="mb-8 border-b border-border pb-6">
           <CardHeader label={block.sectionLabel || 'Architektur'} meta={`${count} layer`} />

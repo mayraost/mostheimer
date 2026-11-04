@@ -18,6 +18,7 @@ import {
 import type { FrontendLocale } from '@/cms/cache/frontend/frontendCache';
 import { envConfig } from '@/envConfig';
 import { MaintenanceScreen, MaintenanceBadge } from '@/components/MaintenanceScreen';
+import { getCommandItems } from '@/components/ui/commandItems';
 import { getPayload } from 'payload';
 import configPromise from '@payload-config';
 
@@ -206,6 +207,9 @@ async function LayoutShell({
 
   const payload = await getPayload({ config: configPromise });
   const { user } = await payload.auth({ headers: await headers() });
+  // Command-Palette-Einträge sind statische Informationsarchitektur (kein
+  // CMS-Read) — im Layout verfügbar für Header und Mobile-Drawer.
+  const commandItems = getCommandItems(locale);
 
   // Wartungsmodus: Komplett-Screen ohne Header/Footer/Inhalt auf jeder Seite
   if (siteSettings.maintenanceMode) {
@@ -218,7 +222,11 @@ async function LayoutShell({
         <TranslationsProvider translations={translations}>
           <SettingsProvider>
             <div className="flex min-h-screen flex-col">
-              <Header locale={locale} navLinks={navigation.headerLinks ?? []} />
+              <Header
+                locale={locale}
+                navLinks={navigation.headerLinks ?? []}
+                commandItems={commandItems}
+              />
               <main id="main-content" tabIndex={-1} className="flex-1 px-4 py-10 md:px-8">
                 {children}
               </main>
@@ -234,7 +242,11 @@ async function LayoutShell({
     <TranslationsProvider translations={translations}>
       <SettingsProvider>
         <div className="flex min-h-screen flex-col">
-          <Header locale={locale} navLinks={navigation.headerLinks ?? []} />
+          <Header
+            locale={locale}
+            navLinks={navigation.headerLinks ?? []}
+            commandItems={commandItems}
+          />
           <main id="main-content" tabIndex={-1} className="flex-1 px-4 py-10 md:px-8">
             {children}
           </main>
