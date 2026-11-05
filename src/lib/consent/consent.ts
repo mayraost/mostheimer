@@ -18,8 +18,20 @@
  *                  modelled correctly.
  */
 
-export const CONSENT_STORAGE_KEY = 'mosthi.consent.v1';
+/**
+ * Storage key of the decision. Renamed from the retired site brand on
+ * 05.11.2026 **deliberately without a migration**: the old key is never read,
+ * so every returning visitor sees the banner once and re-decides. A silent
+ * carry-over of an old brand's consent is exactly what we do not want.
+ */
+export const CONSENT_STORAGE_KEY = 'mayraostheimer.consent.v1';
 export const CONSENT_OPEN_EVENT = 'mosthi:consent:open';
+
+/**
+ * Legacy keys that must never grant consent again. They are actively removed on
+ * read so a stale entry cannot linger in visitors' storage.
+ */
+const LEGACY_CONSENT_STORAGE_KEYS = ['mosthi.consent.v1'] as const;
 
 /** Fixed signal values of the Google Consent Mode signals. */
 export type ConsentSignal = 'granted' | 'denied';
@@ -113,6 +125,10 @@ export function parseStoredConsent(raw: string | null): StoredConsent | null {
 export function getStoredConsent(): StoredConsent | null {
   if (typeof window === 'undefined') return null;
   try {
+    // Legacy brand key: actively dropped, never parsed (see LEGACY_* above).
+    for (const legacyKey of LEGACY_CONSENT_STORAGE_KEYS) {
+      window.localStorage.removeItem(legacyKey);
+    }
     return parseStoredConsent(window.localStorage.getItem(CONSENT_STORAGE_KEY));
   } catch {
     // Private mode / blocked storage → treat as "not decided".

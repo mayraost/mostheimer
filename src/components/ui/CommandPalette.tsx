@@ -199,12 +199,17 @@ export function CommandPalette({ locale, items }: { locale: string; items: Comma
         type="button"
         onClick={openPalette}
         className="mono-label group hidden h-9 items-center gap-2 rounded-[6px] border border-border bg-surface-raised/60 px-3 text-muted-foreground transition-colors hover:border-primary/60 hover:text-foreground md:inline-flex"
-        aria-label={`${t.triggerText}K — ${t.triggerLabel}`}
+        aria-label={t.triggerLabel}
         aria-haspopup="dialog"
       >
         <Search className="h-3.5 w-3.5" aria-hidden="true" />
         <span className="hidden lg:inline">{t.triggerText}</span>
-        <kbd className="ml-1 inline-flex items-center gap-0.5 rounded-[3px] border border-border-strong px-1 py-0.5 font-mono text-[10px] text-muted-foreground">
+        {/* The keycap is decoration: without `aria-hidden` the "K" becomes part
+            of the button's accessible name ("SearchK — …"). */}
+        <kbd
+          aria-hidden="true"
+          className="ml-1 inline-flex items-center gap-0.5 rounded-[3px] border border-border-strong px-1 py-0.5 font-mono text-[10px] text-muted-foreground"
+        >
           <Command className="h-2.5 w-2.5" aria-hidden="true" />K
         </kbd>
       </button>
