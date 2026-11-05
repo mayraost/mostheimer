@@ -1,38 +1,56 @@
 import { headers } from 'next/headers';
-import Link from 'next/link';
+import { StatusScreen } from '@/components/layout/StatusScreen';
+import { mergeNotFoundTexts } from '@/components/layout/notFoundTexts';
 import { getCachedNotFound } from '@/cms/cache/frontend/frontendCache';
+import type { FrontendLocale } from '@/cms/cache/frontend/frontendCache';
+import type { NotFound } from '@/payload-types';
 
+/**
+ * Localized 404 — runs INSIDE the [locale] layout, so the document shell,
+ * header, footer, fonts, theme and consent banner all come from the layout
+ * (nothing is duplicated here).
+ *
+ * Reached by every notFound() thrown within the locale tree. Texts: CMS global
+ * `not-found` (de/en) with localized fallbacks; home link → locale root.
+ */
 export default async function NotFound() {
   const headersList = await headers();
+  const pathname = headersList.get('x-pathname');
   const acceptLanguage = headersList.get('accept-language');
   const referer = headersList.get('referer');
 
-  const isDe =
-    (referer && referer.includes('/de/')) ||
-    Boolean(acceptLanguage && acceptLanguage.startsWith('de'));
+  const locale: FrontendLocale =
+    pathname === '/de' || pathname?.startsWith('/de/')
+      ? 'de'
+      : pathname === '/en' || pathname?.startsWith('/en/')
+        ? 'en'
+        : referer?.includes('/de/') || acceptLanguage?.startsWith('de')
+          ? 'de'
+          : 'en';
 
-  const locale = isDe ? 'de' : 'en';
+  let texts: Pick<NotFound, 'title' | 'message' | 'buttonLabel' | 'buttonLink'> | null = null;
+  try {
+    const fromCms = await getCachedNotFound(locale);
+    if (fromCms) {
+      texts = {
+        title: fromCms.title,
+        message: fromCms.message,
+        buttonLabel: fromCms.buttonLabel,
+        buttonLink: fromCms.buttonLink,
+      };
+    }
+  } catch {
+    // no DB / cold cache → fallback copy below.
+  }
 
-  const notFoundData = await getCachedNotFound(locale);
+  const data = mergeNotFoundTexts(texts, locale);
 
   return (
-    <div className="dot-grid flex min-h-[50vh] w-full flex-col items-center justify-center px-4 text-center">
-      <div className="w-full max-w-lg rounded-[8px] border border-border bg-surface p-8">
-        <p className="mono-label mb-4 text-error">
-          <span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-error align-middle" />
-          HTTP 404 · Not Found
-        </p>
-        <h1 className="mb-3 font-heading text-4xl font-bold tracking-tight text-foreground">
-          {notFoundData.title}
-        </h1>
-        <p className="mb-8 text-base text-muted-foreground">{notFoundData.message}</p>
-        <Link
-          href={notFoundData.buttonLink || `/${locale}`}
-          className="mono-label inline-flex min-h-11 items-center justify-center rounded-[6px] bg-primary px-6 text-primary-foreground transition-colors hover:bg-primary-hover"
-        >
-          {notFoundData.buttonLabel}
-        </Link>
-      </div>
-    </div>
+    <StatusScreen
+      code="HTTP 404 · Not Found"
+      title={data.title}
+      message={data.message}
+      primary={{ label: data.buttonLabel, href: data.buttonLink || `/${locale}` }}
+    />
   );
 }

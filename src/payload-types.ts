@@ -7288,7 +7288,6 @@ export interface NotFound {
  */
 export interface SiteSetting {
   id: number;
-  maintenanceMode?: boolean | null;
   siteName: string;
   siteDescription?: string | null;
   defaultOgImage?: (number | null) | Media;
@@ -7429,7 +7428,6 @@ export interface NotFoundSelect<T extends boolean = true> {
  * via the `definition` "site-settings_select".
  */
 export interface SiteSettingsSelect<T extends boolean = true> {
-  maintenanceMode?: T;
   siteName?: T;
   siteDescription?: T;
   defaultOgImage?: T;

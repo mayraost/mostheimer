@@ -35,6 +35,9 @@ const isDev = process.env.NODE_ENV === 'development';
  *
  * Bewusst NICHT erweitert: object-src, base-uri, form-action,
  * frame-ancestors — dort braucht Google nichts.
+ *
+ * frame-src enthält zusätzlich 'self' (Payload-Live-Preview-iframe im Admin);
+ * ohne 'self' blockt der Browser den Preview-Frame, siehe CSP_ENFORCE.
  */
 const GOOGLE_SCRIPT_SRC = 'https://www.googletagmanager.com';
 const GOOGLE_CONNECT_SRC = [
@@ -57,11 +60,20 @@ const CSP_ENFORCE = [
   "style-src 'self' 'unsafe-inline'",
   `img-src 'self' data: blob: ${GOOGLE_IMG_SRC}`,
   `connect-src 'self' ${GOOGLE_CONNECT_SRC}`,
-  `frame-src ${GOOGLE_SCRIPT_SRC}`,
+  // frame-src steuert, was DIESES Dokument einbetten darf — also auch das
+  // Live-Preview-iframe des Payload-Admin-Panels (`/admin` → `/<locale>/preview`).
+  // Ohne 'self' blockiert der Browser den same-origin-Preview-Frame mit
+  // „Framing ... violates ... frame-src" (sichtbar als Blocked-Frame-Placeholder
+  // im Admin). 'self' = Admin-Origin == Preview-Origin (relative livePreview-URL).
+  `frame-src 'self' ${GOOGLE_SCRIPT_SRC}`,
   "font-src 'self'",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
+  // frame-ancestors steuert, wer DIESE Seite einbetten darf: nur die eigene
+  // Origin. Admin (Embedder) und Preview (Embedded) laufen über denselben Host
+  // (`mostheimer.de`; die Alt-Domains 301-en dorthin, die relative
+  // livePreview-URL erbt die Admin-Origin). X-Frame-Options bleibt SAMEORIGIN.
   "frame-ancestors 'self'",
   'upgrade-insecure-requests',
 ].join('; ');
@@ -74,7 +86,7 @@ const CSP_REPORT_ONLY = [
   "script-src 'self'",
   `connect-src 'self' ${GOOGLE_CONNECT_SRC}`,
   `img-src 'self' data: blob: ${GOOGLE_IMG_SRC}`,
-  `frame-src ${GOOGLE_SCRIPT_SRC}`,
+  `frame-src 'self' ${GOOGLE_SCRIPT_SRC}`,
   "style-src 'self'",
 ].join('; ');
 
@@ -132,15 +144,40 @@ const nextConfig: NextConfig = {
   // through Payload hooks + revalidateTag.
   cacheComponents: true,
   partialPrefetching: true,
+  experimental: {
+    // global-not-found (docs: 01-app/03-api-reference/03-file-conventions/
+    // not-found.md, § "global-not-found.js (experimental)"):
+    //   "Used to define a global 404 page for unmatched routes across your
+    //    entire app. This is handled at the routing level and doesn't depend on
+    //    rendering a layout or page. [...] Next.js skips rendering and directly
+    //    returns this global page."
+    // Exactly our case per the docs: "Your root layout is defined using
+    // top-level dynamic segments (e.g. `app/[country]/layout.tsx`)" — this app
+    // has app/(frontend)/[locale]/layout.tsx.
+    //
+    // Why it is REQUIRED here: with cacheComponents the [locale] shell streams
+    // (layout `connection()` inside <Suspense>), and a streamed response is
+    // fixed at 200 — docs: file-conventions/loading.md § "Status codes"
+    // ("Streaming page responses begin with a `200` status code"). notFound()
+    // from the layout, the page or generateMetadata all measured 200
+    // (05.11.2026). global-not-found bypasses that render path entirely and
+    // answers unmatched URLs with a real, prerendered 404 document.
+    globalNotFound: true,
+  },
   // Streaming metadata disabled (htmlLimitedBots matches every UA): otherwise
-  // Next flushes the HTML head (200) before the NotFoundGate in the [locale]
-  // layout can reject an unknown slug with notFound(), so the status is already
-  // committed. With blocking metadata, notFound() throws before any flush and
-  // the response is a real 404.
+  // Next flushes the HTML head (200) before the page can reject an unknown
+  // slug with notFound(), so the status is already committed. Unknown *URLs*
+  // (no route at all) are answered by global-not-found (see experimental above);
+  // notFound() thrown inside the [locale] tree (e.g. by the [[...slug]] page)
+  // still renders the localized `[locale]/not-found.tsx` — that one keeps its
+  // streamed 200 + noindex, because the shell has already flushed.
   htmlLimitedBots: /.*/,
   // Global security headers (non-CSP part). X-Frame-Options SAMEORIGIN instead
   // of DENY: the Payload admin embeds the live-preview route as a same-origin
-  // iframe, which DENY would block.
+  // iframe, which DENY would block. The matching *embedding* permission lives
+  // in CSP frame-src ('self', see CSP_ENFORCE) — X-Frame-Options alone is not
+  // enough: without frame-src 'self' the browser blocks the preview frame even
+  // though XFO allows it.
   headers: async () => [
     {
       source: '/:path*',

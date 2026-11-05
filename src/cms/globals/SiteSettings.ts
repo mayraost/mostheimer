@@ -1,23 +1,31 @@
 import type { GlobalConfig } from 'payload';
 import { revalidateSiteSettingsCache } from '../cache/frontend/frontendCache';
 
+/**
+ * Global settings (branding, default OG image). The layout shell reads this via
+ * the cached `cms:global:site-settings` entry, so a save revisits the shell
+ * without any per-request Payload boot.
+ *
+ * A maintenance mode used to live here; it was removed on 05.11.2026 (the site
+ * is always publicly reachable). Do not reintroduce it without revisiting the
+ * proxy gate, the cache tags and the layout's auth read.
+ */
 export const SiteSettings: GlobalConfig = {
   slug: 'site-settings',
   access: {
+    // Public read: the frontend renders branding from this global.
     read: () => true,
   },
   hooks: {
-    // Maintenance mode and branding affect every page, but the cache entry point
-    // is the site-settings global tag, which is broad enough (layout-level).
-    afterChange: [() => revalidateSiteSettingsCache()],
+    afterChange: [
+      () => {
+        // Layout-level entry (site settings + navigation share one cache
+        // entry) — unchanged behaviour for branding changes.
+        revalidateSiteSettingsCache();
+      },
+    ],
   },
   fields: [
-    {
-      name: 'maintenanceMode',
-      type: 'checkbox',
-      label: 'Wartungsmodus aktiv',
-      defaultValue: false,
-    },
     {
       name: 'siteName',
       type: 'text',

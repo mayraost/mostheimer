@@ -1,111 +1,49 @@
-import { headers } from 'next/headers';
-import { getCachedNotFound } from '@/cms/cache/frontend/frontendCache';
-import type { FrontendLocale } from '@/cms/cache/frontend/frontendCache';
-import type { NotFound } from '@/payload-types';
+import { StaticNotFoundChrome } from '@/components/layout/StaticNotFoundChrome';
+import { StatusScreen } from '@/components/layout/StatusScreen';
+import { CRITICAL_404_HASH } from '@/404-critical.generated';
 
 /**
- * 404 boundary at route-group level, ABOVE the [locale] layout.
+ * Global 404 (route-group level, above the [locale] layout) — ALWAYS ENGLISH,
+ * NO DATA ACCESS — BODY CONTENT ONLY.
  *
- * When the NotFoundGate in [locale]/layout.tsx calls notFound() for an unknown
- * slug, this boundary catches it and renders inside Next's error document shell
- * (__next_error__) — by then the [locale] layout has already been discarded.
- * That shell has no <link rel="stylesheet">, so this component deliberately uses
- * inline styles (not Tailwind) and falls back to the configured CMS texts when
- * the data cannot be read.
+ * Reached only when a notFound() throw escapes the [locale] layout: unknown
+ * slugs are answered INSIDE the layout by the NotFoundGate, so the localized
+ * `[locale]/not-found.tsx` (full CMS chrome) renders for them. This file is the
+ * safety net for everything outside the locale tree and therefore must not
+ * touch headers(), cookies(), connection() or Payload — a broken CMS/DB must
+ * still yield a styled 404, never a 500.
  *
- * Complements [locale]/not-found.tsx, which still handles in-tree notFound()
- * from page components inside the full styled app layout.
+ * Document shell rule: <html>/<body>, fonts, theme and consent bootstrap live
+ * ONLY in the [locale] layout; this boundary never duplicates them — it renders
+ * the content column only (static EN header/footer + status card).
+ *
+ * Styling: Next renders this boundary in its own error document (`<html
+ * id="__next_error__">`, no lang/class, no stylesheet link, no body classes).
+ * Injecting the app stylesheet later is not possible either (React re-renders
+ * the boundary and would fall back to Next's default 404). So the boundary links
+ * `/404-critical.css` EAGERLY: a route serving the subset generated from
+ * globals.css (`npm run generate:css`), with the hash as cache-buster. No
+ * CSS-in-JS, no inline styles in this file.
  */
-
-const FALLBACK_DE: Pick<NotFound, 'title' | 'message' | 'buttonLabel' | 'buttonLink'> = {
-  title: 'Nicht gefunden',
-  message: 'Die gesuchte Seite existiert nicht.',
-  buttonLabel: 'Zur Startseite',
-  buttonLink: '/de',
-};
-
-const FALLBACK_EN: Pick<NotFound, 'title' | 'message' | 'buttonLabel' | 'buttonLink'> = {
-  title: 'Page not found',
-  message: 'The page you are looking for does not exist.',
-  buttonLabel: 'Go home',
-  buttonLink: '/en',
-};
-
-export default async function GroupNotFound() {
-  const headersList = await headers();
-  const pathname = headersList.get('x-pathname');
-  const acceptLanguage = headersList.get('accept-language');
-
-  const locale: FrontendLocale =
-    pathname?.startsWith('/de/') || pathname === '/de'
-      ? 'de'
-      : acceptLanguage?.startsWith('de')
-        ? 'de'
-        : 'en';
-
-  let data = locale === 'de' ? FALLBACK_DE : FALLBACK_EN;
-  try {
-    const fromCms = await getCachedNotFound(locale);
-    if (fromCms) {
-      data = {
-        title: fromCms.title,
-        message: fromCms.message,
-        buttonLabel: fromCms.buttonLabel || data.buttonLabel,
-        buttonLink: fromCms.buttonLink || data.buttonLink,
-      };
-    }
-  } catch {
-    // Build/error context without a DB-backed cache: the fallback texts suffice.
-  }
-
+export default function GlobalNotFound() {
   return (
-    <div
-      data-nf=""
-      style={{
-        minHeight: '50vh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        textAlign: 'center',
-        width: '100%',
-        padding: '0 1rem',
-        background: '#FFFFFF',
-        color: '#1A1A1A',
-      }}
-    >
-      <style>
-        {'@media (prefers-color-scheme: dark){div[data-nf]{background:#121212;color:#EDEDED}}'}
-      </style>
-      <h1
-        style={{
-          fontSize: 'clamp(2.25rem, 5vw, 3rem)',
-          fontWeight: 700,
-          marginTop: 0,
-          marginBottom: '1rem',
-          color: '#C2185B',
-        }}
-      >
-        {data.title}
-      </h1>
-      <p style={{ fontSize: '1.125rem', opacity: 0.8, maxWidth: '36rem', marginBottom: '2rem' }}>
-        {data.message}
-      </p>
-      <a
-        href={data.buttonLink || `/${locale}`}
-        style={{
-          display: 'inline-block',
-          padding: '0.75rem 1.5rem',
-          background: '#C2185B',
-          color: '#FFFFFF',
-          border: '2px solid #C2185B',
-          borderRadius: '9999px',
-          fontWeight: 500,
-          textDecoration: 'none',
-        }}
-      >
-        {data.buttonLabel}
-      </a>
-    </div>
+    <>
+      {/* Eager critical subset: the error document carries no stylesheet link
+          of its own (see file header). */}
+      {}
+      <link rel="stylesheet" href={`/404-critical.css?v=${CRITICAL_404_HASH}`} />
+      {/* The error shell has no <html>/<body> attributes at all: this wrapper
+          only scopes the temporary first-paint rules (see the stylesheet). */}
+      <div data-404-critical>
+        <StaticNotFoundChrome>
+          <StatusScreen
+            code="HTTP 404 · Not Found"
+            title="Page not found"
+            message="The page you are looking for does not exist or has moved."
+            primary={{ label: 'Back to home', href: '/' }}
+          />
+        </StaticNotFoundChrome>
+      </div>
+    </>
   );
 }

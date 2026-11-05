@@ -411,7 +411,7 @@ await payload.delete({ collection: 'posts', id: '123' });
 - **Verbindliche Regel:** Agents bearbeiten CMS-Daten (Pages, Globals, Media, User-Content) ab sofort **ausschließlich via den Payload-MCP-Server** (`mcp`-Server in der Projekt-`opencode.json`). Direkte Writes (Local-API-/Seed-/REST-Scripts, `payload.update`/`create`-One-Shots) nur noch ausdrücklich für **Infra-Fälle** (Migrationen, Seed-Infrastruktur, Tests) — nicht für Inhaltsänderungen.
 - **Server-Bindings** (Projekt-`opencode.json`, beide `type: remote`, Header `Authorization: users API-Key {file:...}` — NICHT Bearer, Beta.6 authentifiziert Payload-native User-API-Keys):
   - `payload` (lokal): `http://localhost:3000/api/mcp`, Secret-File `~/.config/opencode/.secrets/payload-mcp-api-key`
-  - `payload-prod` (Produktion): `https://mosthi.de/api/mcp`, Secret-File `~/.config/opencode/.secrets/payload-mcp-prod-api-key` (nur Pfad-Referenz — Werte nie lesen/printen)
+  - `payload-prod` (Produktion): `https://mostheimer.de/api/mcp` (kanonische Domain; die Alt-Domains antworten nur noch mit 301), Secret-File `~/.config/opencode/.secrets/payload-mcp-prod-api-key` (nur Pfad-Referenz — Werte nie lesen/printen)
 - **Plugin:** `@payloadcms/plugin-mcp` exakt `4.0.0-beta.6` (in `src/payload.config.ts`); Scope: alle Built-in-Tools ON bis auf `delete@media`; `users` read-only (`find` via `overrideResponse` redigiert `hash`/`salt`). Machtkontrolle = Permissions des Key-Owner-Users (keine per-Key-Toggles in Beta.6).
 - **Key-Erzwungene Reveal-Kette:** Key = `useAPIKey` am Owner-User (Users-Collection, `reveal: true`); Migration `20261104_165445_add_mcp_api_keys` legt `api_key`/`api_key_index`/`api_key_last4` an; Prod-Key in `~/.config/opencode/.secrets/payload-mcp-prod-api-key` (chmod 600), Secret-Files nie ins Repo.
 
@@ -523,7 +523,7 @@ className="[text-shadow:0_0_10px_rgba(194,24,91,0.25)]"        // Light
 - Deployment via **Docker Compose** auf Coolify (`docker-compose.yml` im Repo-Root; **nicht Vercel**)
 - Service: nur `app` (Next.js Standalone-Build) – eigener Postgres-Service entfernt; DB ist die **zentrale geteilte `coolify-postgres`-Instanz** (Coolify-Host, SOP 31.10.2026): externes `coolify-postgres-net` im Compose deklariert, Verbindung via Hostname `coolify-postgres:5432` aus `DATABASE_URL` (Coolify-App-Env, NICHT im Compose)
 - Published Host-Port: `${APP_PORT:-3300}:3000` – `APP_PORT=3300` in Coolify setzen (Port-Konflikte mit anderen Stacks vermeiden)
-- Domain `https://mosthi.de` in Coolify dem Service `app` zuweisen (`docker_compose_domains`); der Coolify-Proxy (Traefik) routet über den **published Host-Port**, nicht über das Compose-Network
+- **Hauptdomain = `https://mostheimer.de` (seit 05.11.2026).** `docker_compose_domains` der App enthält **ausschließlich** `{"app":{"name":"app","domain":"https://mostheimer.de","redirect":"both"}}`; der Coolify-Proxy (Traefik) routet über den **published Host-Port**, nicht über das Compose-Network. Die Alt-Domains (`mosthi.de`, `www.mosthi.de`, `www.mostheimer.de`) liefern **301 auf `https://mostheimer.de` (Pfad + Query erhalten)** — siehe Abschnitt „Domain-Konsolidierung" unten. `NEXT_PUBLIC_SERVER_URL`/`SERVICE_URL_APP`/`SERVICE_FQDN_APP` zeigen auf `https://mostheimer.de` / `mostheimer.de`.
 - **KEIN weiteres `networks:`-Deklarat** ergänzen: einziger externer Netz-Eintrag ist `coolify-postgres-net` (external); alles andere bleibt implizites Projekt-Default-Netz (pro Coolify-Projekt isoliert; DNS-Aliase wie `postgres` kollidieren sonst mit fremden Stacks)
 - Env setzen (siehe `.env.example`): `DATABASE_URL` (Coolify-App-Env, zeigt auf coolify-postgres), `PAYLOAD_SECRET`, `APP_PORT`
 - Healthcheck: Docker `HEALTHCHECK` im Image trifft `/api/health` (force-dynamic, `{status:'ok'}`)
@@ -532,6 +532,72 @@ className="[text-shadow:0_0_10px_rgba(194,24,91,0.25)]"        // Light
 - **Fertig (Stand 31.10.2026):** zentrale `coolify-postgres` live (`DATABASE_URL` Coolify-App-Env); Migration `20261031_224616` per `prodMigrations` auf dem postgres-Adapter (Migrate-on-Connect beim ersten Request) angelaufen; Content nativ (bento/status/tech, hero CTA2, NotFound) aus dem Vercel-DB-Dump importiert; Image 363 MB; `/sitemap.xml` `force-dynamic` (Build-Container erreicht die DB nicht)
 - **Build-ARG-Secret-Leak-Schutz (01.11.2026):** Coolify injiziert ALLE App-Envs als Build-ARGs (unabhängig von Compose-Refs) → Secrets lesenbar via `docker history`. Secret-Envs (`PAYLOAD_SECRET`, `DATABASE_URL`) in Coolify mit `is_buildtime: false` (REST `PATCH /applications/{uuid}/envs`) gesetzt; Compose-`${...}`-Referenzen darauf entfernt (Compose-Headerlinien 18–19). Deployment healthy. Presence-Check nach jedem Deploy: `docker history <image> | grep -i 'SECRET\|DATABASE'` — Status/Ja-Nein only, nie Werte (Details „Gelernte Fehler").
 - **Migration-Schema-Snapshots:** `payload migrate:create` diffed gegen die neueste `*.json`-Datei in `src/migrations/` (Fallback: Adapter-Default-Schema) und schreibt pro Migration einen eigenen Snapshot (`<name>.ts` + `<name>.json`). Beide committen — fehlt der Snapshot, generiert `migrate:create` dieselben Diffs erneut (bekannter Fall: SiteSettings-lokalisierte Felder → `site_settings_locales`/`_site_settings_v_locales`, Migration `20261101_103630_fix_site_settings_locales`). Handgeschriebene Migrationen zusätzlich mit Guards (IF NOT EXISTS, FK-Check via pg_constraint, Daten-Kopie vor Spalten-Drop).
+
+## Domain-Konsolidierung (Stand 05.11.2026)
+
+**Kanonisch ist ausschließlich `https://mostheimer.de` (Apex, ohne `www`).**
+
+| Host                | Verhalten                                      |
+| ------------------- | ---------------------------------------------- |
+| `mostheimer.de`     | 200 (canonical, wird von der App bedient)      |
+| `www.mostheimer.de` | 301 auf `https://mostheimer.de` + Pfad + Query |
+| `mosthi.de`         | 301 auf `https://mostheimer.de` + Pfad + Query |
+| `www.mosthi.de`     | 301 auf `https://mostheimer.de` + Pfad + Query |
+
+### Mechanismus: host-exakte Traefik-Custom-Datei (KEINE Cloudflare-Redirect-Rule)
+
+Datei auf dem Coolify-Host: `/data/coolify/proxy/dynamic/legacy-host-redirects.yaml`
+(Custom-File neben `placeholder-catchall.yaml`; wird von Coolify **nicht**
+überschrieben und vom file-provider per `--providers.file.watch=true` sofort geladen).
+
+- Router-Regeln nutzen **ausschließlich exakte Hosts** (`Host(...)` nur mit den
+  drei Alt-Hostnamen, nie Wildcard), EntryPoints `http` + `https`, `priority: 200`
+  (über den Coolify-Docker-Label-Routern, die Default-Priority 0 haben), TLS via
+  `certResolver: letsencrypt`.
+- Middleware `redirectRegex` (`permanent: true` = **301**) mit
+  `^https?://(www\.)?mosthi\.de/(.*)` → `https://mostheimer.de/${2}` (analog
+  `^https?://www\.mostheimer\.de/(.*)` → `https://mostheimer.de/${1}`) —
+  **kein** `/${1}`-Verlust: $1 ist der Authority-Teil, $2 der komplette Pfad inkl. Query.
+- Service `legacy-host-absorb` (`http://host.docker.internal:3500`) ist ein
+  Platzhalter und wird nie angedialt (die Redirect-Middleware antwortet vorher) —
+  dadurch braucht die Datei keinen Bezug zur App-Port-Variable.
+- **Warum nicht Cloudflare-Redirect-Rules:** eine Zone-Regel in `mosthi.de` würde
+  auch `*.mosthi.de`-Hosts treffen (`chat`, `dashboard`, `coolify`, `scobio`,
+  `halloween`, `miri` …) bzw. müsste dauerhaft host-exakt gepflegt werden; die
+  Traefik-Datei ist app-lokal, versionslos im Infra-Repo dokumentiert und trifft
+  ausschließlich die drei exakten Alt-Hosts.
+
+### Nicht anfassen
+
+- `coolify.mosthi.de` (Coolify-UI, `coolify.yaml`, EntryPoint `http`), sowie alle
+  anderen `*.mosthi.de`-Apps bleiben unverändert. **Vorsicht mit APEX/DNS:** die
+  Zone `mosthi.de` hat weiterhin proxied CNAMEs für Apex + `*` auf den Tunnel
+  (Mail: MX/SPF/DMARC bei easyname — unverändert lassen).
+- Cloudflare-Zone `mosthi.de` hat `always_use_https=on` (http→https-301 am Edge);
+  die Redirect-Ziele bleiben trotzdem hart `https://`, weil der Tunnel TLS terminiert
+  (`is_force_https_enabled=false` bei der App).
+- **Bestehende Cloudflare-Regel nicht brechen:** in Zone `mosthi.de` liegt im
+  Phase `http_request_dynamic_redirect` eine Rule (`37b1fa8281cf49289d35383917b8f0be`),
+  die Trailing-Slash-URLs von `mosthi.de`/`mostheimer.de`/`www.mostheimer.de` mit
+  **308** auf die Variante ohne Slash leitet. Sie läuft am Edge VOR Traefik; die
+  Kombination mit dem 301 ergibt `https://host/de/ → 308 → https://host/de → 301 → https://mostheimer.de/de`.
+
+### Verifikation / Gotchas
+
+- **Cloudflare-Edge-Cache:** Antworten der App-Seiten kommen mit
+  `cache-control: public, s-maxage=86400` und werden am Edge gecacht
+  (`cf-cache-status: HIT`). Nach dem Umstellen der Domain-Router liefert der Edge
+  für alte URLs so lange das **200** aus dem Cache, bis gepurged wird. Fix:
+  gezielter Purge der betroffenen Alt-URLs (`POST /zones/{zone}/purge_cache`
+  mit `{"files": [...]}` — im MCP `body` als **JSON-String** übergeben).
+- **Stale Container während eines laufenden Deploys:** Coolify lässt den alten
+  App-Container bis zum Ende des Deploys aktiv; dessen Docker-Labels halten den
+  alten `Host(\`mosthi.de\`)`-Router. Nach dem Domain-PATCH greift die
+  Traefik-Datei auf dem Host sofort, am Edge erst nach Purge — der alte Container
+  wird beim regulären Deploy automatisch ersetzt.
+- **Traefik-API ist von außen nicht erreichbar** (`--api.insecure=false`, 8080 nur
+  container-intern, Host-curl schlägt fehl) — Router-Debugging nur über
+  `docker inspect <container>` (Labels) bzw. Verhalten.
 
 ## Frontend-Caching (cacheComponents, Stand 01.11.2026)
 
@@ -550,6 +616,18 @@ Profil „Docker/Coolify-Build ohne DB":
   `getCachedSiteSettings/Translations/Navigation/NotFound`, `getCachedAllPages`
   (Sitemap). Tag-Schema: `cms:all`, `cms:pages`, `cms:pages:<slug>`, `cms:sitemap`,
   `cms:global:<slug>`.
+- **`LayoutShell` ist auth-frei (seit 05.11.2026):** kein `getPayload()` /
+  `payload.auth()` mehr im Layout — der Dokumenten-Shell liest nur
+  `'use cache'`-Queries. Wer wieder einen Session-abhängigen Branch dort
+  einbaut, macht die Shell pro Besucher dynamisch (Cache-Bypass) und braucht
+  dafür einen eigenen Suspense-Boundary + Begründung.
+- **Streamed-Shell-Höhe = `min-h-page` (nicht `min-h-screen`):** Skeleton
+  (`LayoutSkeleton`) und beide `LayoutShell`-Wurzeln teilen sich die Utility
+  `min-h-page` aus `globals.css` (`min-height: max(100dvh, 1400px)`). Grund:
+  Skeleton und echte Shell sind ZWEI getrennte Frames; reservieren sie nur
+  `100vh`, steht der Footer (`mt-auto`) im Skeleton-Frame am Viewport-Boden und
+  springt im nächsten Frame ans Dokumentende. Die Höhe NIE pro Seite
+  hartkodieren — die Utility wächst weiter mit dem Inhalt.
 - OSR/Invalidierung: Payload-Hooks flusen via `safeRevalidate(tag, 'max')`
   (try/catch-Pflicht, sonst unhandled außerhalb Request-Kontext):
   Pages afterChange/afterDelete → `revalidatePagePathCache` + Slug-Umbenennung
@@ -918,7 +996,7 @@ Vor jedem Commit wird diese Datei auf Aktualität geprüft und bei Bedarf ergän
 - **[Cache/Deploy] `/_next/static/*` = über Deploys hinweg **stabile** Dateinamen, aber `immutable` für 1 Jahr und Cloudflare-Cache davor** (05.11.2026, verifiziert). Gemessen:
 
   ```
-  curl -I https://mosthi.de/_next/static/chunks/0fkvblgiahdcs.js
+  curl -I https://mostheimer.de/_next/static/chunks/0fkvblgiahdcs.js
     cache-control: public, max-age=31536000, immutable
     etag: W/"7547-1a1a8e9d478"        (Edge, age ~33000s)
     last-modified: Wed, 04 Nov 2026    (Edge = alter Deploy)
@@ -968,8 +1046,27 @@ Vor jedem Commit wird diese Datei auf Aktualität geprüft und bei Bedarf ergän
 - **[Next-16/Streaming]** Unbekannter Slug lief HTTP-200 statt 404: Layout-Skeleton-Suspense flushet Header (Status 200 fixiert), bevor das dynamische Page-`notFound()` wirft (Doku: „Before streaming starts, a 404 status can be returned; after streaming, 200 remains"). `notFound()` allein in `generateMetadata` half NICHT (Streaming-Metadata-Metadatentag flusht Head früher) → Lösung: „NotFoundGate" im `[locale]`-Layout VOR der Suspense-Boundary (liest `x-pathname` Request-Header aus `src/proxy.ts`, gecacheter `getCachedPageBySlug`-Check → `notFound()` PRE-FLUSH) + Group-`src/app/(frontend)/not-found.tsx` als Catch mit Custom-UI (Inline-Styles, Error-Recovery-Shell hat kein CSS) + `htmlLimitedBots: /.*/` in next.config (deaktiviert präemptives Streaming-Metadata-Head-Flush). Nested unbekannte Pfade abgedeckt; statische Geschwister-Routen (`preview|settings|impressum`) via STATIC_CHILD_ROUTES vom Gate ausgenommen. Trade-off: `instant = false` am Layout verschiebt preview/settings/impressum im Build `◐ → ƒ` (Runtime-Rendered); `[[...slug]]` bleibt `◐`.
 - **[Payload-beta.6/LocalAPI]** Local-API-Default hat sich geändert — Local-Operations defaulten `overrideAccess: false`, Int-Test `tests/int/api.int.spec.ts` schlug mit „Forbidden" fehl; Fix: `overrideAccess: true` im Test (bewusster Stack-Verifikations-Bypass).
 - **[Payload-LocalAPI]** `revalidateTag`-Fortschritt via tsx-Subprozess-Script (Local API) → `Invariant: static generation store missing` → `safeRevalidate` skippt. Verifizier-Tooling für OSR: Mutieren statt via Subprozess via REST `PATCH /api/pages/<id>?locale=en` (Cookie-Session) — Hooks feuern dann im Next-Server-Kontext.
+- **[Feature-Rückbau] Wartungsmodus komplett entfernt (05.11.2026)** — nicht neu bauen ohne Auftrag. Entfernt: `src/components/MaintenanceScreen.tsx`, `src/cms/maintenance/*` (`state`/`snapshot`/`server`), `src/cms/globals/siteSettings/maintenance.ts`, `src/cms/globals/translations/maintenance.ts` (Gruppe `translations.maintenance`), Felder `maintenanceMode`/`maintenanceWindow`/`maintenanceMessage`, `CACHE_TAGS.maintenance` + `revalidateMaintenanceCache()`, der `maintenanceMode`-Branch **und der `payload.auth()`-Read** im `[locale]`-Layout. DB-Rückbau als **neue** Drop-Migration `20261105_140354_remove_maintenance_mode` (`DROP COLUMN IF EXISTS`), die alte `20261101_194051_maintenance_mode` bleibt unangetastet (Historie append-only). Lernpunkt: ein Session-Read (`payload.auth()` im Layout, nur für „eingeloggte Admins sehen die echte Seite") ist die teuerste Art, eine Shell zu bauen — er zwingt die komplette `LayoutShell` in den per-Visitor-Pfad und entwertet `'use cache'`. Wird so ein Feature angefragt, den Auth-Check in einen eigenen Suspense-Boundary legen statt um den ganzen Shell.
 - **[Cache/OSR] „Globals revalidieren, Pages nicht" (04.11.2026, Root-Cause verifiziert):** Next 16 markiert Invalidierungen als In-Doubt-Timestamp (`revalidatedAt`); ein Cache-Entry ist nur stale, wenn `entry.timestamp <= revalidatedAt` (`node_modules/next/dist/server/lib/incremental-cache/file-system-cache.js`). `revalidateTag(tag, 'max')` (= 1-Jahr-Stale-Fenster) liefert bei Treffer weiter den ALTEN Entry und revalidiert nur im Hintergrund — im langlaufenden Container ohne neuen Route-Request kommt nie frische Daten. Zusätzlich cacht der Layout-Entry SiteSettings+Navigation zusammen (`cms:global:*`), deshalb fiel ein Globals-Flush spürbar aus dem Cache. **Fix:** `safeRevalidate(tag, label, 'blocking')` → `revalidateTag(tag, { expire: 0 })` (Read-your-own-writes); `revalidatePagePathCache` invalidiert zusätzlich das Domain-Tag `cms:pages`. Merke: für CMS-Content NIE `'max'` verwenden.
-- **[Next-16/Headers]** Security-Header auf `next.config.ts` (HSTS/nosniff/Referrer/Permissions-Policy, scobio2026-Muster — non-CSP-Teil): `X-Frame-Options: DENY` NICHT nutzen bei Payload-Live-Preview (Admin embeddet `/preview` Route als iframe; gleiche Origin) → SAMEORIGIN.
+- **[Next-16/Headers]** Security-Header auf `next.config.ts` (HSTS/nosniff/Referrer/Permissions-Policy, scobio2026-Muster — non-CSP-Teil): `X-Frame-Options: DENY` NICHT nutzen bei Payload-Live-Preview (Admin embeddet `/preview` Route als iframe; gleiche Origin) → SAMEORIGIN. **SAMEORIGIN allein reicht NICHT** — siehe Live-Preview-Eintrag unten (`frame-src 'self'`).
+- **[Live-Preview/CSP] Der Blocked-Frame-Placeholder im Admin kam von `frame-src` des EINBETTENDEN Dokuments, nicht von `frame-ancestors`/`X-Frame-Options`** (05.11.2026, lokal am Prod-Standalone-Build bewiesen).
+
+  Symptom: Live Preview im Admin zeigt „Dieser Inhalt ist blockiert …" (Chrome/Android), obwohl `/de/preview` mit 200 + `X-Frame-Options: SAMEORIGIN` + `frame-ancestors 'self'` antwortet und `payload.auth()` den User sauber liefert (Preview war NICHT auf „Kein Zugang" gefallen).
+
+  Beweis (Konsole des **Admin**-Dokuments beim Framen der same-origin Preview):
+
+  ```
+  Framing 'http://127.0.0.1:3005/de/preview?slug=home' violates the following
+  Content Security Policy directive: "frame-src https://www.googletagmanager.com".
+  The request has been blocked.
+  ```
+
+  Ursache: `next.config.ts` setzte global `frame-src https://www.googletagmanager.com` (nur GTM-iframe) — **ohne `'self'`**. `frame-src` steuert, was das Dokument SELBST einbetten darf; das Admin-Panel embeddet `<iframe id="live-preview-iframe" src="<admin-origin>/<locale>/preview?slug=…">`. `X-Frame-Options`/`frame-ancestors` regeln nur die Gegenrichtung. Wirkungslos geprüfte Hypothesen: (a) Origin-Mismatch — Payload löst relative `livePreview.url`-Pfade per `formatAbsoluteURL()` gegen `window.location.origin` auf (`@payloadcms/ui/dist/utilities/formatAbsoluteURL.js`), Preview-Origin ist also deterministisch die Admin-Origin; Alt-Domains 301-en auf `mostheimer.de`; (b) `SameSite=Strict` auf `payload-token` — Cookie-Send entscheidet die Site, nicht die Origin, und `Strict` blockt nur Cross-**Site**; (c) `cacheComponents`/`connection()` — die Route rendert pro Request (`cache-control: private, no-cache, no-store`, kein `use cache` im Layout-Shell, `data-x-preview-probe` änderte sich bei zwei identischen Requests).
+
+  Fix: `frame-src 'self' https://www.googletagmanager.com` (Enforce **und** Report-Only), `frame-ancestors 'self'` + `X-Frame-Options: SAMEORIGIN` bleiben unverändert strikt. Verifikation lokal: Admin-Edit-View → iframe lädt Preview-Inhalt, keine CSP-Violation (`/tmp/opencode/preview-check.png`), anonymer Aufruf ohne Cookie liefert weiter „Kein Zugang". **Lehre:** Ein blockierter same-origin-iframe immer erst über die Konsole des **embedder**-Dokuments prüfen (`frame-src` / „Refused to frame"), nicht über `frame-ancestors` am eingebetteten Dokument — die beiden Direktiven sind entgegengesetzte Richtungen.
+
+  **Offen (nicht durch diesen Fix abgedeckt, Messung + Hypothese):** Der Inhalt des Preview-iframe aktualisiert sich nach „Save Draft"/„Publish" **nicht**, obwohl die Payload → iframe-Messages ankommen (`payload-live-preview`/`payload-document-event`, `event.origin === serverURL`, siehe `preview-sync.mjs`). Gleichzeitig scheint der inhaltliche Draft-Save in der Edit-View verloren zu gehen (Body-`title` + `layout`-Felder wurden nach Save → Reload auf den Publizierten Wert zurückgesetzt; Produktion-Env prüfen). Da der Refresh über `router.refresh()` im Server-rendered `/preview` läuft, gilt für diese Route außerdem: **`router.refresh()` invalidiert keinen Server-Cache** (Next-Docs) — Preview-Routen müssen dynamisch bleiben (`connection()`, kein `'use cache'`, kein `draftMode()`-Caching), sonst zeigt der Refresh den gecachten Stand.
+
 - **[CSP]** Nonce-CSP in `proxy.ts` verboten (Next-Docs: Nonce erzwingt all pages dynamic → zerstört cacheComponents/ISR). Enforce-CSP folgt Nonce-freiem Docs-Muster: `script-src 'self' 'unsafe-inline'` (`unsafe-eval` nur dev), `style-src 'self' 'unsafe-inline'`; verschärfte Report-Only-Header (script/style-src strict) für späteren unsafe-inline-Abbau. Nonce/Hash-Alternative wäre `experimental` SRI (statisch-kompatibel).
 - **[Consent/CSP]** Inline-`<head>`-Bootstrap (`dangerouslySetInnerHTML`) braucht unter der Nonce-freien CSP `script-src 'self' 'unsafe-inline'` — vorhanden. Ohne `connect-src` blockiert `default-src 'self'` JEDEN GTM-Beacon (fetch/sendBeacon an `google-analytics.com`), obwohl `script-src` das Container-Script erlaubt; beides zusammen testen, nicht nur das Script-Load. (05.11.2026, GTM-Feature.)
 - **[Consent/Migration]** Feldgruppe in einer localized-Global-Definition (`Translations.cookies`) ohne Migration = `translations`-Global 500 in Prod, sobald die Definition auf `main` ist (Payload selektiert alle konfigurierten Felder). Neue Globals-Felder immer im selben Merge wie die Spalten-Migration ausliefern; rein additive `ADD COLUMN IF NOT EXISTS … DEFAULT … NOT NULL` füllt Bestandszeilen ohne Backfill. (05.11.2026, PR #57.)
@@ -1025,7 +1122,7 @@ Vor jedem Commit wird diese Datei auf Aktualität geprüft und bei Bedarf ergän
 
   Verworfen mit Messung: (a) kalibrierte Fallback-Faces (`size-adjust`-Sweep 104–112 %, Arial/system-ui/Palatino) — kein einziger Treffer möglich, weil **kein** Fallback den Vorteil konsistent hält und halb getippte Wörter (`Mayra Osthei|mer`) an willkürlichen Stellen brechen; (b) `display: 'optional'` — hätte den echten (H1-)Shift gar nicht adressiert.
 
-  **Rest-CLS (vorbestehend, nicht Teil des Fixes):** bei schnellem Laden schiebt `footer.mt-auto` einmal von `y=749` auf `y≈2004` (konstante Höhe 151 px, DocHeight 900 → 2154, bei ~160 ms). Das ist ein Layout-Shift im Lighthouse-Sinne (Element bewegt sich relativ zur Viewport-Ursprungsfläche), trat auf `origin/main` identisch auf und ist intermittierend (≈1 von 5 Laden). Nicht angefasst — separater Fix (Footer-`min-height` bzw. `visibility` bis Hydration) wäre nötig.
+  **Rest-CLS (Footer):** bei schnellem Laden schob `footer.mt-auto` einmal von `y=749` auf `y≈2004` (konstante Höhe 151 px, ~1 von 5 Laden). Ursache war NICHT der Hero, sondern der `Suspense`-Skeleton-Frame — der bringt eigenen Header/Footer mit, die Shell ist während des Streams exakt `100vh` hoch, `mt-auto` legt den Footer an den Viewport-Boden, im nächsten Frame springt er ans Dokumentende (CLS bis 0.4042 bei 375×667). Fix: `@utility min-h-page { min-height: max(100dvh, 1400px) }` in `globals.css`, gesetzt auf Skeleton UND beide Shell-Wurzeln statt `min-h-screen`. Verifiziert 375/390/768/1280 ohne Sprung; 1920×1080 bleibt bei ~50 px, weil der Inhalt (~2000 px) das 1400-px-Reservat übersteigt — neue Inhalte, die darunter bleiben, bringen den Sprung zurück, dann **das eine Reservat** anheben statt pro Seite zu patchen. Messfallen: der Sprung ist nur im Live-DOM-Zustand oder per Screencast sichtbar (nicht in `rAF`) — Details im Git-Verlauf von PR mit `min-h-page`.
 
   **Zweiter Mess-Fallstrick (wichtig für Nachmessen):** der Rest-CLS nach dem Fix ist **100 % der Typing-Caret** (`span.ml-1.inline-block`, fixe 22×53 px, wandert zeilenweise mit). Gemessen bei 1280: Gesamt 0.0074, davon **non-caret 0.0000**. Ohne Aufteilung nach `entry.sources[].node` sieht das aus wie ein Rest-Shift der Subheadline, ist aber reine Cursor-Position. Für die Akzeptanz zählt der Non-Caret-Anteil.
 

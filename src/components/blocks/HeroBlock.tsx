@@ -63,7 +63,7 @@ export function HeroBlock({ block }: { block: HeroBlockData }) {
               web &amp; application architect
             </span>
             <span className="mono-label rounded-[4px] border border-border-strong px-2.5 py-1.5 text-muted-foreground">
-              staff-level fullstack
+              Senior-Level FullStack
             </span>
             <span className="mono-label rounded-[4px] border border-secondary/60 px-2.5 py-1.5 text-secondary">
               remote · DE

@@ -25,7 +25,7 @@ import { z } from 'zod';
  */
 
 const DEV_FALLBACK_PAYLOAD_SECRET = 'dev-not-a-real-secret-fallback-0123456789abcdef';
-const DEFAULT_SERVER_URL = 'https://mosthi.de';
+const DEFAULT_SERVER_URL = 'https://mostheimer.de';
 
 const envSchema = z.object({
   payloadSecret: z.string().min(32),

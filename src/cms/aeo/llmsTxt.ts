@@ -9,7 +9,7 @@
  * locales — keep it in sync when pages are added or removed.
  */
 
-const BASE = 'https://mosthi.de';
+const BASE = 'https://mostheimer.de';
 
 export const LLMS_TXT = `# Mostheimer
 

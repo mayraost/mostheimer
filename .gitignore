@@ -60,3 +60,12 @@ payload.db
 
 .claude
 .env.development
+
+# Agent/QA scratch (no runtime purpose)
+.playwright-mcp/
+.visual-test/
+.tmp-agent/
+
+# local agent scratch (never commit)
+/.visual-test/
+/.playwright-mcp/

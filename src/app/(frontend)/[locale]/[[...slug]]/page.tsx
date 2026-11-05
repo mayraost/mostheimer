@@ -33,7 +33,7 @@ function pagePath(locale: FrontendLocale, slug: string): string {
   return slug === 'home' ? `/${locale}` : `/${locale}/${slug}`;
 }
 
-// Required because `locale` is a root dynamic segment: without it the build's
+// Required because the locale segment is dynamic: without it the build
 // prerender attempt aborts. Locales are build-static, so no DB lookup is needed.
 export function generateStaticParams() {
   return ['en', 'de'].map((locale) => ({ locale }));
@@ -99,18 +99,37 @@ function buildPageJsonLd(
   });
 }
 
+/**
+ * Metadata carries the same slug lookup as the page and resolves BEFORE the
+ * stream flushes, so an unknown slug throws notFound() from `generateMetadata`.
+ *
+ * Argument order matters: htmlLimitedBots (set to match every user agent in
+ * next.config.ts) disables
+ * streaming metadata, so this call blocks the response head — which is exactly
+ * what makes a real 404 status possible in the cacheComponents shell. Throwing
+ * from the page body instead would already be a streamed 200 + noindex
+ * (measured 05.11.2026; Next docs: "Streaming page responses begin with a 200").
+ */
+export async function generateMetadata({
+  params,
+}: PageProps<'/[locale]/[[...slug]]'>): Promise<Metadata> {
+  const { locale, slug, page } = await resolvePage(params);
+  if (!page) notFound();
+  return buildPageMetadata(locale, slug, page);
+}
+
 export default async function Page({ params }: PageProps<'/[locale]/[[...slug]]'>) {
   // Aborts the build-time prerender attempt: the Coolify build container has no
   // DB, so pages render at runtime against the 'use cache' layer instead.
   await connection();
 
-  const resolvedParams = await params;
-  const locale = (resolvedParams.locale as FrontendLocale) || 'en';
-  const slug = resolvedParams.slug ? resolvedParams.slug.join('/') : 'home';
-  const page = await getCachedPageBySlug(slug, locale);
+  const { locale, slug, page } = await resolvePage(params);
 
   if (!page) {
-    return notFound();
+    // Only reached if metadata was skipped (e.g. a cached RSC request): the
+    // status is already 200 then, Next still appends <meta name="robots"
+    // content="noindex"> to the streamed 404 (see Next docs, loading.md §SEO).
+    notFound();
   }
 
   const siteSettings = await getCachedSiteSettings(locale);
@@ -147,30 +166,28 @@ export default async function Page({ params }: PageProps<'/[locale]/[[...slug]]'
   );
 }
 
-export async function generateMetadata({
-  params,
-}: PageProps<'/[locale]/[[...slug]]'>): Promise<Metadata> {
+/** One cached lookup shared by generateMetadata and the page body. */
+async function resolvePage(
+  params: Promise<{ locale?: string; slug?: string[] }>,
+): Promise<{ locale: FrontendLocale; slug: string; page: CmsPage | null }> {
   const resolvedParams = await params;
   const locale = (resolvedParams.locale as FrontendLocale) || 'en';
   const slug = resolvedParams.slug ? resolvedParams.slug.join('/') : 'home';
   const page = await getCachedPageBySlug(slug, locale);
+  return { locale, slug, page };
+}
 
-  if (!page) return { title: 'Mostheimer 404' };
-
+/** Page metadata: title, description, OG card, canonicals and hreflang. */
+function buildPageMetadata(locale: FrontendLocale, slug: string, page: CmsPage): Metadata {
   const baseUrl = envConfig.serverUrl;
-  const canonical = `${baseUrl}${pagePath(locale, slug)}`;
-  // Derived from CMS content; falls back to the layout default — the node
-  // carries no own description field so Next inherits the layout value
-  // instead of rendering an empty tag.
+  const canonical = baseUrl + pagePath(locale, slug);
   const description = derivePageDescription(page);
+  const enUrl = baseUrl + '/en' + (slug === 'home' ? '' : '/' + slug);
+  const deUrl = baseUrl + '/de' + (slug === 'home' ? '' : '/' + slug);
 
   return {
-    // `absolute` keeps the layout's template from wrapping the brand suffix
-    // a second time if a `%s` template is added later.
-    title: { absolute: `${page.title} - Mostheimer` },
+    title: { absolute: page.title + ' - Mostheimer' },
     ...(description ? { description } : {}),
-    // Per-page OG card via the /og route: the opengraph-image file convention
-    // cannot live inside the [[...slug]] catch-all (see src/app/og/route.tsx).
     openGraph: {
       title: page.title,
       type: 'website',
@@ -186,12 +203,7 @@ export async function generateMetadata({
     },
     alternates: {
       canonical,
-      languages: {
-        en: `${baseUrl}/en${slug === 'home' ? '' : `/${slug}`}`,
-        de: `${baseUrl}/de${slug === 'home' ? '' : `/${slug}`}`,
-        // x-default → German: de is the primary audience.
-        'x-default': `${baseUrl}/de${slug === 'home' ? '' : `/${slug}`}`,
-      },
+      languages: { en: enUrl, de: deUrl, 'x-default': deUrl },
     },
   };
 }

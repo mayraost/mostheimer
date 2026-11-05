@@ -14,11 +14,14 @@
         "Authorization": "users API-Key {file:/home/devagent/.config/opencode/.secrets/payload-mcp-api-key}"
       }
     },
-    // Prod-MCP: https://mosthi.de/api/mcp (Coolify-App mostheimer).
+    // Prod-MCP: https://mostheimer.de/api/mcp (Coolify-App mostheimer).
+    // Die Alt-Domains mosthi.de / www.mosthi.de / www.mostheimer.de antworten nur
+    // noch mit 301 auf die Apex-Domain — für einen MCP-Endpoint ungeeignet,
+    // daher hier direkt die kanonische Domain.
     // Secret-File wird vom Config-Loader substituiert; Wert nie im Repo/Chat.
     "payload-prod": {
       "type": "remote",
-      "url": "https://mosthi.de/api/mcp",
+      "url": "https://mostheimer.de/api/mcp",
       "enabled": true,
       "headers": {
         "Authorization": "users API-Key {file:/home/devagent/.config/opencode/.secrets/payload-mcp-prod-api-key}"

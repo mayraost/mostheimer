@@ -1,51 +1,28 @@
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { connection } from 'next/server';
-import { headers } from 'next/headers';
-import { Space_Grotesk, JetBrains_Mono } from 'next/font/google';
 import '../../globals.css';
 import { SettingsProvider } from '@/components/SettingsProvider';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { TranslationsProvider } from '@/components/TranslationsProvider';
-import {
-  getCachedNavigation,
-  getCachedPageBySlug,
-  getCachedSiteSettings,
-  getCachedTranslations,
-} from '@/cms/cache/frontend/frontendCache';
+import { DocumentShell } from '@/components/layout/DocumentShell';
+import { SiteChrome } from '@/components/layout/SiteChrome';
+import { getCachedNavigation, getCachedTranslations } from '@/cms/cache/frontend/frontendCache';
 import type { FrontendLocale } from '@/cms/cache/frontend/frontendCache';
 import { envConfig } from '@/envConfig';
-import { MaintenanceScreen, MaintenanceBadge } from '@/components/MaintenanceScreen';
 import { CookieConsent } from '@/components/consent/CookieConsent';
 import { ReleaseGuard } from '@/components/ReleaseGuard';
 import { runPendingCloudflarePurges } from '@/cms/cache/frontend/purges';
 import { getCachedRouteRegistry } from '@/cms/cache/frontend/queries';
 import { ConsentBootstrapScript } from '@/lib/consent/ConsentBootstrapScript';
+import { getCachedSiteSettings } from '@/cms/cache/frontend/frontendCache';
 import { getCommandItems } from '@/components/ui/commandItems';
-import { getPayload } from 'payload';
-import configPromise from '@payload-config';
-
-// Display + body text: Space Grotesk (tight tracking lives in the utility
-// layer). Code/metadata: JetBrains Mono.
-const spaceGrotesk = Space_Grotesk({
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-space-grotesk',
-  subsets: ['latin'],
-  display: 'swap',
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  variable: '--font-jetbrains-mono',
-  subsets: ['latin'],
-  display: 'swap',
-});
 
 export const metadata: Metadata = {
   title: 'Mostheimer — Web & Application Architect',
   description:
-    'Mayra Ostheimer — Web & Application Architect und Staff-Level Fullstack Engineer. Composable Architekturen, Next.js/Payload, Team- & Projektleitung für produktionsreife Systeme.',
+    'Mayra Ostheimer — Web & Application Architect und Senior-Level FullStack Engineer. Composable Architekturen, Next.js/Payload, Team- & Projektleitung für produktionsreife Systeme.',
   metadataBase: new URL(envConfig.serverUrl),
   // Base OG/Twitter defaults for every segment; per-page cards come from the
   // /og route.
@@ -53,20 +30,12 @@ export const metadata: Metadata = {
   twitter: { card: 'summary_large_image' },
 };
 
-// Opt-out of Next's [block] navigation check: the NotFoundGate below reads
-// `x-pathname` and calls connection() OUTSIDE the Suspense boundary on
-// purpose, so unknown slugs can 404 before the first header flush. That is a
-// deliberate blocking render; routes still render at runtime because the build
-// container has no DB.
+// The shell renders `connection()`-guarded content inside a Suspense boundary
+// (skeleton streams first, real chrome follows), which Next's [block]
+// navigation check flags. That streaming is deliberate: unknown slugs are
+// answered by `[[...slug]]` (page-level notFound → [locale]/not-found.tsx), so
+// the layout no longer needs a blocking pre-flush gate at all.
 export const instant = false;
-
-/**
- * Pre-hydration theme bootstrap: sets the theme class before the first paint so
- * default-dark (also on light-preferring OS) and a stored user theme apply
- * without a flash. SettingsProvider reads the same 'theme' localStorage key on
- * mount.
- */
-const THEME_BOOTSTRAP = `(function(){try{var s=localStorage.getItem('theme');var t=(s==='light'||s==='dark'||s==='system')?s:'dark';var c=t==='system'?(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):t;var r=document.documentElement;r.classList.remove('light','dark');r.classList.add(c);}catch(e){document.documentElement.classList.add('dark');}})();`;
 
 /**
  * Static skeleton fallback: layout chrome only, no Payload reads and no dynamic
@@ -87,98 +56,19 @@ function LayoutSkeleton() {
   );
 }
 
-function SkipLink({ locale }: { locale: string }) {
-  const label = locale === 'de' ? 'Zum Inhalt springen' : 'Skip to content';
-  return (
-    <a
-      href="#main-content"
-      className="sr-only rounded-[6px] border border-primary bg-surface-raised px-4 py-2 font-mono text-sm text-primary focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:inline-block"
-    >
-      {label}
-    </a>
-  );
-}
-
 export default async function RootLayout({ children, params }: LayoutProps<'/[locale]'>) {
   const resolvedParams = await params;
   const locale = (resolvedParams.locale as FrontendLocale) || 'en';
 
   return (
-    <html lang={locale} className="dark">
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
-        {/* Consent Mode v2: Default-Signale MÜSSEN vor jedem GTM-Script
-            evaluiert werden — daher hier im Head, vor allen Container-Scripts. */}
-        <ConsentBootstrapScript />
-      </head>
-      <body className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} font-body antialiased`}>
-        <SkipLink locale={locale} />
-        <NotFoundGate locale={locale}>
-          <Suspense fallback={<LayoutSkeleton />}>
-            <LayoutShell locale={locale}>{children}</LayoutShell>
-          </Suspense>
-        </NotFoundGate>
-      </body>
-    </html>
+    // Document shell (html/body, fonts, theme + consent bootstrap, skip link)
+    // lives HERE and only here — see src/components/layout/DocumentShell.tsx.
+    <DocumentShell locale={locale}>
+      <Suspense fallback={<LayoutSkeleton />}>
+        <LayoutShell locale={locale}>{children}</LayoutShell>
+      </Suspense>
+    </DocumentShell>
   );
-}
-
-/**
- * Routes under [locale] that render their own tree instead of the
- * [[...slug]] catch-all — the gate has nothing to check there.
- */
-const STATIC_CHILD_ROUTES = new Set(['preview', 'settings', 'impressum']);
-
-/**
- * Returns a real 404 status before the first header flush.
- *
- * Once a Suspense fallback renders, the response headers are flushed and the
- * status can no longer change. LayoutSkeleton streams as soon as the boundary
- * awaits, which is far too late for the page component to throw notFound()
- * (that would yield 200 + noindex). So the gate resolves the slug against the
- * cached pages here, OUTSIDE the Suspense boundary: null → notFound() before
- * anything is flushed. For known slugs it only blocks the first cached lookup
- * ('use cache', warm), so skeleton streaming below is unaffected.
- */
-async function NotFoundGate({
-  locale,
-  children,
-}: {
-  locale: FrontendLocale;
-  children: React.ReactNode;
-}) {
-  await connection();
-
-  const headersList = await headers();
-  const pathname = headersList.get('x-pathname');
-
-  // No x-pathname means the proxy did not run (internal requests, _next):
-  // pass through with the previous behaviour.
-  if (!pathname) return children;
-
-  const localePrefix = `/${locale}`;
-  let rest: string | null;
-  if (pathname === localePrefix) {
-    rest = '';
-  } else if (pathname.startsWith(`${localePrefix}/`)) {
-    rest = pathname.slice(localePrefix.length + 1);
-  } else {
-    rest = null;
-  }
-
-  if (rest === null || rest === '' || STATIC_CHILD_ROUTES.has(rest.split('/')[0])) {
-    return children;
-  }
-
-  const slug = rest;
-  const page = await getCachedPageBySlug(slug, locale);
-
-  if (!page) {
-    // Throws before any header was flushed → a real HTTP 404.
-    notFound();
-  }
-
-  return children;
 }
 
 /**
@@ -196,7 +86,7 @@ async function LayoutShell({
 }) {
   await connection();
 
-  // Route registry for the edge purge: refreshes the slug → route map (cached
+  // Route registry for the edge purge: refreshes the slug -> route map (cached
   // under cms:pages) so a globals/media flush purges every real page even after
   // a cold start. No-op during the build phase.
   await getCachedRouteRegistry();
@@ -207,79 +97,52 @@ async function LayoutShell({
   // src/cms/cache/frontend/purges.ts). No-op without Cloudflare credentials.
   const edgePurge = await runPendingCloudflarePurges();
   if (edgePurge.pending > 0) {
-    // Console diagnostic (server log) — proof that an edge purge ran while this
-    // render happened, including the URL count it covered.
     console.info(
       `[cf-cache] Purge beim Request: ${edgePurge.status} ` +
         `(${edgePurge.pending} Flush(es), ${edgePurge.urls} URLs)`,
     );
   }
 
+  // Shell data is cache-tag based only: no auth, no direct Payload boot. The
+  // site-settings read is a cached query (not a per-visitor auth path), so the
+  // entry stays shared across requests.
+  //
+  // No await may run inside this component BEFORE a notFound() throw from a
+  // child page: the first await flushes the stream (status 200).
   const [siteSettings, translations, navigation] = await Promise.all([
-    getCachedSiteSettings(locale),
     getCachedTranslations(locale),
     getCachedNavigation(locale),
   ]);
 
-  const payload = await getPayload({ config: configPromise });
-  const { user } = await payload.auth({ headers: await headers() });
   // Command-palette entries are static information architecture (no CMS read),
   // shared here with the header and the mobile drawer.
   const commandItems = getCommandItems(locale);
 
-  // Maintenance mode replaces header/footer/content on every page.
-  if (siteSettings.maintenanceMode) {
-    if (!user) {
-      return <MaintenanceScreen locale={locale} />;
-    }
-    return (
-      <>
-        <MaintenanceBadge locale={locale} />
-        <TranslationsProvider translations={translations}>
-          <SettingsProvider>
-            <div className="flex min-h-screen flex-col">
-              <Header
-                locale={locale}
-                navLinks={navigation.headerLinks ?? []}
-                commandItems={commandItems}
-              />
-              <main id="main-content" tabIndex={-1} className="flex-1 px-4 md:px-8">
-                {children}
-              </main>
-              <Footer
-                locale={locale}
-                navLinks={navigation.footerLinks ?? []}
-                cookieSettingsLabel={translations.cookies}
-              />
-            </div>
-          </SettingsProvider>
-        </TranslationsProvider>
-      </>
-    );
-  }
-
   return (
     <TranslationsProvider translations={translations}>
       <SettingsProvider>
-        <div className="flex min-h-screen flex-col">
-          <Header
-            locale={locale}
-            navLinks={navigation.headerLinks ?? []}
-            commandItems={commandItems}
-          />
-          <main id="main-content" tabIndex={-1} className="flex-1 px-4 md:px-8">
-            {children}
-          </main>
-          <Footer
-            locale={locale}
-            navLinks={navigation.footerLinks ?? []}
-            cookieSettingsLabel={translations.cookies}
-          />
-          <CookieConsent gtmId={envConfig.gtmId} />
-          {/* Reloads an open tab once after a deploy, instead of letting it
-              navigate with the previous build's client bundle. */}
-          <ReleaseGuard />
-        </div>
+        <SiteChrome
+          header={
+            <Header
+              locale={locale}
+              navLinks={navigation.headerLinks ?? []}
+              commandItems={commandItems}
+            />
+          }
+          footer={
+            <Footer
+              locale={locale}
+              navLinks={navigation.footerLinks ?? []}
+              cookieSettingsLabel={translations.cookies}
+            />
+          }
+        >
+          {children}
+        </SiteChrome>
+        <CookieConsent gtmId={envConfig.gtmId} />
+        {/* Reloads an open tab once after a deploy, instead of letting it
+            navigate with the previous build's client bundle. */}
+        <ReleaseGuard />
       </SettingsProvider>
     </TranslationsProvider>
   );
