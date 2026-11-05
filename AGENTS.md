@@ -568,6 +568,61 @@ Vor jedem Commit wird diese Datei auf Aktualität geprüft und bei Bedarf ergän
 
 ### Gelernte Fehler (laufend ergänzt)
 
+- **[Diagnose/Fonts] „Body-Klasse verschwindet nach Hydration" war KEIN Font-Bug — es war ein React-Tree-Totalabsturz** (05.11.2026). Live-Symptom auf **allen** Frontend-Routen (`/de`, `/en`, `/de/case-studies`, `/de/settings`, `/de/impressum`, `/de/contact`): Server-HTML korrekt (`<html lang="de" class="dark">`, `<body class="S5Rq9G_variable _5Hl15a_variable font-body antialiased">`), nach dem Laden aber `document.body.className === ''` und `getComputedStyle(h1).fontFamily` = `system-ui, "Segoe UI", Roboto, …`. Das sah nach einem `next/font`-Scoping-Problem aus und wurde als solches (falsch) dokumentiert.
+
+  Tatsächliche Ursache: **nicht** die Font-Tokens. Next hatte den kompletten React-Tree verworfen und durch seine Error-Shell ersetzt:
+
+  ```
+  document.documentElement.id      === '__next_error__'   ← der eigentliche Beweis
+  document.documentElement.class   === null               ← auch <html> verliert "dark"!
+  document.body.textContent         ~ "This page couldn't load / A server error occurred"
+  Konsole                          ~ "Minified React error #441"
+  ```
+
+  Weil **beide** Root-Attribute (`<html class="dark">` **und** `<body class="…">`) gleichzeitig verschwinden, kann die Ursache keine body-lokale Klassenzuweisung und keine Token-Kaskade sein — das ganze Dokument wurde ersetzt. Ein „Font-Fix" (Font-Variablen auf `<html>`, Tokens nach `:root`) hätte daran **nichts** geändert.
+
+  **Diagnose-Regel (verbindlich):** Eine fehlende Body-Klasse ist **kein** Beweis für einen Hydration-/Font-Bug. Vor jeder Font-Diagnose zwingend prüfen: (1) `document.documentElement.id === '__next_error__'`? (2) Konsole auf `#441` / Error-Boundary-Meldungen? (3) Ist `<html class>` ebenfalls weg (dann Tree-Discard, nicht CSS)? (4) `document.querySelector('h1').textContent` — steht dort eine Fehlermeldung statt der Überschrift?
+
+  **Behebung:** Ein **einfacher Redeploy** (Merge von PR #57 = `09667ee`, der ausschließlich Migrations-/Type-Dateien änderte, **kein** App-Code) hat den Fehler behoben. Kein Code-Fix war nötig. Korrelation mit dem Cache-Header-Problem unten (`/_next/static/*` wird `immutable` für 1 Jahr und über Cloudflare gecacht, während die Chunk-Dateinamen über Deploys **stabil** bleiben) — die genaue `#441`-Triggerkette wurde **nicht** vollständig bewiesen (vom Auftraggeber depriorisiert).
+
+- **[Fonts] Verifizierter IST-Zustand der Font-Ebene — bitte NICHT erneut „reparieren"** (05.11.2026, live gemessen auf `/de` und `/en`, nach dem Redeploy):
+
+  | Check                                               | Wert                                                                              |
+  | --------------------------------------------------- | --------------------------------------------------------------------------------- |
+  | `getComputedStyle(h1).fontFamily`                   | `"Space Grotesk", "Space Grotesk Fallback", ui-sans-serif, …`                     |
+  | `getComputedStyle(document.body).fontFamily`        | derselbe Stack                                                                    |
+  | `document.fonts.check('700 40px "Space Grotesk"')`  | `true`                                                                            |
+  | `document.fonts.check('400 12px "JetBrains Mono"')` | `true`                                                                            |
+  | `<html>` / `<body>` Attribute                       | `class="dark"` / `class="S5Rq9G_variable _5Hl15a_variable font-body antialiased"` |
+
+  Design ist intakt: **Space Grotesk** für Headings + Body, **JetBrains Mono** für Code/Metadaten/Tags. Aufbau: `next/font` setzt die Variablen (`--font-space-grotesk`, `--font-jetbrains-mono`) als Klassen auf dem `<body>`; die Stack-Tokens (`--font-space-grotesk-stack` → `--font-heading`/`--font-body`/`--font-mono` …) liegen deshalb **bewusst im selben Scope** (`body { … }` in `globals.css`), weil ein Token in `:root`, das `var(--font-space-grotesk)` referenziert, dort _invalid at computed-value time_ wäre und leer vererbt würde. `@theme` deklariert die Font-Namespace-Tokens nicht (siehe Kommentar dort). **Verifikation immer über `document.fonts.check(...)` + `getComputedStyle(h1).fontFamily` im echten Browser**, nicht über das Vorhandensein von CSS-Regeln oder Klassen im Server-HTML.
+
+- **[Cache/Deploy] `/_next/static/*` = über Deploys hinweg **stabile** Dateinamen, aber `immutable` für 1 Jahr und Cloudflare-Cache davor** (05.11.2026, verifiziert). Gemessen:
+
+  ```
+  curl -I https://mosthi.de/_next/static/chunks/0fkvblgiahdcs.js
+    cache-control: public, max-age=31536000, immutable
+    etag: W/"7547-1a1a8e9d478"        (Edge, age ~33000s)
+    last-modified: Wed, 04 Nov 2026    (Edge = alter Deploy)
+    cf-cache-status: HIT
+  # mit Cache-Buster (?nocache=…), am Edge vorbei:
+    etag: W/"7547-1a1aae0aef0"
+    last-modified: Thu, 05 Nov 2026    (Origin = aktueller Deploy)
+  ```
+
+  Zwei unabhängige Builds (verschiedene `buildId`: `R8rhf4k4hJ1NzNwQgCEsu` vs. `a0M9HE5GJnCR_Xd_1x3lO`) emittieren **identische** Chunk-Namen (`07lthtoft5uqb.js`, `0fkvblgiahdcs.js`, …) — die URL `/_next/static/chunks/0fkvblgiahdcs.js` zeigt also über Deploys hinweg auf **unterschiedliche Inhalte**, wird aber 1 Jahr `immutable`-gecacht. Die CSS-Chunk-Namen änderten sich zwischen Builds (`2dy0uvsr3271r.css` vs. `0kravsi33yf3x.css`), die JS-Namen nicht. Genau dieses Muster erzeugt „läuft im CI, beim Besucher kaputt": ein Client kann HTML des neuen Deploys mit JS/CSS eines alten Edge-Cache-Eintrags mischen — ohne Revalidierung, weil `immutable` sie verbietet.
+
+  **Wichtig:** `Cache-Control` für diese Assets ist **nicht** über `next.config.ts` `headers()` überschreibbar (Next-Doku, `headers.md` §Cache-Control: „It cannot be overridden"; `self-hosting.md`: „It cannot be overridden"). Ein Header-Patch in `next.config.ts` ist also **kein** gangbarer Weg.
+
+  **Empfohlene Optionen** (nicht angewendet, Entscheidung offen):
+  1. **Skew Protection** via `deploymentId` (Next 16, `next.config.ts` bzw. `NEXT_DEPLOYMENT_ID`): hängt `?dpl=<deploymentId>` an alle Static-Asset-URLs, setzt `x-deployment-id` auf Navigationen und erzwingt bei Mismatch eine Hard-Navigation. Löst die Asset-Mischung an der Ursache. **Achtung:** Static Assets werden dadurch nach jedem Deploy erneut geladen (~1 MB) — der Cache-Gewinn der `immutable`-Header sinkt; `'use cache'`-Keys invalidieren bei jeder Deploy-ID (hier unkritisch, Deploys sind selten).
+  2. **Cloudflare-Purge nach Deploy** (z. B. Coolify-Deploy-Hook → CF-Cache-Purge für `/_next/static/*`): behebt den Edge-Stale-Teil, lässt aber Browser-Caches (1 Jahr `immutable`) unberührt.
+  3. Nichts tun + im Deploy-Runbook vermerken: Bei „Seite lädt nicht / Hydration bricht" zuerst Hard-Reload + CF-Cache prüfen.
+
+  **Regel:** Nach jedem Deploy bei unerklärlichem Client-Crash zuerst `last-modified`/`etag` eines Chunk-Files am Edge gegen einen Cache-Buster-Request vergleichen (`cf-cache-status`). Weichen sie ab, ist es Cache-Skew, kein App-Bug.
+
+- **[i18n] `de`-Diagramm-Copy war korrekt, `en` leakt Deutsch (offen)** (05.11.2026): Der `architectureDiagram`-Block auf `home` (id 4) rendert auf `/de` vollständig deutsch (4 Layer × 3 Prinzipien). Ein erneutes Schreiben der deutschen Texte ist **nicht** nötig und wurde bewusst unterlassen (kein Busywork, kein Überschreib-Risiko). Tatsächliches Problem an anderer Stelle: `de` und `en` sind im `translations`-Global und bei mehreren `home`-Blöcken **byte-identisch** — `en` erbt die deutschen Texte (bekannt, siehe „Still wrong" in `.visual-test/HANDOVER-UI.md`). Wer `en` „repariert", muss zuerst prüfen, ob die Quelle tatsächlich der `en`-Locale-Eintrag ist und nicht ein Fallback.
+
 - **[Payload/Seed+Drafts]** `payload.create` bei drafts-enabled Collections defaultet `_status: 'draft'` — Seed-Seiten waren unsichtbar für die published-only Public-Reads (Gate 404 trotz Seed 200). Fix: Seed-Create/Update setzen `draft: false` + `_status: 'published'` explizit; Live-Hotfix via REST `PATCH /api/pages/<id>?locale=en { _status:'published' }` (afterChange-Flush inklusive). (04.11.2026, /skills-404 nach Seed).
 
 - **[Payload/Blocks]** `layout`-blocks-Field ist **NICHT jsonb**: Payload 4 + Postgres normalisiert jeden Blocktyp in eigene Tabellen (`pages_blocks_<slug>` + `pages_blocks_<slug>_items` + `_pages_v_blocks_<slug>*`-Versions-Tabellen). Neuer Blocktyp = **IMMER `npx payload migrate:create <name>`** (Snapshot-Diff, `*.json` mitcommitten) + Deploy erst danach — sonst seedet Local API gegen `relation "pages_blocks_skillset" does not exist` (500). Falsche Annahme „Block = JSON im layout-Field → keine DDL" (04.11.2026, Skillset-Feature; Seed 500, Migration nachgereicht).
