@@ -713,6 +713,25 @@ Vor jedem Commit wird diese Datei auf Aktualität geprüft und bei Bedarf ergän
 - **[AEO/SEO-Schema]** JSON-LD- und Metadata-Layer (04.11.2026, Branch `feat/seo-schema-lighthouse`): `Person` (`src/components/StructuredData.tsx`) trägt `jobTitle` (Senior Fullstack Developer), `description`, `sameAs` (GitHub + LinkedIn), `email`/`telephone` (plain — NICHT `mailto:` in `contactPoint.email`, schema.org erwartet die nackte Adresse), `address`, `worksFor` (valantic DXA), `knowsLanguage`; bewusst KEIN `image`, `seeks` oder Verfügbarkeits-Claim. Per-Page-Aufbau: home → `WebSite` + `Person`-Graph; career → `ProfilePage` mit `Person.hasOccupation` aus den Timeline-Einträgen (`parsePeriod` versteht `09/2024`, `Seit 09/2024 – Heute`, `2012 – 2014`; offene Enden liefern nur `startDate`, unklare Strings gar nichts); case-studies → `WebPage` + `ItemList` aus den `caseStudy`-Blöcken; tech-radar/leadership/contact → schlanke `WebPage` (contact zusätzlich mit `Person`-Kontaktknoten); alle übrigen (privacy/imprint) neutraler `WebPage`. Metadaten: `pages` hat KEIN description-Feld → `derivePageDescription` (`src/cms/aeo/pageMetadata.ts`) leitet pro Seite aus dem ersten Block mit ≥ 40 Zeichen ab (hero.subheading → statusBlock.description → techSection.body → caseStudy → lexical richText), kürzt auf ~155 Zeichen an einer Wortgrenze; Seiten ohne verwertbaren Text erben die Layout-Default-Description (kein leeres Tag). `title: { absolute }` verhindert doppelte Brand-Suffixe; `alternates.languages` enthält `x-default` → `/de` (Primäraudienz) — `x-default` IST in Next 16 als `UnmatchedLang` im Metadata-Typ verifiziert (`node_modules/next/dist/lib/metadata/types/alternative-urls-types.d.ts`), die frühere held-back-Notiz war ein false negative. `llms.txt` listet die acht aktuellen Slugs statt der gelöschten (skills/tech-stack/engineering/ai-vibe-coding/off-screen/track-record).
 - **[Perf/CLS] Hero-Typing-Animation = CLS-Treiber** (04.11.2026, Lighthouse-Snapshot: Performance 85, alle anderen Metriken 100): `TypingHeading` tippte den LCP-Text zeichenweise und ließ die `h1` zeilenweise wachsen — der komplette Content darunter wurde mitgeschoben (gemessen 0.257 Layout-Shift bei 1280×900, ~1/3 Viewport). Fix: Der Wrapper reserviert die **Endhöhe** des Textes an einer unsichtbaren Volltext-Kopie (`ResizeObserver` + `document.fonts.ready` für Resize/Font-Swap) und die Animation läuft darin als reiner Paint-Effekt ohne Reflow; bis zur Messung `min-height: 1em`. Verifiziert im Kontrollharness: 0.115 → 0.000, identische Endhöhe. Merke: Tipp-/Reveal-Animationen auf mehrzeiligen Headings immer gegen die finale Geometrie klemmen.
 
+- **[Perf/CLS] Verbleibender CLS auf `/de` + `/en` = Font-Swap der Hero-Subheadline, NICHT die Typing-Animation** (05.11.2026, Lighthouse mobil). Die H1-Höhenreservierung funktioniert (verifiziert: H1-Höhe konstant 166 px, während der Text von 205 → 297 Zeichen wächst — **keine** Reflow-Bewegung). Der Shift kommt eine Ebene tiefer: `p.mb-8` (Hero-Subheadline, `text-base`) wird zunächst mit `"Space Grotesk Fallback"` gemessen und bricht nach dem Laden der Web-Font auf eine Zeile mehr um.
+
+  Gemessen (Lighthouse-Mobilbreite, Zeilenumbruch-Verhalten):
+
+  | Font                                  | Höhe Hero-`p`     |
+  | ------------------------------------- | ----------------- |
+  | `"Space Grotesk Fallback"` (vor Swap) | 234 px (5 Zeilen) |
+  | `"Space Grotesk"` (nach Swap)         | 260 px (6 Zeilen) |
+
+  Layout-Shift-Eintrag: `startTime ≈ 391 ms`, `value 0.0495`, Quelle `P.mb-8` + CTA-Row. Lighthouse-CLS schwankt dadurch stark (0.309 / 0.58 in zwei Runs, `/de/settings` dagegen 0.000 → seiten-spezifisch, nicht global). Warme Session (Consent gesetzt, Fonts im Cache) misst nur **0.058**, davon ~0.05 der Subheadline-Rest.
+
+  **Bewertung:** vorbestehend (die `display: 'swap'`-Konfiguration und die Fallback-Face stammen aus dem nächsten/font-Setup, nicht aus dieser Änderung) und **nicht** behoben — ein blinder Patch hier wäre Risk ohne Messung.
+
+  **Fix-Kandidaten (nächster Schritt, bewusst nicht angewendet):**
+  1. `adjustFontFallback` (Standard bei `next/font`, hier aktiv) liefert für die Subheadline keine ausreichende Deckung, weil sich die **Zeilenanzahl** ändert (5 → 6), nicht nur die Metrik pro Zeile. Wirksam wäre `size-adjust`/`ascent-override` auf einer dedizierten Fallback-`@font-face`-Familie, die auf dieselbe Zeilenanzahl kalibriert ist.
+  2. `display: 'optional'` für Space Grotesk: Web-Font wird nur im ersten ~100-ms-Fenster verwendet, sonst bleibt der Fallback für diesen Load → kein Swap-Shift. Trade-off: Erstbesuch sieht ggf. den Fallback (zwei Besuchertypen, unterschiedliche Typo).
+  3. Höhen-Reservierung des `p.mb-8` analog zur H1 (feste `min-height` in `em` auf Basis der erwarteten Zeilenanzahl je Breakpoint).
+     Merke: CLS-Diagnose auf dieser Site **immer** pro Element via `PerformanceObserver` (`type: 'layout-shift'`, `entry.sources[].node`) machen — Lighthouse-Gesamtwerte schwanken hier zwischen 0.3 und 0.58, ohne dass sich die Substanz ändert.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 ## This is NOT the Next.js you know
