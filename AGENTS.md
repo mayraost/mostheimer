@@ -64,11 +64,18 @@ einem Rebuild** (Deployment neu auslösen), nicht durch einen Container-Restart.
   nach. Reihenfolgekritisch: ein Tag, der vor `default` feuert, wertet als
   `granted`. Der Container lädt erst nach `load` oder erster Interaktion
   (`src/lib/consent/gtm.ts`) — nie im kritischen Pfad.
-- **Storage-Key:** `mosthi.consent.v1` (`{ analytics, marketing, decidedAt, version: 1 }`),
+- **Storage-Key:** `mayraostheimer.consent.v1` (`{ analytics, marketing, decidedAt, version: 1 }`),
   ausschließlich browser-lokal, kein Server-Roundtrip. Parsing ist defensiv:
   kaputtes/fremdes Shape = „nicht entschieden" → Banner erscheint wieder.
   Inline-Bootstrap und Client nutzen dieselbe Funktion (`parseStoredConsent.toString()`),
   damit kein Drift entsteht.
+  - **Rename 05.11.2026 (`mosthi.consent.v1` → `mayraostheimer.consent.v1`) BEWUSST
+    OHNE Migration:** der alte Key wird nie gelesen, sondern beim ersten Read
+    gelöscht (`LEGACY_CONSENT_STORAGE_KEYS` in `src/lib/consent/consent.ts`).
+    Konsequenz: **jeder Bestandsbesucher sieht den Banner erneut und entscheidet neu**.
+    Das ist die gewollte Semantik (Consent eines alten Brands still weiterzuverwenden
+    wäre der Fehler). Der DOM-Event `mosthi:consent:open` bleibt intern unverändert —
+    er ist kein persistierter Zustand.
 - **Banner** (`src/components/consent/CookieConsent.tsx`): drei gleich
   gewichtete Aktionen (alle akzeptieren / nur notwendige / Auswahl speichern),
   echte `<input type="checkbox">`, `role="dialog"` + `aria-modal`, Focus-Trap,
@@ -1100,6 +1107,40 @@ Für „neuer Deploy, alter Client-Bundle":
 sie mit der des Tabs und lädt einen alten Tab beim Mount/Fokus exakt einmal hart
 neu. Härteste Lösung bleibt Next-Skew-Protection (`deploymentId`) — offen.
 
+## Dependencies & Audit (Stand 05.11.2026)
+
+- **Exakt gepinnt, keine Ranges:** `package.json` enthält 0 Verstöße gegen die
+  Regel (kein `^`/`~`/`latest`/`*` in `dependencies`/`devDependencies`), Dockerfile
+  nutzt durchgängig `node:26.13.0-alpine3.24` (volle Version mit Patch), die
+  Compose-Datei hat **kein** `image:` (baut lokal).
+- **Transitive CVE-Fixes via `overrides`:** `"dompurify": "3.4.17"` (via
+  `monaco-editor`/`@payloadcms/ui`). `npm audit fix --package-lock-only` hebt
+  solche von Zwischen-Deps gepinnten Ranges nicht — Override + Lockfile-Regen.
+- **Audit-Stand 05.11.2026:** 24 Findings, **0 HIGH / 0 CRITICAL** (9 low,
+  15 moderate). Kein Handlungsbedarf in diesem Zuge.
+- **Offene Majors (bewusst NICHT angehoben):** `graphql` 16 → 17 (Payload-Peer
+  prüfen), `jsdom` 30 → 31 (nur Tests), `typescript` 6 → 7 (bricht
+  typescript-eslint-Peer `<6.1` und die JS-API — TS 7 läuft hier nur als
+  `@typescript/native`-Advisory, siehe Tech-Stack). Minor/Patch (z. B.
+  `@playwright/test` 1.65, `lucide-react` 1.69) erst mit eigener Test-Runde.
+
+## Clipboard (E-Mail kopieren, Stand 05.11.2026)
+
+- `src/components/ui/CopyButton.tsx` — echte `<button type="button">`, Fokusring
+  via `focus-visible:*`, Ergebnis-Ansage über `role="status"` + `aria-live="polite"`
+  **neben** dem Button (der sichtbare Label bleibt über alle Zustände konstant,
+  damit der Accessible Name nicht springt). Schreibt `navigator.clipboard`, mit
+  `execCommand`-Fallback; im Fehlerfall **kein** falsches „kopiert".
+- Texte aus dem `translations`-Global, Gruppe **`clipboard`** (`copyLabel`,
+  `copiedMessage`, `failedMessage`), Migration
+  `20261105_210002_add_clipboard_translations` (nur additive
+  `ADD COLUMN … DEFAULT … NOT NULL`, Snapshot `*.json` mitcommittet).
+- Der `mailto:`-Link bleibt das sichtbare Element; der Copy-Button ist eine
+  **Zusatz**-Aktion daneben und ersetzt ihn nie.
+- Die Komponente liest den Context über `useTranslationsOrNull()` (wirft NICHT
+  ohne Provider — der Block rendert auch auf der 404-Fallback-Chrome) und hat
+  einen Per-Feld-Fallback, falls die Global-Gruppe fehlt.
+
 ## Workflow-Regeln
 
 1. **Nach jeder Dateiänderung** `npm run lint:fix` ausführen.
@@ -1336,6 +1377,16 @@ Vor jedem Commit wird diese Datei auf Aktualität geprüft und bei Bedarf ergän
   Nach dem Fix (Live-Copy, lokal, Production-Standalone): 375 = 0.0033, 768 = 0.0030, 1280 = 0.0067, 1920 = 0.0032 — **non-caret überall exakt 0.0000**, H1-Endhöhen 166/125/346/354 px (= echte Space-Grotesk-Geometrie).
 
   **Mess-Fallstrick Nummer 2:** bei JS-off/SSR-Messung des Hero-`h1` die **sichtbare** Span nehmen (letztes Kind des `span.relative`-Wrappers). Die unsichtbare Mess-Kopie und der `sr-only`-Span liefern sonst falsche Zeilenzahlen (5 statt 3), was jede Fallback-Kalibrierung unbrauchbar macht.
+
+- **[A11y/Command-Palette] Keycap im Trigger landete IM Accessible Name** (05.11.2026, live gemessen auf `/de`). Der Header-Suchbutton hatte `aria-label={`${t.triggerText}K — ${t.triggerLabel}`}` — also wurde das „K" der `<kbd>` doppelt in den Namen gebaut („SearchK — Search — open command palette"). Ein `aria-label` auf einem `<button>` **überschreibt** zwar den Inhalt als Namen, aber der falsch zusammengesetzte String war die Ursache, nicht das `<kbd>`. Fix: `aria-label={t.triggerLabel}` (identisch zum Mobile-Trigger) **und** `<kbd aria-hidden="true">` — Deko bleibt dekorativ, der Name ist genau ein Label. Verifikation im Accessibility-Tree (Playwright-Snapshot): `button "Search — open command palette"` mit Kind `generic [aria-hidden]: K`. Merke: „Keycap/Hint" gehört **nie** in den `aria-label`-String — bei Buttons mit sichtbarem Text reicht der Text selbst, bei Icon-only der Label; Zusatzinfos wie „⌘K" sind reine Deko.
+
+- **[A11y/Copy-Button] `CopyButton` liest seine Texte aus dem `TranslationsProvider`, nicht als Props** (05.11.2026). `TechSectionBlock` ist eine **Server**-Component; `useTranslations()` gibt es dort nicht, und ein `await getCachedTranslations()` hätte den Block (und damit `BlockRenderer`) **async** gemacht — Kaskade durch den halben Seitenbaum. Stattdessen holt sich `CopyButton` (`'use client'`) die `clipboard`-Gruppe selbst aus dem Context. Fallstrick dabei: `TechSectionBlock` rendert **auch** auf der 404-Fallback-Chrome, wo der Provider fehlt (`SiteChrome showConsent=false`) → `useTranslations()` würde werfen. Dafür gibt es jetzt `useTranslationsOrNull()` (nicht-werfende Variante, neuer Export in `TranslationsProvider.tsx`) plus Per-Feld-Fallback in der Komponente. Annotation: `role="status"` + `aria-live="polite"` **neben** dem Button (nicht im Button) — der sichtbare Label-Text bleibt über Zustände stabil, damit der Accessible Name nicht springt. Fokus-Ring kommt explizit über `focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary`; kein CLS, weil nur ein `sr-only`-Span seinen Textinhalt wechselt.
+
+- **[Payload/Migration-Drift] `migrate:create` nimmt fremde Default-Diffs mit** (05.11.2026). Die erzeugte `add_clipboard_translations`-Migration enthielt zusätzlich `ALTER COLUMN "site_name" SET DEFAULT 'Mayra Ostheimer'` — kein Clipboard-Schema, sondern der nachgezogene Default-Drift aus `SiteSettings.ts` (Snapshot trug noch `'Mostheimer'`). Regel: **die generierte Migration vor dem Commit lesen** und fachfremde Statements in ein eigenes Commit/Migration ziehen (oder bewusst lassen, wenn der Default-Drift ohnehin gewollt ist) — sonst koppelt man zwei unabhängige Schema-Themen in einem Rollback. Der Snapshot (`*.json`) bleibt dabei der Wahrheit für den **nächsten** Diff und muss mit dem TS übereinstimmen.
+
+- **[Dev-Server] Stale `next-server` überlebt `rm -rf .next` als Deleted-CWD** (05.11.2026, kostete eine Fehlmessung). Nach `pkill -f "next dev"` lief ein `next-server`-Kindprozess weiter, dessen CWD auf ein **gelöschtes** `.next/standalone` zeigte (`/proc/<pid>/cwd -> … (deleted)`). Der Server antwortete weiter mit **altem** HTML, während die Quelle schon geändert war — es sah aus wie „mein Fix wird nicht übernommen". Diagnose: `lsof -i :3000 -sTCP:LISTEN` → PID → `readlink /proc/<pid>/cwd`. Behebung: `pkill -9 -f next-server` **plus** `pkill -9 -f "next dev"`, warten bis der Port frei ist (`ss -ltnp | grep :3000`), dann neu starten. Merke: „Server liefert alten Stand" niemals am Code debuggen, bevor die **PID und ihr CWD** geprüft sind.
+
+- **[Beiwerk statt Verifikation] `ReleaseGuard` + `sessionStorage` erzeugte beim Messen eine Navigationsschleife** (05.11.2026). Nach mehreren Server-Neustarts mit unterschiedlichen Build-IDs hielt der Tab eine alte Release-ID; der Guard lädt bei Mismatch hart neu, was in der Messsitzung wie ein Endlos-Redirect aussah (`Execution context was destroyed` / „interrupted by another navigation"). Vor Browser-Verifikation daher `sessionStorage.clear()` + `localStorage.clear()` im Tab (oder frischer Context). Kein Produktbug — aber es kostet Messzeit, wenn man ihn nicht kennt.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
