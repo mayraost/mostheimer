@@ -1,124 +1,153 @@
 'use client';
 
-import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useSettings } from './SettingsProvider';
+
+/** No-op subscription: the store never changes after hydration. */
+const subscribeNoop = () => () => undefined;
 
 /**
  * Typing effect for the hero display (client island).
  *
- * A11y: the full text is in the accessible name (aria-label on the wrapper) and
- * in an sr-only fallback from the start; the visible animation is aria-hidden.
+ * A11y: the full text is the accessible name (aria-label on the wrapper) and an
+ * sr-only copy; the visible animation is aria-hidden.
  *
- * CLS: the hero heading is the homepage LCP text, so letting it grow line by
- * line pushed all the content below it (measured 0.25 layout shift on about a
- * third of the viewport). The wrapper therefore reserves the text's FINAL
- * height, measured on an invisible full-text copy (kept in sync via
- * ResizeObserver and font-ready), and the animation runs inside that fixed
- * frame as a pure paint effect with no reflow. Until measured it sits at
- * `min-height: 1em`.
+ * CLS design (measured 05.11.2026 on the production standalone build):
+ *
+ * The server renders the heading text as the normal, visible element, so the
+ * FIRST paint already has the final geometry — the `h1` is two lines tall
+ * before any JavaScript runs. Only after mount does a client overlay take over
+ * and replay the typing inside a box whose height is locked to the height the
+ * server-rendered text occupied. Consequences:
+ *
+ * - hydration itself cannot shift anything (same text, same box);
+ * - the animation cannot shift anything (the box height never changes);
+ * - the Space Grotesk swap cannot shift anything that is below the heading
+ *   (the box is measured from the same text it animates, and the overlay is
+ *   clipped to it).
+ *
+ * Previous incarnations reserved `min-height: 1em` on the server and only
+ * measured after hydration, which produced a ~200 ms reflow (69 px → 138 px at
+ * 1280x900) as the typed text reached its second line. That is why the text is
+ * now part of the server output instead of being typed into an empty box.
  */
-function useReservedHeight() {
-  const ref = useRef<HTMLSpanElement | null>(null);
-  const [height, setHeight] = useState<number | null>(null);
+const TYPING_STEP_MS = 18; // per character
+const TYPING_FALLBACK_DELAY_MS = 1500; // never wait forever on a slow face
 
-  useLayoutEffect(() => {
-    const element = ref.current;
-    if (!element) return;
+/** True once the heading's own weight face is usable (or after a safety delay). */
+function useHeadingFontReady(element: HTMLElement | null): boolean {
+  const [ready, setReady] = useState(false);
 
-    const measure = () => setHeight(element.getBoundingClientRect().height);
-    measure();
+  useEffect(() => {
+    if (!element || ready) return;
+    let cancelled = false;
+    const timer = setTimeout(() => setReady(true), TYPING_FALLBACK_DELAY_MS);
 
-    // ResizeObserver instead of window listeners: covers width changes, font
-    // swap and container resize (sidebar layout) in one place.
-    if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(measure);
-    observer.observe(element);
-    document.fonts?.ready.then(measure).catch(() => undefined);
-
-    return () => observer.disconnect();
-  }, []);
-
-  return { ref, height };
-}
-
-function TypingHeadingEffect({
-  text,
-  animationsOn,
-  height,
-  measureRef,
-}: {
-  text: string;
-  animationsOn: boolean;
-  height: number | null;
-  measureRef: (node: HTMLSpanElement | null) => void;
-}) {
-  const [progress, setProgress] = useState(0);
-  const isTyping = progress < text.length;
-
-  useLayoutEffect(() => {
-    // Animations disabled: show nothing to reveal.
-    if (!animationsOn) return;
-
-    let i = 0;
-    const typingInterval = setInterval(() => {
-      i += 1;
-      if (i <= text.length) {
-        setProgress(i);
-        if (i === text.length) clearInterval(typingInterval);
+    const check = () => {
+      if (cancelled || !document.fonts) return;
+      const weight = getComputedStyle(element).fontWeight;
+      const numeric = weight && weight !== 'normal' && weight !== 'bold' ? weight : '700';
+      if (document.fonts.check(`${numeric} 1em "Space Grotesk"`)) {
+        clearTimeout(timer);
+        setReady(true);
       }
-    }, 18);
+    };
 
-    return () => clearInterval(typingInterval);
-  }, [text, animationsOn]);
+    check();
+    document.fonts?.ready.then(check).catch(() => undefined);
+    document.fonts?.addEventListener?.('loadingdone', check);
 
-  return (
-    <>
-      {/* Invisible full-text copy: defines the block's final height. */}
-      <span
-        ref={measureRef}
-        aria-hidden="true"
-        className="pointer-events-none invisible absolute left-0 top-0 -z-10 block w-full"
-      >
-        {text}
-      </span>
-      <span
-        aria-hidden="true"
-        className="block w-full"
-        style={height !== null ? { minHeight: `${height}px` } : { minHeight: '1em' }}
-      >
-        {text.slice(0, progress)}
-        {animationsOn && (
-          <span
-            aria-hidden="true"
-            className={`ml-1 inline-block h-[0.8em] w-[0.5ch] bg-primary align-baseline ${
-              isTyping ? '' : 'animate-blink'
-            }`}
-          />
-        )}
-      </span>
-    </>
-  );
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      document.fonts?.removeEventListener?.('loadingdone', check);
+    };
+  }, [element, ready]);
+
+  return ready;
 }
 
 export function TypingHeading({ text }: { text: string }) {
   const { currentAnimations } = useSettings();
-  const { ref, height } = useReservedHeight();
-  const setRef = useCallback(
-    (node: HTMLSpanElement | null) => {
-      ref.current = node;
-    },
-    [ref],
+  // Client-only flag without setState-in-effect: the server snapshot is
+  // `false` (so SSR renders the static text), the client snapshot `true`.
+  // `useSyncExternalStore` is the hydration-safe way to express this.
+  const mounted = useSyncExternalStore(
+    subscribeNoop,
+    () => true,
+    () => false,
   );
+  const [progress, setProgress] = useState(0);
+  const [boxHeight, setBoxHeight] = useState<number | null>(null);
+  const [overlay, setOverlay] = useState<HTMLSpanElement | null>(null);
+  const staticRef = useRef<HTMLSpanElement | null>(null);
+  const fontReady = useHeadingFontReady(overlay);
+
+  const animationsOn = currentAnimations !== 'off';
+  const isTyping = progress < text.length;
+
+  // Lock the box to the height the server-rendered text occupied BEFORE the
+  // overlay replaces it, so swapping in the animation is geometry-neutral.
+  useLayoutEffect(() => {
+    if (!mounted || !animationsOn) return;
+    const element = staticRef.current;
+    if (!element) return;
+
+    const measure = () => {
+      const next = element.getBoundingClientRect().height;
+      if (next > 0)
+        setBoxHeight((current) => (current === null || next > current ? next : current));
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [mounted, animationsOn, text]);
+
+  useEffect(() => {
+    if (!mounted || !animationsOn || !fontReady) return;
+    let i = 0;
+    const timer = setInterval(() => {
+      i += 1;
+      setProgress(i);
+      if (i >= text.length) clearInterval(timer);
+    }, TYPING_STEP_MS);
+    return () => clearInterval(timer);
+  }, [mounted, animationsOn, fontReady, text]);
+
+  const showTyping = mounted && animationsOn;
 
   return (
     <span className="relative block w-full" aria-label={text}>
       <span className="sr-only">{text}</span>
-      {currentAnimations === 'off' ? (
-        <span ref={ref} aria-hidden="true" className="block w-full">
-          {text}
+
+      {/* Measurement / non-animated text. Always rendered while the animation
+          has not taken over, and kept (invisible) as the height source. */}
+      <span
+        ref={staticRef}
+        aria-hidden="true"
+        className={`block w-full ${showTyping ? 'invisible absolute left-0 top-0 -z-10' : ''}`}
+      >
+        {text}
+      </span>
+
+      {showTyping && (
+        <span
+          aria-hidden="true"
+          className="block w-full overflow-hidden"
+          style={boxHeight !== null ? { height: `${boxHeight}px` } : undefined}
+        >
+          <span ref={setOverlay} className="block w-full">
+            {text.slice(0, progress)}
+            <span
+              aria-hidden="true"
+              className={`ml-1 inline-block h-[0.8em] w-[0.5ch] bg-primary align-baseline ${
+                isTyping ? '' : 'animate-blink'
+              }`}
+            />
+          </span>
         </span>
-      ) : (
-        <TypingHeadingEffect text={text} animationsOn height={height} measureRef={setRef} />
       )}
     </span>
   );
