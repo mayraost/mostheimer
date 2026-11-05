@@ -126,28 +126,48 @@ async function waitForHealthy(port) {
   return false;
 }
 
-/** Site-relative paths from the live sitemap; null when unavailable. */
-async function fetchContentPaths() {
-  try {
-    const response = await fetch(`${SITE_ORIGIN}/sitemap.xml`, {
-      // Bypass the edge: the sitemap is itself cached and must not go circular.
-      headers: { 'Cache-Control': 'no-cache' },
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
-    if (!response.ok) return null;
-    const xml = await response.text();
-    const paths = new Set(['/', '/sitemap.xml']);
-    for (const match of xml.matchAll(/<loc>([^<]+)<\/loc>/g)) {
-      try {
-        paths.add(new URL(match[1].trim()).pathname);
-      } catch {
-        // Ignore malformed entries rather than aborting the whole purge.
-      }
+/** Parses a sitemap document into site-relative paths. */
+function parseSitemap(xml) {
+  const paths = new Set(['/', '/sitemap.xml']);
+  for (const match of xml.matchAll(/<loc>([^<]+)<\/loc>/g)) {
+    try {
+      paths.add(new URL(match[1].trim()).pathname);
+    } catch {
+      // Ignore malformed entries rather than aborting the whole purge.
     }
-    return [...paths];
-  } catch {
-    return null;
   }
+  return [...paths];
+}
+
+/**
+ * Site-relative paths from the live sitemap.
+ *
+ * Read from the LOCAL origin first: at purge time the public hostname still
+ * points at the previous release and goes through the edge, and the sitemap is
+ * itself a dynamic route that may not have rendered yet right after boot. A
+ * single noisy fetch must never skip the whole deploy purge, so this retries and
+ * only then falls back to the public URL.
+ */
+async function fetchContentPaths(port) {
+  const sources = [`http://127.0.0.1:${port}/sitemap.xml`, `${SITE_ORIGIN}/sitemap.xml`];
+  for (const source of sources) {
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      try {
+        const response = await fetch(source, {
+          headers: { 'Cache-Control': 'no-cache' },
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        });
+        if (response.ok) {
+          const xml = await response.text();
+          if (xml.includes('<loc>')) return parseSitemap(xml);
+        }
+      } catch {
+        // Retry below; a transient boot-time failure must not skip the purge.
+      }
+      await sleep(WAIT_INTERVAL_MS);
+    }
+  }
+  return null;
 }
 
 /**
@@ -218,7 +238,7 @@ async function main() {
     body = { purge_everything: true };
     description = 'EVERYTHING (manual)';
   } else {
-    const paths = (await fetchContentPaths())?.filter(isPurgeable);
+    const paths = (await fetchContentPaths(process.env.PORT || '3000'))?.filter(isPurgeable);
     if (!paths || paths.length === 0) {
       warn('could not read the content route list from /sitemap.xml — deploy purge skipped');
       return;
