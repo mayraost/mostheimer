@@ -9,7 +9,7 @@ type TechSectionBlockData = Extract<
 >;
 
 export function TechSectionBlock({ block }: { block: TechSectionBlockData }) {
-  // CMS-Textarea: Absätze via doppelte Newlines
+  // CMS textarea: paragraphs are separated by blank lines.
   const paragraphs = splitParagraphs(block.body);
 
   return (

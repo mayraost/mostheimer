@@ -1,6 +1,4 @@
-/**
- * Preview-Route-Skeleton: statisch, kein auth-/Payload-Bezug.
- */
+/** Preview route skeleton: static, no auth or Payload dependency. */
 export default function PreviewLoading() {
   return (
     <div role="status" aria-live="polite">

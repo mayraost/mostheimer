@@ -13,24 +13,22 @@ type NavLink = {
 };
 
 /**
- * Mobile-Navigation als Portal-Dialog (Bugfix 04.11.2026).
+ * Mobile navigation as a portal dialog.
  *
- * Warum Portal: der Trigger sitzt im `<header>`, das `position: sticky` ist.
- * Sticky (wie jedes transform/filter/contain) erzeugt einen Containing Block
- * UND einen Stacking Context — ein `fixed`-Nachfahre löst `inset-0` dann
- * gegen die HEADER-Box auf (64px hoch) statt gegen den Viewport. Ergebnis
- * war ein auf 64px geclippter Drawer, der hinter dem Content verschwand.
- * `createPortal(... , document.body)` löst den Dialog aus diesem Kontext.
+ * Why a portal: the trigger lives in the sticky `<header>`, and sticky (like
+ * transform/filter/contain) creates a containing block AND a stacking context —
+ * a `fixed` descendant would resolve `inset-0` against the 64px header box
+ * instead of the viewport, clipping the drawer behind the content. Rendering
+ * into document.body takes the dialog out of that context.
  *
- * SSR-Guard: der Portal-Inhalt rendert erst nach dem Mount
- * (`useState(false)` → `useEffect`) — kein `document`-Zugriff beim SSR.
+ * SSR guard: content renders only after mount, so nothing touches `document`
+ * during SSR.
  *
- * Scroll-Lock (Issue 2): `position: fixed` am body mit negativem `top`
- * hält die Scroll-Position und überlebt mobile Browser-Chrome-Resizes
- * (dvh-Wechsel), anders als ein reiner `overflow: hidden`. Beim Schließen
- * werden ALLE Inline-Properties einzeln entfernt (`removeProperty`) und
- * die Scroll-Position wiederhergestellt — niemals `overflow: 'unset'`
- * schreiben, das würde das CSS `overflow-x: clip` überschreiben.
+ * Scroll lock: `position: fixed` on the body with a negative `top` keeps the
+ * scroll position and survives mobile browser-chrome resizes, unlike plain
+ * `overflow: hidden`. On close, every inline property is removed individually
+ * and the scroll position restored — never write `overflow: 'unset'`, which
+ * would override the CSS `overflow-x: clip`.
  */
 export function MobileNavPortal({
   open,
@@ -47,7 +45,7 @@ export function MobileNavPortal({
   closeLabel: string;
   statusLabel: string;
 }) {
-  // SSR-Guard ohne setState-im-Effect: erst nach der Hydration portalen.
+  // SSR guard without setState in an effect: portal only after hydration.
   const mounted = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -56,14 +54,14 @@ export function MobileNavPortal({
   const drawerRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Scroll-Lock + Dialog-Verhalten in EINEM Effekt mit vollständigem Cleanup.
+  // Scroll lock and dialog behaviour in one effect with complete cleanup.
   useEffect(() => {
     if (!open || !mounted) return;
 
     const body = document.body;
     const scrollY = window.scrollY;
 
-    // Werte VOR dem Lock sichern — wir stellen sie einzeln wieder her.
+    // Capture values before locking; they are restored individually.
     const previous = {
       position: body.style.position,
       top: body.style.top,
@@ -80,7 +78,7 @@ export function MobileNavPortal({
     body.style.width = '100%';
     body.style.overflow = 'hidden';
 
-    // Fokus in den Dialog (Schließen-Button als stabilstes Ziel)
+    // Move focus into the dialog, to the close button (the most stable target).
     closeButtonRef.current?.focus();
 
     const drawer = drawerRef.current;
@@ -112,7 +110,7 @@ export function MobileNavPortal({
     return () => {
       document.removeEventListener('keydown', onKeyDown);
 
-      // Inline-Properties einzeln zurücksetzen bzw. entfernen (nie 'unset').
+      // Reset inline properties individually — never 'unset' (see above).
       const restore = (prop: keyof CSSStyleDeclaration & string, value: string) => {
         if (value)
           body.style.setProperty(
@@ -141,7 +139,7 @@ export function MobileNavPortal({
       }`}
       aria-hidden={!open}
     >
-      {/* Backdrop über den gesamten Viewport */}
+      {/* Backdrop across the whole viewport */}
       <div
         className={`absolute inset-0 bg-background/75 backdrop-blur-sm transition-opacity duration-200 ${
           open ? 'touch-none opacity-100' : 'pointer-events-none opacity-0'

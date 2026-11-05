@@ -1,17 +1,15 @@
 /**
- * Tag-Namensraum für den Frontend-Cache-Datenlayer.
+ * Tag namespace for the frontend cache data layer.
  *
- * Granularität: `cms:all` (Breitpunkt-Flush) + Domain-Tag (`cms:pages`) +
- * Punkt-Tag pro Slug (`cms:pages:<slug>`) bzw. Global-Tag (`cms:global:<slug>`).
- * Payload-Hooks flusen entweder breit (Media, alle Seiten invalidiert) oder
- * punktgenau (Publish einer Page / eines Globals).
+ * Granularity: `cms:all` (broad flush) + domain tag (`cms:pages`) + one tag per
+ * slug (`cms:pages:<slug>`) or per global (`cms:global:<slug>`). Payload hooks
+ * flush either broadly (media) or precisely (a page or global publish).
  */
 export const CACHE_TAGS = {
   ALL: 'cms:all',
   pages: 'cms:pages',
-  // Slug-Schluessel ohne Locale-Praefix: Slugs sind locale-agnostisch
-  // (nur die Felder sind localized), der Punkt-Flush invalidiert also
-  // en + de derselben Route gemeinsam.
+  // No locale prefix: slugs are locale-agnostic (only fields are localized), so
+  // a targeted flush invalidates both the en and de variant of the route.
   pageByPath: (slug: string) => `cms:pages:${slug}`,
   sitemap: 'cms:sitemap',
   siteSettings: 'cms:global:site-settings',

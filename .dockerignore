@@ -6,7 +6,7 @@ node_modules
 *.sqlite3-wal
 .env
 .env.*
-# Build-Kontext verschlanken: nur fuer Tests/Tooling, nicht fuer next build benoetigt
+# Trim the build context: test/tooling only, not needed by next build.
 tests
 docs
 .github

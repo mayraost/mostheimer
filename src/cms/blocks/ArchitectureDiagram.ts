@@ -1,13 +1,13 @@
 import type { Block } from 'payload';
 
 /**
- * Interaktives System-Architektur-Schaubild (Edge → App/BFF → Core/CMS →
- * Data/State). Die Layer-Definitionen sind Inhalt (CMS), die Interaktion
- * (Tablist, Tastatur, Fokus, prefers-reduced-motion) lebt clientseitig in
+ * Interactive system architecture diagram (Edge → App/BFF → Core/CMS →
+ * Data/State). The layer definitions are CMS content; the interaction (tablist,
+ * keyboard, focus, prefers-reduced-motion) lives client-side in
  * `src/components/blocks/ArchitectureDiagramBlock.tsx`.
  *
- * Bewusst NICHT localized im Layout-Schema-Denken, aber die Textfelder sind
- * es: Layer-Titel/Beschreibungen pro Locale pflegbar.
+ * Only the text fields are localized (layer titles/descriptions per locale);
+ * the block structure itself is shared.
  */
 export const ArchitectureDiagram: Block = {
   slug: 'architectureDiagram',
@@ -39,12 +39,10 @@ export const ArchitectureDiagram: Block = {
       type: 'array',
       minRows: 1,
       maxRows: 4,
-      // Kurzer physischer Tabellen-Prefix: die generierten Payload-Namen
-      // (`pages_blocks_architecture_diagram_layers_principles_*`) laufen
-      // mit ihren Index-/FK-Konstanten ueber das 63-Zeichen-Limit von
-      // Postgres und werden stillschweigend abgeschnitten (migrate:create-
-      // Warnung). `lay`/`pri` halten Table + Index + Constraint zusammen
-      // eindeutig und kurz.
+      // Short physical table prefix: Payload's generated names here exceed
+      // Postgres' 63-character identifier limit once index/FK constants are
+      // appended, and get silently truncated. `lay`/`pri` keep table, index and
+      // constraint names short and unambiguous.
       dbName: 'arch_lay',
       labels: { singular: 'Layer', plural: 'Layer' },
       admin: {

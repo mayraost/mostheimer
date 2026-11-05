@@ -1,20 +1,16 @@
 import { SettingsPageClient } from '@/components/settings/SettingsPageClient';
 
-// Locales sind build-statisch (kein DB-Lookup noetig) — ohne diese
-// generateStaticParams bricht der Build-Prerender-Versuch ab (Root-Param).
+// Required because `locale` is a root dynamic segment: without it the build's
+// prerender attempt aborts. Locales are build-static, so no DB lookup is needed.
 export function generateStaticParams() {
   return ['en', 'de'].map((locale) => ({ locale }));
 }
 
-// Haertung (ensureStatic, docs .../route-segment-config/ensureStatic.md):
-// 'shell' = App Shell des default-Link-Prefetchs muss statisch bleiben
-// (Partial Prefetching ist aktiv). 'navigation' scheidet aus: das
-// [locale]-Layout enthaelt den NotFoundGate als bewussten Blocking-Render
-// (connection()/headers() Outside-Suspense, Pre-Flush-404) — vollstaetige
-// statische Output-Validation schlaegt dort an (empirisch am Build
-// verifiziert, Message static-route-dynamic). 'shell' ist der engste
-// Level, der mit dem Gate und instant=false am Layout kompatibel bleibt
-// (instant=false deaktiviert nur die Instant-Navigation-Validation).
+// 'shell' is the narrowest level that works here: it only requires the app
+// shell of the default link prefetch to be static (partial prefetching is on).
+// 'navigation' rejects this tree because the [locale] layout's NotFoundGate is
+// a deliberate blocking render — full static output validation fails with
+// `static-route-dynamic`. Don't raise this without restructuring that gate.
 export const ensureStatic = 'shell';
 
 export default function SettingsPage() {

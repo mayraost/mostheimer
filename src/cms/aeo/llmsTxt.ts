@@ -1,19 +1,12 @@
 /**
- * llms.txt (llmstxt.org v2, kuratiert, AEO-Layer): statischer Inhalt der
- * /llms.txt-Route (src/app/llms.txt/route.ts).
+ * Static content of /llms.txt (llmstxt.org v2, curated). It lives here rather
+ * than in public/ because this repo keeps static assets in src/public, which
+ * the dev server does not serve; the route handler behaves the same in dev and
+ * prod.
  *
- * Warum Route-Handler statt public/llms.txt: Next served public-Assets
- * nur aus <root>/public — dieses Repo haellt statische Assets in
- * src/public (Dockerfile kopiert sie in den Runner), im Dev-Server ist
- * src/public aber NICHT reachable (Falling-Through in den [locale]-
- * Catch-All). Der Route-Handler greift in Dev UND Prod identisch,
- * ohne Dockerfile-Aenderung.
- *
- * Seitenliste = die acht published `pages`-Dokumente (Stand 04.11.2026:
- * home, career, case-studies, tech-radar, leadership, contact, imprint,
- * privacy) in beiden Locales. Die frueher hier gelisteten Slugs
- * (skills / tech-stack / engineering / ai-vibe-coding / off-screen /
- * track-record) existieren nicht mehr bzw. sind 404 — bewusst entfernt.
+ * The page list mirrors the eight published `pages` documents (home, career,
+ * case-studies, tech-radar, leadership, contact, imprint, privacy) in both
+ * locales — keep it in sync when pages are added or removed.
  */
 
 const BASE = 'https://mosthi.de';

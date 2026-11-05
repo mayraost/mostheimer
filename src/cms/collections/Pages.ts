@@ -12,10 +12,9 @@ export const Pages: CollectionConfig = {
     useAsTitle: 'title',
     defaultColumns: ['title', 'slug', 'updatedAt'],
     livePreview: {
-      // Relative URL: Payload injiziert Admin-Origin automatisch (Origin-
-      // Gotcha hinter Tunnel geloest). locale.code = aktuell editierte Locale.
-      // (collections-Filter nur im ROOT admin.livePreview — hier auf der
-      // Collection implizit.)
+      // Relative URL on purpose: Payload injects the admin origin itself, which
+      // keeps the preview working behind the tunnel. locale.code is the locale
+      // currently being edited.
       url: ({ data, locale }) =>
         `/${locale?.code ?? 'en'}/preview?slug=${normalizeSlug(data?.slug ?? 'home')}`,
       breakpoints: [
@@ -25,23 +24,21 @@ export const Pages: CollectionConfig = {
     },
   },
   access: {
-    // Öffentliche Reads sind published-only; authentifizierte Users
-    // (u.a. Live-Preview `draft: true`) sehen auch Drafts.
+    // Public reads are published-only; authenticated users (incl. live preview
+    // with `draft: true`) also see drafts.
     read: ({ req: { user } }) => (user ? true : { _status: { equals: 'published' } }),
-    // Versions-Historie enthält unveröffentlichte Draft-States — niemals
-    // unauthentifiziert abgreifbar (Payload-4-Access-Key verifiziert in
-    // node_modules/payload/dist/collections/config/types.d.ts).
+    // The version history contains unpublished draft states and must never be
+    // readable without authentication.
     readVersions: ({ req: { user } }) => Boolean(user),
   },
-  // Drafts: Lebewesen-Basis fuer Live-Preview (nicht-published Entwuerfe
-  // rendern). Public-Fetch-Kette bleibt draft:false → published-only.
+  // Drafts exist so live preview can render unpublished drafts; the public fetch
+  // path still passes draft:false and stays published-only.
   versions: { drafts: true },
   hooks: {
-    // ISR/OSR: Publish/Update/Delete flusten den Route-Cache punktgenau
-    // (blockierend, siehe cache/frontend/revalidate.ts — 'max'-SWR liess
-    // Pages auf Prod stale, Findings v2 B1).
-    // Slug-Umbenennung flust zusaetzlich den alten Pfad (muss fortan 404
-    // liefern statt dem alten Inhalt).
+    // OSR: publish/update/delete flush the route cache precisely and blocking
+    // (see cache/frontend/revalidate.ts — the 'max' SWR window left pages stale
+    // on prod). A slug rename also flushes the old path, which must serve 404
+    // from then on instead of the stale content.
     afterChange: [
       ({ doc, previousDoc }) => {
         revalidatePagePathCache(doc.slug);

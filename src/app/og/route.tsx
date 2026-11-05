@@ -2,26 +2,21 @@ import { ImageResponse } from 'next/og';
 import { OG_SIZE, OgCard, sanitizeOgTitle } from '@/components/og/ogCard';
 
 /**
- * OG-Image-Route (AEO-Layer, Research P2 — aber mit Pivot):
+ * OG image route.
  *
- * Die `opengraph-image.tsx`-Dateikonvention kann NICHT im optionalen
- * Catch-All-`[[...slug]]`-Segment liegen (Next 16.4.5, verifiziert am
- * Build: „Optional catch-all must be the last part of the URL" — die
- * interne Metadata-Route `opengraph-image-<hash>` wird als Kind-Segment
- * hinter den optionalen Catch-All gehängt). Per-Page-Karten stattdessen
- * über explizite `openGraph.images`-URLs in `generateMetadata`, die auf
- * diese Route zeigen (klassisches Metadata-API-Pattern, wiki-Todo-Record
- * vermerkt die Abweichung vom Research-Empfehlungspath).
+ * The `opengraph-image.tsx` file convention cannot live in the optional
+ * catch-all `[[...slug]]` segment: Next appends its internal metadata route as
+ * a child segment, which the build rejects with "Optional catch-all must be the
+ * last part of the URL". Per-page cards use explicit `openGraph.images` URLs
+ * that point here instead.
  *
- * Begründung Route-Handler statt Server Action (AGENTS-Regel): reine
- * Byte-Response (PNG) ohne UI-Anteil, Abnehmer sind externe Crawler/
- * Link-Vorschau-Fetcher. Kein DB-Read (Titel kommt per Query-Param aus
- * generateMetadata) → kein Build-Prerender-Risiko; searchParams machen
- * den Handler request-time (ƒ, cacheComponents-Kompatibilität).
+ * Route handler rather than a Server Action because it is a pure byte response
+ * (PNG) for external crawlers and link-preview fetchers. No DB read (the title
+ * arrives as a query param), so there is no build-prerender risk; searchParams
+ * make it request-time.
  *
- * Sicherheitsprofil: Parameter sind Textslots in einem SVG-Render, kein
- * HTML-Ausgabe-Kontext (Satori → PNG); Länge via sanitizeOgTitle
- * begrenzt. Kein SSRF/DB-Zugriff möglich.
+ * Params are text slots in a Satori render, never HTML — length is capped by
+ * sanitizeOgTitle, and no SSRF or DB access is possible.
  */
 export function GET(request: Request): ImageResponse {
   const searchParams = new URL(request.url).searchParams;

@@ -7,15 +7,14 @@ type BentoGridBlockData = Extract<NonNullable<Page['layout']>[number], { blockTy
 type BentoItem = NonNullable<BentoGridBlockData['items']>[number];
 
 /**
- * Bento-Mosaik der Architektur-Säulen (Home-Zentrepiece).
+ * Bento mosaic of the architecture pillars (homepage centrepiece).
  *
- * Layout: 4-Spalten-Raster, 8px-Gaps. `featured`-Tiles spannen 2 Spalten auf
- * lg (1 Spalte mobile/tablet). Icon in kreisrundem Hairline-Rahmen,
- * Mono-"Säule 0X"-Label, Emerald/Cyan-Border-State je nach Position.
+ * Layout: 4-column grid with 8px gaps; `featured` tiles span 2 columns on lg
+ * (1 on mobile/tablet). Icon in a round hairline frame, mono "pillar 0X" label,
+ * emerald/cyan border state by position.
  *
- * OHNE Reifegrad-Vokabular (User-Entscheid 04.11.2026): kein
- * "featured/core"-Chip und kein Maturity-Gauge — die Hervorhebung ist rein
- * räumlich (Spanning) plus Beschreibungstiefe.
+ * No maturity vocabulary on purpose: no "featured/core" chip and no maturity
+ * gauge — emphasis is purely spatial (spanning) plus description depth.
  */
 function BentoCard({ item, index }: { item: BentoItem; index: number }) {
   const isEmphasis = Boolean(item.featured || item.highlight) || index % 3 === 0;
@@ -44,7 +43,7 @@ function BentoCard({ item, index }: { item: BentoItem; index: number }) {
         </div>
 
         <div className="mb-4 flex items-center gap-3">
-          {/* Icon nur bei gesetztem iconName (leere Slots dekorativ auffangen) */}
+          {/* Icon only when iconName is set (empty slots stay decorative). */}
           {item.iconName ? (
             <span
               className={[
@@ -115,7 +114,7 @@ export function BentoGridBlock({ block }: { block: BentoGridBlockData }) {
   const items = block.items ?? [];
 
   return (
-    /* id="architektur": Ziel des Hero-CTAs "Architektur-Ansatz entdecken" */
+    /* id="architektur": anchor target of the hero CTA. */
     <section id="architektur" className="w-full scroll-mt-24 pt-6 pb-16 lg:py-16">
       <div className="mx-auto w-full max-w-6xl">
         <div className="mb-8 border-b border-border pb-6">

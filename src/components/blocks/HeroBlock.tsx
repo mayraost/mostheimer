@@ -16,11 +16,10 @@ const METRICS = [
 ];
 
 /**
- * Hero: oversized Space-Grotesk-Display, Mono-Statuschips (Emerald gefüllt +
- * Outline), dichte CTA-Reihe (Primary + Ghost) und optionaler Portrait-Slot
- * (rahmenlose Karte mit Hairline, Emerald-Eck-Ticks, Mono-Caption — bewusst
- * KEIN Stockfoto, sondern ein typografischer Platzhalter bis ein echtes
- * Portrait im CMS hängt).
+ * Hero: oversized Space Grotesk display, mono status chips (filled + outline),
+ * a dense CTA row (primary + ghost) and an optional portrait slot. The portrait
+ * is a typographic placeholder on purpose — no stock photo — until a real image
+ * is uploaded in the CMS.
  */
 export function HeroBlock({ block }: { block: HeroBlockData }) {
   const bgImage =
@@ -118,7 +117,7 @@ export function HeroBlock({ block }: { block: HeroBlockData }) {
           )}
         </div>
 
-        {/* Portrait-Slot: typografischer Platzhalter im Rahmen-System */}
+        {/* Portrait slot: typographic placeholder within the frame system */}
         <aside className="relative hidden self-start rounded-[8px] border border-border bg-surface p-4 lg:block">
           <span aria-hidden="true" className="pointer-events-none absolute inset-0">
             <span className="absolute left-0 top-0 h-3 w-3 border-l border-t border-primary" />
@@ -139,7 +138,7 @@ export function HeroBlock({ block }: { block: HeroBlockData }) {
         </aside>
       </div>
 
-      {/* Mono-Metrik-Streifen: Hairline-Separatoren, keine Fake-Kennzahlen */}
+      {/* Mono metric strip: hairline separators, no invented figures */}
       <dl className="relative mx-auto grid w-full max-w-6xl grid-cols-2 gap-px border-t border-border bg-border px-0 md:grid-cols-4">
         {METRICS.map((metric) => (
           <div key={metric.label} className="bg-background px-4 py-3 md:px-8">

@@ -14,9 +14,8 @@ describe('API', () => {
   it('fetches users', async () => {
     const users = await payload.find({
       collection: 'users',
-      // Payload 4.0.0-beta.6: Local API enforced Access-Control jetzt per
-      // Default (local/op Defaults overrideAccess: false). Bewusster
-      // Admin-Bypass, damit die Smoke-Assertion ohne Auth-User laeuft.
+      // Local API enforces access control by default (overrideAccess: false);
+      // deliberate bypass so this smoke check does not need a logged-in user.
       overrideAccess: true,
     });
     expect(users).toBeDefined();

@@ -34,10 +34,9 @@ export function Header({
   const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   /**
-   * Dialog-Lebenszyklus (Fokus-Rückgabe) lebt im Portal
-   * (`MobileNavPortal`); der Header hält nur den Trigger und gibt den Fokus
-   * nach dem Schließen zurück — auch wenn der Dialog per Backdrop/Esc/Link
-   * geschlossen wurde.
+   * The dialog lifecycle lives in the portal (`MobileNavPortal`); the header
+   * only owns the trigger and restores focus after closing, whichever way the
+   * dialog was closed (backdrop, Esc, link).
    */
   const closeSidebar = () => {
     setIsSidebarOpen(false);
@@ -54,9 +53,9 @@ export function Header({
     ? pathname.replace(new RegExp(`^/${locale}(?=/|$)`), `/${targetLocale}`)
     : `/${targetLocale}`;
 
-  // A11y: sichtbares Label ist in den Accessible Name eingebettet
-  // (axe label-content-name-mismatch vermeiden). Zwei Buchstaben (EN/DE)
-  // bleiben das sichtbare Label, der volle Name steht im aria-label.
+  // A11y: the visible two-letter label must be contained in the accessible name
+  // (axe `label-content-name-mismatch`), so the full language name goes into
+  // aria-label alongside it.
   const targetLanguageName = targetLocale === 'de' ? 'Deutsch' : 'English (EN)';
   const languageSwitchLabel = `Sprache wechseln zu ${targetLanguageName}`;
 
@@ -67,10 +66,9 @@ export function Header({
     <header className="sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur-xl">
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-3 px-4 md:px-8">
         {/*
-         * A11y (label-content-name-mismatch): Der sichtbare Text
-         * ("mostheimer" + "// dev") MUSS im Accessible Name enthalten sein.
-         * Auf Mobile ist der Text ausgeblendet — dann trägt der sr-only-Text
-         * den Namen, statt ein widersprechendes aria-label zu setzen.
+         * A11y: the visible text ("mostheimer" + "// dev") must be part of the
+         * accessible name. On mobile that text is hidden, so an sr-only text
+         * supplies the name instead of a contradictory aria-label.
          */}
         <Link href={`/${locale}`} className="group flex items-center gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-[6px] border border-border bg-surface-raised text-primary transition-colors group-hover:border-primary/60 group-hover:text-primary-hover">
@@ -84,10 +82,10 @@ export function Header({
         </Link>
 
         <div className="flex items-center gap-2">
-          {/* Command Palette (⌘K / Ctrl+K) */}
+          {/* Command palette (⌘K / Ctrl+K) */}
           <CommandPalette locale={locale} items={commandItems} />
 
-          {/* Language Toggle */}
+          {/* Language toggle */}
           <Link
             href={languageSwitchHref}
             className="mono-label flex h-9 min-w-9 items-center justify-center rounded-[6px] border border-border bg-surface-raised/60 px-2 text-muted-foreground transition-colors hover:border-secondary hover:text-secondary"
@@ -97,7 +95,7 @@ export function Header({
             {targetLocale}
           </Link>
 
-          {/* Theme Toggle */}
+          {/* Theme toggle */}
           <button
             onClick={handleThemeToggle}
             className={iconButtonClass}
@@ -120,7 +118,7 @@ export function Header({
             <Settings className="h-4 w-4" />
           </Link>
 
-          {/* Sidebar Toggle */}
+          {/* Sidebar toggle */}
           <button
             ref={menuButtonRef}
             onClick={() => setIsSidebarOpen(true)}
@@ -136,10 +134,10 @@ export function Header({
       </div>
 
       {/*
-       * Overlay lebt AUSSERHALB des <header>: `position: sticky` erzeugt
-       * Containing Block + Stacking Context, ein `fixed`-Nachfahre würde
-       * `inset-0` gegen die 64px-Header-Box auflösen (geclippter Drawer,
-       * hinter dem Content). Das Portal hängt den Dialog an <body>.
+       * The overlay lives OUTSIDE the <header>: `position: sticky` creates a
+       * containing block and stacking context, so a `fixed` descendant would
+       * resolve `inset-0` against the 64px header box (drawer clipped behind
+       * the content). The portal attaches the dialog to <body> instead.
        */}
       <MobileNavPortal
         open={isSidebarOpen}

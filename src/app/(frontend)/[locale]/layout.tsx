@@ -22,8 +22,8 @@ import { getCommandItems } from '@/components/ui/commandItems';
 import { getPayload } from 'payload';
 import configPromise from '@payload-config';
 
-// Display + Body: Space Grotesk (Industrial Grotesk, tight tracking im
-// Utility-Layer). Code/Metadaten: JetBrains Mono.
+// Display + body text: Space Grotesk (tight tracking lives in the utility
+// layer). Code/metadata: JetBrains Mono.
 const spaceGrotesk = Space_Grotesk({
   weight: ['400', '500', '600', '700'],
   variable: '--font-space-grotesk',
@@ -42,32 +42,30 @@ export const metadata: Metadata = {
   description:
     'Mayra Ostheimer — Web & Application Architect und Staff-Level Fullstack Engineer. Composable Architekturen, Next.js/Payload, Team- & Projektleitung für produktionsreife Systeme.',
   metadataBase: new URL(envConfig.serverUrl),
-  // AEO-Layer (Research 03.11.2026): OG/Twitter-Basis für alle Segmente;
-  // per-Page-Cards kommen aus der /og-Route (catch-all-Konvention).
+  // Base OG/Twitter defaults for every segment; per-page cards come from the
+  // /og route.
   openGraph: { siteName: 'Mostheimer', type: 'website' },
   twitter: { card: 'summary_large_image' },
 };
 
-// [block]-Opt-out (docs 01-app/03-api-reference/03-file-conventions/
-// 02-route-segment-config/instant.md): der NotFoundGate im Layout liest
-// x-pathname (headers()) und connection() OUTSIDE der Suspense-Boundary,
-// um unbekannte Slugs VOR dem ersten Header-Flush zu 404-en — das ist
-// bewusst ein Blocking-Render. Diese Export erlaubt das Segment-weit;
-// der Build-Container erreicht die DB ohnehin nicht (Coolify-Profil
-// „Build ohne DB"), die Routen rendern runtime-seitig.
+// Opt-out of Next's [block] navigation check: the NotFoundGate below reads
+// `x-pathname` and calls connection() OUTSIDE the Suspense boundary on
+// purpose, so unknown slugs can 404 before the first header flush. That is a
+// deliberate blocking render; routes still render at runtime because the build
+// container has no DB.
 export const instant = false;
 
 /**
- * Pre-Hydration-Theme-Bootstrap: setzt die Theme-Klasse VOR dem ersten
- * Paint, damit Default-Dark (auch bei light-preferring OS) und ein
- * gespeichertes User-Theme ohne Flash greifen. SettingsProvider liest
- * dieselbe Quelle ('theme' in localStorage) beim Mount.
+ * Pre-hydration theme bootstrap: sets the theme class before the first paint so
+ * default-dark (also on light-preferring OS) and a stored user theme apply
+ * without a flash. SettingsProvider reads the same 'theme' localStorage key on
+ * mount.
  */
 const THEME_BOOTSTRAP = `(function(){try{var s=localStorage.getItem('theme');var t=(s==='light'||s==='dark'||s==='system')?s:'dark';var c=t==='system'?(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):t;var r=document.documentElement;r.classList.remove('light','dark');r.classList.add(c);}catch(e){document.documentElement.classList.add('dark');}})();`;
 
 /**
- * Statischer Skeleton-Fallback: nur Layout/Deko, KEINE Payload-Reads und
- * keine Dynamic-APIs — bleibt im Prerender statisch erzeugbar.
+ * Static skeleton fallback: layout chrome only, no Payload reads and no dynamic
+ * APIs — so it stays statically prerenderable.
  */
 function LayoutSkeleton() {
   return (
@@ -118,28 +116,21 @@ export default async function RootLayout({ children, params }: LayoutProps<'/[lo
 }
 
 /**
- * Eigene statische Routen unter [locale] — sie rendern NICHT den
- * [[...slug]] Catch-All, daher hat das Gate dort nichts zu pruefen.
+ * Routes under [locale] that render their own tree instead of the
+ * [[...slug]] catch-all — the gate has nothing to check there.
  */
 const STATIC_CHILD_ROUTES = new Set(['preview', 'settings', 'impressum']);
 
 /**
- * 404-Status vor dem ersten Header-Flush (Doku-Basis:
- * docs/01-app/03-api-reference/03-file-conventions/not-found.md,
- * "Before streaming starts, Next.js returns a 404 status code." +
- * docs/01-app/02-guides/streaming.md, "The HTTP contract":
- * die Response flusht Header, sobald ein Suspense-Fallback rendert —
- * danach laesst sich der Status nicht mehr aendern).
+ * Returns a real 404 status before the first header flush.
  *
- * Das dynamische Shell (LayoutSkeleton) streams nach einem await im
- * Suspense-Boundary sofort — die Page-Komponente wirft ihr notFound()
- * zu diesem Zeitpunkt zu spaet (sonst: 200 + noindex-Meta). Daher
- * gleicht das Gate hier OUTSIDE der Suspense-Boundary den Slug gegen
- * die gecachten Pages-Daten. Bei null -> notFound(), bevor irgendwas
- * geflusht ist -> echter HTTP-404. Fuer gefundene Slugs blockiert das
- * Gate nur den ersten gecachten Lookup ('use cache', warm microseconds),
- * das Skeleton-Streaming bleibt unverändert erhalten (der Suspense-Fallback
- * flusht weiter bei den Shell-Reads darunter).
+ * Once a Suspense fallback renders, the response headers are flushed and the
+ * status can no longer change. LayoutSkeleton streams as soon as the boundary
+ * awaits, which is far too late for the page component to throw notFound()
+ * (that would yield 200 + noindex). So the gate resolves the slug against the
+ * cached pages here, OUTSIDE the Suspense boundary: null → notFound() before
+ * anything is flushed. For known slugs it only blocks the first cached lookup
+ * ('use cache', warm), so skeleton streaming below is unaffected.
  */
 async function NotFoundGate({
   locale,
@@ -153,12 +144,10 @@ async function NotFoundGate({
   const headersList = await headers();
   const pathname = headersList.get('x-pathname');
 
-  // Ohne x-pathname (Proxy nicht gelaufen: interne Requests, _next)
-  // faellt das Gate pass-through auf das bestehende Verhalten zurueck.
+  // No x-pathname means the proxy did not run (internal requests, _next):
+  // pass through with the previous behaviour.
   if (!pathname) return children;
 
-  // Nur der [[...slug]]-Catch-All wird geprueft; eigenstaendige
-  // Routen unter [locale] (settings/impressum/preview) durchlassen.
   const localePrefix = `/${locale}`;
   let rest: string | null;
   if (pathname === localePrefix) {
@@ -177,7 +166,7 @@ async function NotFoundGate({
   const page = await getCachedPageBySlug(slug, locale);
 
   if (!page) {
-    // Wirft, bevor irgendein Header geflusht ist -> echter HTTP-404.
+    // Throws before any header was flushed → a real HTTP 404.
     notFound();
   }
 
@@ -185,10 +174,10 @@ async function NotFoundGate({
 }
 
 /**
- * Dynamische Shell: connection() bricht den Build-Prerender-Versuch ab
- * (Coolify-Docker-Build erreicht die DB nicht) und rendert bei Real-Requests
- * sofort. Alle Payload-Reads laufen ueber 'use cache'-Queries — DB-Hits nur
- * bei Cache-Miss; Frische steuern die Payload-Hooks via revalidateTag.
+ * Dynamic shell: connection() aborts the build prereender (the Coolify build
+ * container has no DB) and renders immediately on real requests. All Payload
+ * reads go through 'use cache' queries — DB hits only on a cache miss, with
+ * freshness driven by the Payload hooks via revalidateTag.
  */
 async function LayoutShell({
   locale,
@@ -207,11 +196,11 @@ async function LayoutShell({
 
   const payload = await getPayload({ config: configPromise });
   const { user } = await payload.auth({ headers: await headers() });
-  // Command-Palette-Einträge sind statische Informationsarchitektur (kein
-  // CMS-Read) — im Layout verfügbar für Header und Mobile-Drawer.
+  // Command-palette entries are static information architecture (no CMS read),
+  // shared here with the header and the mobile drawer.
   const commandItems = getCommandItems(locale);
 
-  // Wartungsmodus: Komplett-Screen ohne Header/Footer/Inhalt auf jeder Seite
+  // Maintenance mode replaces header/footer/content on every page.
   if (siteSettings.maintenanceMode) {
     if (!user) {
       return <MaintenanceScreen locale={locale} />;

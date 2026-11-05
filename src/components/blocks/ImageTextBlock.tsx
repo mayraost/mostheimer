@@ -49,7 +49,7 @@ export function ImageTextBlock({ block }: { block: ImageTextBlockData }) {
               {block.heading}
             </h2>
             {block.text && (
-              // Lexical-Renderer (kein dangerouslySetInnerHTML — Stored-XSS-Fix)
+              // Lexical renderer, never dangerouslySetInnerHTML (stored XSS).
               <LexicalRichText data={block.text} className="prose-industrial" />
             )}
           </div>

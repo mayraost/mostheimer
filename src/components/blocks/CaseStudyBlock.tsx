@@ -36,17 +36,15 @@ function NarrativeColumn({ sectionKey, body }: { sectionKey: SectionKey; body?: 
 }
 
 /**
- * Case Study im Split-Layout: Mono-Metaspalte (Periode/Rolle/Tags als Chips)
- * links, narrative Spalten (Kontext / Architektur / Impact) rechts.
+ * Case study in a split layout: mono meta column (period/role/tags as chips) on
+ * the left, narrative columns (context / architecture / impact) on the right.
  *
- * A11y-Fixes 04.11.2026 (Lighthouse `/de/case-studies` A11y 91):
- * - `definition-list`: `<dt>`/`<dd>` müssen direkte Kinder des `<dl>` sein
- *   (ein Wrapper-`div` dazwischen bricht die Struktur). Jetzt flache
- *   `dt`/`dd`-Paare; die Gruppierung übernimmt `display: grid` des `<dl>`.
- * - `heading-order`: Die Karten-Überschrift war `h3` direkt unter dem
- *   Seiten-`h1` (Sprung 1 → 3). Jetzt `h2` (die Seite hat kein h2 davor).
- * - `color-contrast`: Fließtext stand auf `text-foreground/85` (~4.1:1);
- *   jetzt volles `text-foreground` (≥ 7:1 auf Onyx).
+ * A11y constraints that look redundant but are not:
+ * - `<dt>`/`<dd>` must be DIRECT children of `<dl>`; a wrapper div breaks the
+ *   list. Keep the pairs flat and let `display: grid` on the `<dl>` group them.
+ * - The card heading is `h2`, not `h3`: it follows the page `h1` directly, so
+ *   h3 would skip a heading level.
+ * - Body text uses full `text-foreground`; reduced opacity drops below AA.
  */
 export function CaseStudyBlock({ block }: { block: CaseStudyBlockData }) {
   return (

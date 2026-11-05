@@ -6,32 +6,30 @@ import { Search, Command, CornerDownLeft } from 'lucide-react';
 import { useTranslations } from '../TranslationsProvider';
 
 export type CommandItem = {
-  /** Stabile ID (Page-Slug + optional Anker). */
+  /** Stable id (page slug plus optional anchor). */
   id: string;
-  /** Anzeige-Label, z. B. "Case Studies". */
+  /** Display label, e.g. "Case Studies". */
   label: string;
-  /** Zielpfad, locale-bereinigt, z. B. "/case-studies" oder "#architektur". */
+  /** Target path without locale, e.g. "/case-studies" or "#architektur". */
   href: string;
-  /** Gruppe für die Ergebnisliste. */
+  /** Group in the result list. */
   group: string;
-  /** Optionale Suchbegriffe (Synonyme, deutsche/englische Begriffe). */
+  /** Optional search terms (synonyms, German and English). */
   keywords?: string[];
 };
 
 /**
- * Command-Palette (Spec §2.3) — ⌘K / Ctrl+K.
+ * Command palette (⌘K / Ctrl+K).
  *
- * A11y-Vertrag:
- * - `role="dialog" aria-modal="true"` mit `aria-labelledby` auf den Titel.
- * - Fokus wird beim Öffnen in das Suchfeld gesetzt und beim Schließen an das
- *   auslösende Element zurückgegeben.
- * - Fokus-Trap: Tab/Shift+Tab zyklen innerhalb der Dialog-Ebene (Input,
- *   Ergebnisliste, Schließen-Button).
- * - ↑/↓ bewegen die aktive Option (`aria-activedescendant`), Enter öffnet,
- *   Esc schließt. Die Ergebnisanzahl wird über `aria-live="polite"`
- *   angesagt.
- * - `aria-hidden` + `inert`-freie Unmount-Strategie: der Dialog existiert im
- *   DOM nur, wenn er offen ist → kein Offscreen-Fokus, kein Layout-Overflow.
+ * A11y contract:
+ * - `role="dialog" aria-modal="true"` labelled by the title.
+ * - Focus moves into the search field on open and returns to the trigger on
+ *   close.
+ * - Focus trap: Tab/Shift+Tab cycle within the dialog.
+ * - ↑/↓ move the active option (`aria-activedescendant`), Enter opens, Esc
+ *   closes; the result count is announced via `aria-live="polite"`.
+ * - The dialog exists in the DOM only while open, so there is no offscreen
+ *   focus and no layout overflow.
  */
 const isSubsequence = (needle: string, haystack: string): boolean => {
   if (!needle) return true;
@@ -66,8 +64,8 @@ export function CommandPalette({ locale, items }: { locale: string; items: Comma
     setOpen(true);
   }, []);
 
-  // Globale Tastenkürzel: ⌘K / Ctrl+K toggelt, "/" öffnet nur außerhalb von
-  // Eingabefeldern (kein Überraschungsfokus beim Tippen in Formularen).
+  // Global shortcuts: ⌘K / Ctrl+K toggles; "/" only opens outside input fields
+  // so typing in a form never steals focus.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const isCommandK = event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey);
@@ -93,7 +91,7 @@ export function CommandPalette({ locale, items }: { locale: string; items: Comma
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  // Fokus beim Öffnen + Scroll-Lock
+  // Focus on open plus scroll lock.
   useEffect(() => {
     if (!open) return;
     const frame = window.requestAnimationFrame(() => inputRef.current?.focus());
@@ -134,11 +132,11 @@ export function CommandPalette({ locale, items }: { locale: string; items: Comma
     return [...map.entries()];
   }, [results]);
 
-  // Flache Reihenfolge für die aktive Option (stabil über Gruppen hinweg).
+  // Flat order for the active option (stable across groups).
   const flat = useMemo(() => grouped.flatMap(([, groupItems]) => groupItems), [grouped]);
 
-  // Geklemmter Index ohne Effect: wenn die Trefferliste schrumpft (Query
-  // ändert sich), bleibt der aktive Eintrag im gültigen Bereich.
+  // Clamped index without an effect: when the result list shrinks with the
+  // query, the active entry stays in range.
   const effectiveIndex = flat.length === 0 ? 0 : Math.min(activeIndex, flat.length - 1);
 
   const run = useCallback(
@@ -147,7 +145,7 @@ export function CommandPalette({ locale, items }: { locale: string; items: Comma
       const target = isAnchor ? item.href : `/${locale}${item.href}`;
       close();
       if (isAnchor) {
-        // Anker derselben Page: sanft scrollen + Fokus setzen (a11y).
+        // Anchor on the same page: smooth-scroll and move focus (a11y).
         const el = document.querySelector(item.href);
         el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         (el as HTMLElement | null)?.focus?.({ preventScroll: true });
@@ -170,7 +168,7 @@ export function CommandPalette({ locale, items }: { locale: string; items: Comma
       const item = flat[effectiveIndex];
       if (item) run(item);
     } else if (event.key === 'Tab') {
-      // Fokus-Trap: nur Elemente innerhalb des Dialogs
+      // Focus trap: only elements inside the dialog.
       const focusables = dialogRef.current?.querySelectorAll<HTMLElement>(
         'input, button, [href], [tabindex]:not([tabindex="-1"])',
       );
@@ -187,7 +185,7 @@ export function CommandPalette({ locale, items }: { locale: string; items: Comma
     }
   };
 
-  // Aktive Option in den sichtbaren Bereich holen (ohne Layout-Shift der Seite)
+  // Scroll the active option into view without shifting the page layout.
   useEffect(() => {
     if (!open) return;
     const list = listRef.current;
@@ -211,7 +209,7 @@ export function CommandPalette({ locale, items }: { locale: string; items: Comma
         </kbd>
       </button>
 
-      {/* Mobile Trigger */}
+      {/* Mobile trigger */}
       <button
         type="button"
         onClick={openPalette}

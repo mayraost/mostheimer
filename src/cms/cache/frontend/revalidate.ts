@@ -3,47 +3,27 @@ import { CACHE_TAGS } from './constants';
 import { normalizeSlug } from './utils';
 
 /**
- * ─── On-Demand-Cache-Invalidierung (OSR) ─────────────────────────────────
+ * On-demand cache invalidation (OSR).
  *
- * ROOT-CAUSE-LEARNING (04.11.2026, Findings v2 B1 „stale pages"):
+ * Next 16 does not flush on revalidateTag; it records an in-doubt timestamp
+ * (`revalidatedAt`). Entries only become stale lazily on the next read
+ * (`entry.timestamp <= revalidatedAt`, see
+ * next/dist/server/lib/incremental-cache/file-system-cache.js). With
+ * `revalidateTag(tag, 'max')` the entry keeps being served and only revalidates
+ * in the background, so pages stayed stale on prod. `{ expire: 0 }` forces the
+ * next request to render fresh (blocking for one request) — never use 'max'
+ * for CMS content.
  *
- * Next 16 markiert eine invalidation NICHT als „geflushtes Tag", sondern
- * als **In-Doubt-Timestamp** (`revalidatedAt = jetzt`). Cache-Entries werden
- * danach ausschliesslich lazy beim naechsten READ als stale erkannt
- * (`isStale(entry, now) = entry.timestamp <= revalidatedAt`), siehe
- * node_modules/next/dist/server/lib/incremental-cache/file-system-cache.js.
- *
- * Die frueheren `revalidateTag(tag, 'max')`-Aufrufe waren daher fuer die
- * Seiteninhalte wirkungslos: 'max' erlaubt ein 1-Jahres-Stale-Fenster —
- * das System liefert bei einem Treffer weiter den ALTEN Entry aus und
- * revalidiert nur im Hintergrund, ohne je auf frische Daten umzuschalten,
- * solange der langlaufende Container-Prozess keinen neuen Request auf
- * genau dieser Route bekommt. (Nur `expire: 0` = deprecated Single-Arg
- * erzwingt „beim naechsten Request blockierend neu rendern".)
- *
- * Zusaetzlich collidierte der Globals-Pfad mit dem Layout: `get()` im
- * filesystem-handler entscheidet pro ENTRY-Key. Der Layout-Key cached
- * `getCachedSiteSettings` (Tag `cms:global:site-settings`) und
- * `getCachedNavigation` (Tag `cms:global:navigation`) in derselben
- * Komponenten-/Segment-Einheit — ein Globals-Flush traf deshalb die
- * komplette Layout-Shell (Navigation + Shell-Refresh) und fiel beim
- * naechsten Request sichtbar aus dem Cache, waehrend der (separat
- * gerenderte) Page-Block-Key mit `'max'` weiter den alten Inhalt blieb.
- *
- * FIX: Content-Mutationen (Pages/Globals/Media) invalidieren mit
- * `{ expire: 0 }` → naechster Request rendert frisch (blockierend, eine
- * Anfrage lang). Der Pfad ist ohnehin `connection()`-dynamisch (Blocking-
- * Render-Shell), daher ist die Render-Latenz des Folge-Requests
- * unkritisch — Korrektheit geht vor Stale-Serving.
+ * Note the layout entry caches site settings and navigation together under
+ * `cms:global:*`, so a globals flush also drops the layout shell.
  */
 
 type RevalidateMode = 'blocking' | 'swr';
 
 /**
- * Zielpunkt aller Flushes: `(tag, label)`-Helper mit try/catch-Pflicht.
- * Payload-Hooks laufen innerhalb des Request-Kontexts der Admin-API, aber
- * Migrationen/Seeding/CLI-Kontexte tun es evtl. nicht — und revalidateTag
- * wirft dort sonst unhandled („static generation store missing", AGENTS.md).
+ * Single entry point for all flushes. try/catch is mandatory: hooks run inside
+ * the admin request context, but migrations, seeding and CLI contexts do not,
+ * and revalidateTag throws there ("static generation store missing").
  */
 export function safeRevalidate(
   tag: string,
@@ -51,9 +31,9 @@ export function safeRevalidate(
   mode: RevalidateMode = 'blocking',
 ): boolean {
   try {
-    // mode 'blocking' = { expire: 0 }: stale wird NIE serviert, der naechste
-    // Request wartet auf das frische Rendering (Read-your-own-writes nach
-    // CMS-Edit). mode 'swr' = explizites 1h-Stale-Fenster.
+    // 'blocking' = { expire: 0 }: stale content is never served, the next
+    // request waits for a fresh render (read-your-own-writes after a CMS edit).
+    // 'swr' = explicit 1h stale window.
     revalidateTag(tag, mode === 'blocking' ? { expire: 0 } : { expire: 3600 });
     return true;
   } catch (error) {
@@ -66,13 +46,10 @@ export function safeRevalidate(
 }
 
 /**
- * Punktgenauer Flush einer Page-Route nach Slug ('home' oder 'a/b').
- * Betrifft beide Locales (Tag ohne Locale-Praefix) und invalidiert die
- * Sitemap mit, weil die Listenliste abhaengig ist.
- *
- * Zusaetzlich `cms:pages` (Domain-Tag): der NotFoundGate-Lookup im Layout
- * und die Sitemap-Liste haengen am Kollektions-Tag; ein neuer Slug muss
- * sofort aufloesen, ein geloeschter sofort 404-en.
+ * Flushes a single page route by slug ('home' or 'a/b'). Both locales are hit
+ * (the tag has no locale prefix). `cms:pages` is invalidated too because the
+ * NotFoundGate lookup and the sitemap list hang off the collection tag: a new
+ * slug must resolve immediately, a deleted one must 404 immediately.
  */
 export function revalidatePagePathCache(slug: string | null | undefined): void {
   if (!slug) return;
@@ -81,7 +58,7 @@ export function revalidatePagePathCache(slug: string | null | undefined): void {
   safeRevalidate(CACHE_TAGS.sitemap, 'sitemap (page changed)');
 }
 
-/** Alter Pfad bei Slug-Umbenennung mit invalidieren (muss fortan notFound dienen). */
+/** Also flush the old path on a slug rename — it must serve notFound() from then on. */
 export function revalidatePreviousPagePathCache(
   previousSlug: string | null | undefined,
   nextSlug: string | null | undefined,
@@ -94,12 +71,12 @@ export function revalidatePreviousPagePathCache(
   safeRevalidate(CACHE_TAGS.sitemap, 'sitemap (page renamed)');
 }
 
-/** Sitemap-Liste hart invalidieren (Pages-Listen-Delta). */
+/** Invalidate the sitemap list (page set changed). */
 export function revalidateSitemapCache(): void {
   safeRevalidate(CACHE_TAGS.sitemap, 'sitemap');
 }
 
-/** Breiter Flush: alle Frontend-CMS-Caches (z. B. nach Media-Aenderung). */
+/** Broad flush of all frontend CMS caches (e.g. after a media change). */
 export function revalidateAllFrontendCmsCaches(): void {
   safeRevalidate(CACHE_TAGS.ALL, 'all frontend cms caches');
   safeRevalidate(CACHE_TAGS.pages, 'pages');
@@ -123,8 +100,8 @@ export function revalidateNotFoundCache(): void {
 }
 
 /**
- * Ergebnis eines Flush-Versuchs (fuer diagnostizierbare Aufrufer wie die
- * Admin-Cache-Clear-View: zeigt, ob der Hook im Request-Kontext lief).
+ * Flush results for diagnosable callers (e.g. the admin cache-clear view shows
+ * whether the hook ran inside a request context).
  */
 export function collectRevalidationResults(tags: readonly { tag: string; label: string }[]): {
   done: string[];

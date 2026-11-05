@@ -7,8 +7,8 @@ export const SiteSettings: GlobalConfig = {
     read: () => true,
   },
   hooks: {
-    // Wartungsmodus & Branding wirken auf ALLE Seiten, aber der Cache-
-    // Einstieg ist der SiteSettings-Global-Tag (breit genug, da Layout).
+    // Maintenance mode and branding affect every page, but the cache entry point
+    // is the site-settings global tag, which is broad enough (layout-level).
     afterChange: [() => revalidateSiteSettingsCache()],
   },
   fields: [

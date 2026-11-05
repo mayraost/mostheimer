@@ -1,21 +1,19 @@
 import { z } from 'zod';
 
 /**
- * Zod-validierte Umgebungsvariablen mit Fail-Fast (Security-Hardening):
+ * Zod-validated environment variables with fail-fast (security hardening):
  *
- * - `PAYLOAD_SECRET`: in Produktion pflichtig (min 32 Zeichen). Ein Fallback
- *   'ABC' wie vormals waere ein trivial ratbares Signing-Secret. Dev/Build
- *   erhalten einen dokumentierten, offenkundigen Dev-Fallback-Wert.
- * - `DATABASE_URL`: muss ein postgres://-Connect-String sein (zentrale
- *   coolify-postgres-Instanz, kein SQLite-Fallback — vgl. Postgres-only-
- *   Migration in AGENTS.md). Nur in der Build-Phase (Coolify-Docker-Build
- *   erreicht die DB nicht, Payload connectiert dort nie) bleibt ein leerer
- *   String erlaubt, wie zuvor '' statt Fail.
- * - `NEXT_PUBLIC_SERVER_URL`: wenn gesetzt, muss es eine URL sein; bei
- *   Invaliditaet fail-soft auf den Default (Metadata-Feld, kein Secret —
- *   Produktion soll nicht wegen kosmetischer Metadata crashen).
+ * - `PAYLOAD_SECRET`: required in production (min 32 chars) — a short
+ *   guessable signing secret is not acceptable. Dev/build use an obvious,
+ *   documented fallback.
+ * - `DATABASE_URL`: must be a postgres connection string for the central
+ *   coolify-postgres instance (there is no SQLite fallback). An empty string is
+ *   only tolerated during the build phase, where Payload never connects.
+ * - `NEXT_PUBLIC_SERVER_URL`: if set, it must be a valid URL; invalid values
+ *   fail soft to the default (metadata field, not a secret — production should
+ *   not crash over a cosmetic metadata value).
  *
- * Warnungen/Errors geben KEINE Env-Werte aus (kein Secret-Leak im Log).
+ * Warnings and errors never print env values, so no secret leaks into the logs.
  */
 
 const DEV_FALLBACK_PAYLOAD_SECRET = 'dev-not-a-real-secret-fallback-0123456789abcdef';
@@ -35,8 +33,8 @@ const envSchema = z.object({
 export type EnvConfig = z.infer<typeof envSchema>;
 
 /**
- * Coolify-Docker-Build-Phase: envConfig wird beim Modul-Import ausgewertet,
- * bevor irgendeine DB erreichbar waere -> kein Fail-Fast im Build.
+ * envConfig is evaluated at module import, before any DB is reachable, so the
+ * build phase must not fail fast.
  */
 const isProductionBuildPhase = process.env.NEXT_PHASE === 'phase-production-build';
 const isProductionRuntime = process.env.NODE_ENV === 'production';
@@ -50,7 +48,7 @@ function resolveEnvConfig(): EnvConfig {
   const dbUrl = envSchema.shape.dbUrl.safeParse(rawDbUrl);
   const serverUrl = envSchema.shape.serverUrl.safeParse(rawServerUrl);
 
-  // -- serverUrl: fail-soft auf Default (Metadata-Feld, kein Secret) ----------
+  // serverUrl: fail soft to the default (metadata field, not a secret).
   let serverUrlValue = DEFAULT_SERVER_URL;
   if (serverUrl.success) {
     serverUrlValue = serverUrl.data;
@@ -61,7 +59,7 @@ function resolveEnvConfig(): EnvConfig {
     );
   }
 
-  // -- payloadSecret: pflichtig in Produktion, Dev-Fallback sonst -------------
+  // payloadSecret: required at runtime in production, dev fallback otherwise.
   let payloadSecretValue = DEV_FALLBACK_PAYLOAD_SECRET;
   if (payloadSecret.success) {
     payloadSecretValue = payloadSecret.data;
@@ -77,14 +75,14 @@ function resolveEnvConfig(): EnvConfig {
     );
   }
 
-  // -- DATABASE_URL: pflichtig ausserhalb der Build-Phase ----------------------
+  // DATABASE_URL: required outside the build phase.
   if (dbUrl.success) {
     return { payloadSecret: payloadSecretValue, dbUrl: dbUrl.data, serverUrl: serverUrlValue };
   }
 
   if (isProductionBuildPhase) {
-    // Build ohne DB: leerer Connect-String wie vormals — nichts verbindet
-    // waehrend `next build` (siehe 'use cache'-Guards in queries.ts).
+    // Empty connection string during the build: nothing connects during
+    // `next build` (see the 'use cache' guards in queries.ts).
     console.warn(
       '[envConfig] DATABASE_URL during build phase invalid or missing — continuing ' +
         'without DB connection (the build container never connects to the database).',

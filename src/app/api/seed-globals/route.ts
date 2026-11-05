@@ -56,7 +56,7 @@ export async function POST(req: Request) {
     });
 
     // -----------------------------------------------------------------------
-    // TRANSLATIONS SEEDING
+    // Translations
     // -----------------------------------------------------------------------
     await payload.updateGlobal({
       user,
@@ -120,7 +120,7 @@ export async function POST(req: Request) {
     });
 
     // -----------------------------------------------------------------------
-    // NOT FOUND SEEDING
+    // Not found
     // -----------------------------------------------------------------------
     await payload.updateGlobal({
       user,
@@ -153,8 +153,8 @@ export async function POST(req: Request) {
       message: 'Global settings (Navigation, Translations & NotFound) seeded successfully!',
     });
   } catch (err: unknown) {
-    // Details/Stack nur serverseitig loggen — Response-Body bleibt generisch
-    // (kein Leak interner Fehler-Details wie DB-Fehlertexte).
+    // Log details server-side only; the response body stays generic so internal
+    // error details (e.g. DB errors) never leak.
     console.error('seed-globals failed:', err);
     return Response.json({ error: 'An internal error occurred' }, { status: 500 });
   }

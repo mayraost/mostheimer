@@ -20,10 +20,9 @@ interface SettingsContextType {
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
 /**
- * Default-Theme = 'dark' (Dark-Industrial-Rebrand): die App startet auch
- * auf light-preferring OS dunkel. Der Pre-Hydration-Bootstrap im Layout
- * (THEME_BOOTSTRAP) setzt dieselbe Basis, daher kein Flash. Der manuelle
- * Toggle ('light'/'system') bleibt voll funktionsfähig.
+ * Dark is the app default even on light-preferring OS; the pre-hydration
+ * THEME_BOOTSTRAP in the layout applies the same baseline, so there is no
+ * flash. The manual 'light'/'system' toggle still works.
  */
 const DEFAULT_THEME: Theme = 'dark';
 
@@ -50,7 +49,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!mounted) return;
 
-    // Apply theme
+    // Apply the theme
     const root = window.document.documentElement;
     root.classList.remove('light', 'dark');
 
@@ -68,11 +67,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
     localStorage.setItem('theme', theme);
 
-    // Apply font size
+    // Apply the font size
     root.classList.toggle('large-font', fontSize === 'large');
     localStorage.setItem('fontSize', fontSize);
 
-    // Apply animations
+    // Apply the animation preference
     let disableAnimations = false;
     if (animations === 'system') {
       disableAnimations = window.matchMedia('(prefers-reduced-motion: reduce)').matches;

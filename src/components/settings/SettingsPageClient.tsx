@@ -4,9 +4,8 @@ import { useSettings } from '@/components/SettingsProvider';
 import { useTranslations } from '@/components/TranslationsProvider';
 
 /**
- * Client-Settings-UI (aus der Settings-Route ausgelagert: Route-Files
- * koennen unter cacheComponents NICHT 'use client' UND
- * generateStaticParams gleichzeitig exportieren).
+ * Client settings UI, extracted from the settings route: under cacheComponents a
+ * route file cannot export 'use client' and generateStaticParams at once.
  */
 export function SettingsPageClient() {
   const { theme, setTheme, fontSize, setFontSize, animations, setAnimations } = useSettings();

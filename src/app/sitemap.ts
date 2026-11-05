@@ -3,9 +3,9 @@ import { connection } from 'next/server';
 import { envConfig } from '@/envConfig';
 import { getCachedAllPages } from '@/cms/cache/frontend/frontendCache';
 
-// Die Sitemap liest Seiten aus der DB; DB-Verbindung existiert erst zur
-// Laufzeit (Coolify-Docker-Build ohne DB). connection() bricht den Build-
-// Prerender-Versuch ab — so landet kein leerer DB-Fallback als Cache-Eintrag.
+// Pages come from the DB, which only exists at runtime (the Coolify build has
+// no DB). connection() aborts the build prerender so an empty DB fallback is
+// never cached.
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   await connection();
 
@@ -13,8 +13,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     docs = await getCachedAllPages();
   } catch {
-    // DB not reachable/migrated yet (z. B. erster Request auf frischem Volume):
-    // Sitemap mit leerer Seitenliste ausgeben statt Request zu brechen.
+    // DB not reachable or not migrated yet (first request on a fresh volume):
+    // serve an empty sitemap instead of failing the request.
     return [];
   }
 
@@ -25,8 +25,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   docs.forEach((page) => {
     const slugPath = page.slug === 'home' ? '' : `/${page.slug}`;
-    // `updatedAt` gilt dokumentweit (nicht pro Locale) — beide Sprach-
-    // varianten tragen denselben lastmod-Stempel.
+    // `updatedAt` is document-wide, not per locale: both language variants
+    // carry the same lastmod.
     const lastModified = page.updatedAt ? new Date(page.updatedAt) : undefined;
     locales.forEach((locale) => {
       sitemapEntries.push({
@@ -37,7 +37,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           languages: {
             en: `${baseUrl}/en${slugPath}`,
             de: `${baseUrl}/de${slugPath}`,
-            // x-default → deutsche Fassung (Primäraudienz de).
+            // x-default → German: de is the primary audience.
             'x-default': `${baseUrl}/de${slugPath}`,
           },
         },

@@ -1,12 +1,11 @@
 import type { CommandItem } from '@/components/ui/CommandPalette';
 
 /**
- * Command-Palette-Einträge (statisch je Locale).
+ * Command palette entries per locale.
  *
- * Bewusst eine Server-seitige Konstante statt eines CMS-Writes: Die Palette
- * spiegelt die Informationsarchitektur der Spec (§4), nicht den redaktionellen
- * Fließtext. Anker (`#architektur`) gelten nur auf der Home-Seite und werden
- * dort als In-Page-Sprung behandelt.
+ * A static constant rather than CMS content on purpose: the palette mirrors the
+ * site's information architecture, not editorial copy. Anchors (`#architektur`)
+ * only exist on the home page, where they act as in-page jumps.
  */
 const BASE_ITEMS: CommandItem[] = [
   {

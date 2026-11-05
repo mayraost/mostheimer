@@ -7,36 +7,34 @@ const defaultLocale = 'en';
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip paths that should not be localized
+  // Paths that must not be localized.
   if (
     pathname.startsWith('/admin') ||
     pathname.startsWith('/api') ||
-    // /og: OG-Image-Byte-Route (src/app/og/route.tsx, AEO-Layer) — ohne
-    // Skip landet sie im Locale-Redirect (307) und Crawler bekommen kein
-    // Bild. Exakt '/og', nicht startsWith, um /ogxyz-Fehltreffer zu meiden.
+    // /og serves OG image bytes; without the skip it would get a 307 locale
+    // redirect and crawlers would receive no image. Exact match, not
+    // startsWith, to avoid catching unrelated paths.
     pathname === '/og' ||
-    pathname.includes('.') // like a file .json, .js, .png, etc.
+    pathname.includes('.') // file requests like .json, .js, .png
   ) {
     return NextResponse.next();
   }
 
-  // Check if there is any supported locale in the pathname
+  // Is a supported locale already in the path?
   const pathnameHasLocale = locales.some(
     (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`,
   );
 
   if (pathnameHasLocale) {
-    // x-pathname-Fwd: macht den Pfad im [locale]-Layout lesbar (layouts
-    // koennen sonst keine pathname auslesen). Wird vom NotFoundGate
-    // benutzt, um unbekannte Slugs VOR dem ersten HTTP-Header-Flush
-    // (Layout-Skeleton-Suspense) mit echtem HTTP-404 zu beantworten
-    // (siehe [locale]/layout.tsx).
+    // Forward the pathname: layouts cannot read it themselves. The
+    // NotFoundGate uses it to answer unknown slugs with a real HTTP 404 before
+    // the first header flush (see [locale]/layout.tsx).
     const headers = new Headers(request.headers);
     headers.set('x-pathname', pathname);
     return NextResponse.next({ request: { headers } });
   }
 
-  // Redirect if there is no locale
+  // No locale yet: redirect based on Accept-Language.
   const acceptLanguage = request.headers.get('accept-language');
   let localeStr = defaultLocale;
 
@@ -54,7 +52,7 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Skip all internal paths (_next)
+    // Skip internal paths (_next)
     '/((?!_next|admin|api|.*\\..*).*)',
   ],
 };

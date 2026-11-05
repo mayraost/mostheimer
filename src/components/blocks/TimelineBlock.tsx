@@ -7,9 +7,9 @@ type TimelineBlockData = Extract<NonNullable<Page['layout']>[number], { blockTyp
 type TimelineEntry = NonNullable<TimelineBlockData['entries']>[number];
 
 /**
- * Timeline: vertikale Hairline-Rail mit Emerald-Nodes, Mono-Perioden in
- * eigener Spalte, dichte Company/Role-Typografie. Bewusst OHNE Karten-Rahmen
- * pro Eintrag — die Rail ist der Rhythmus.
+ * Timeline: vertical hairline rail with emerald nodes, mono periods in their own
+ * column, dense company/role typography. Deliberately no card frame per entry —
+ * the rail carries the rhythm.
  */
 export function TimelineBlock({ block }: { block: TimelineBlockData }) {
   const entries = block.entries ?? [];

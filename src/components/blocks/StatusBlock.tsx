@@ -5,9 +5,9 @@ import { GaugeRing, StatusDot, stableGaugeValue } from '../ui/industrial';
 type StatusBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'statusBlock' }>;
 
 /**
- * Status-Strip: flache, horizontale System-Status-Leiste (bewusst KEIN
- * Karten-Panel wie die anderen Blöcke) — Emerald-Dots, Mono-Metriken,
- * Hairline-Separatoren und ein Gauge-Ring als rechter Anker.
+ * Status strip: a flat horizontal bar (deliberately no card panel, unlike the
+ * other blocks) with emerald dots, mono metrics, hairline separators and a gauge
+ * ring anchored on the right.
  */
 export function StatusBlock({ block }: { block: StatusBlockData }) {
   const topics = block.networkTopics ?? [];
