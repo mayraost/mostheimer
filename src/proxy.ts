@@ -40,6 +40,9 @@ export async function proxy(request: NextRequest) {
   if (
     pathname.startsWith('/admin') ||
     pathname.startsWith('/api') ||
+    // Next internals are skipped by the matcher below; this is a second guard
+    // for callers that invoke the proxy directly (and documents the contract).
+    pathname.startsWith('/_next') ||
     // /og serves OG image bytes; without the skip it would get a 307 locale
     // redirect and crawlers would receive no image. Exact match, not
     // startsWith, to avoid catching unrelated paths.

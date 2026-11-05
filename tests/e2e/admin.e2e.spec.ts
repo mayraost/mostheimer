@@ -39,7 +39,10 @@ test.describe('Admin Panel', () => {
     await page?.context().close();
   });
   test('can navigate to dashboard', async () => {
-    const dashboardArtifact = page.locator('span[title="Dashboard"]').first();
+    // Payload 4 renders the dashboard as an entry in the grouped sidebar
+    // (`link "Dashboard"`); the earlier `span[title="Dashboard"]` no longer
+    // exists in the admin DOM, so the assertion targets the link itself.
+    const dashboardArtifact = page.getByRole('link', { name: 'Dashboard' }).first();
     await expect(dashboardArtifact).toBeVisible();
   });
 
