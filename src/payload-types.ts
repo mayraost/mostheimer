@@ -7351,6 +7351,27 @@ export interface Translation {
     groupPages: string;
     groupSections: string;
   };
+  /**
+   * Cookie-Consent-Banner (Consent Mode v2) und der Footer-Link "Cookie-Einstellungen".
+   */
+  cookies: {
+    eyebrow: string;
+    title: string;
+    description: string;
+    privacyLabel: string;
+    privacyLink: string;
+    necessaryLabel: string;
+    necessaryDescription: string;
+    necessaryBadge: string;
+    analyticsLabel: string;
+    analyticsDescription: string;
+    marketingLabel: string;
+    marketingDescription: string;
+    rejectAll: string;
+    saveSelection: string;
+    acceptAll: string;
+    settingsLink: string;
+  };
   createdBy?: {
     relationTo: 'users';
     value: number | User;
@@ -7464,6 +7485,26 @@ export interface TranslationsSelect<T extends boolean = true> {
         resultCountPlural?: T;
         groupPages?: T;
         groupSections?: T;
+      };
+  cookies?:
+    | T
+    | {
+        eyebrow?: T;
+        title?: T;
+        description?: T;
+        privacyLabel?: T;
+        privacyLink?: T;
+        necessaryLabel?: T;
+        necessaryDescription?: T;
+        necessaryBadge?: T;
+        analyticsLabel?: T;
+        analyticsDescription?: T;
+        marketingLabel?: T;
+        marketingDescription?: T;
+        rejectAll?: T;
+        saveSelection?: T;
+        acceptAll?: T;
+        settingsLink?: T;
       };
   createdBy?: T;
   updatedBy?: T;
