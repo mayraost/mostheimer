@@ -15,6 +15,11 @@ import { z } from 'zod';
  * - `NEXT_PUBLIC_GTM_ID`: optional (GTM-XXXXXXX). Without an ID no container
  *   loads; the consent layer and banner keep working.
  *   `NEXT_PUBLIC_*` because the browser reads the ID at build time.
+ * - `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ZONE_ID`: optional, server-only. Used
+ *   for edge-cache purges after CMS changes and after a deploy. Unset → purge
+ *   is a no-op (local dev, build phase). Never `NEXT_PUBLIC_`.
+ * - `CLOUDFLARE_PURGE_ON_START`: optional kill switch for the deploy-time
+ *   purge ("0" disables it, anything else/empty = on).
  *
  * Warnings and errors never print env values, so no secret leaks into the logs.
  */
@@ -35,6 +40,18 @@ const envSchema = z.object({
   gtmId: z
     .string()
     .regex(/^$|^GTM-[A-Z0-9]+$/, 'NEXT_PUBLIC_GTM_ID must be empty or look like GTM-XXXXXXX'),
+  /**
+   * Cloudflare edge-cache purge credentials (server-only, never NEXT_PUBLIC_).
+   * Both optional: without them every purge is a silent no-op (local dev,
+   * build phase). Token permissions: Zone → Cache Purge → Purge, scoped to the
+   * mosthi.de zone. See AGENTS.md § "Cloudflare Edge-Cache".
+   */
+  cloudflareApiToken: z.string(),
+  cloudflareZoneId: z
+    .string()
+    .regex(/^$|^[0-9a-f]{32}$/, 'CLOUDFLARE_ZONE_ID must be a 32-char zone id'),
+  /** Kill switch for the deploy-time purge (default on when credentials exist). */
+  cloudflarePurgeOnStart: z.boolean(),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
@@ -79,6 +96,22 @@ function resolveEnvConfig(): EnvConfig {
     );
   }
 
+  // Cloudflare purge credentials: optional, malformed values are ignored
+  // (purges degrade to a no-op). Never log the token.
+  const rawZoneId = process.env.CLOUDFLARE_ZONE_ID ?? '';
+  const zoneId = envSchema.shape.cloudflareZoneId.safeParse(rawZoneId);
+  let cloudflareZoneIdValue = '';
+  if (zoneId.success) {
+    cloudflareZoneIdValue = zoneId.data;
+  } else {
+    console.warn(
+      '[envConfig] CLOUDFLARE_ZONE_ID is not a 32-character zone id — edge-cache ' +
+        'purges stay disabled.',
+    );
+  }
+  const cloudflareApiTokenValue = process.env.CLOUDFLARE_API_TOKEN ?? '';
+  const cloudflarePurgeOnStartValue = process.env.CLOUDFLARE_PURGE_ON_START !== '0';
+
   // payloadSecret: required at runtime in production, dev fallback otherwise.
   let payloadSecretValue = DEV_FALLBACK_PAYLOAD_SECRET;
   if (payloadSecret.success) {
@@ -102,6 +135,9 @@ function resolveEnvConfig(): EnvConfig {
       dbUrl: dbUrl.data,
       serverUrl: serverUrlValue,
       gtmId: gtmIdValue,
+      cloudflareApiToken: cloudflareApiTokenValue,
+      cloudflareZoneId: cloudflareZoneIdValue,
+      cloudflarePurgeOnStart: cloudflarePurgeOnStartValue,
     };
   }
 
@@ -117,6 +153,9 @@ function resolveEnvConfig(): EnvConfig {
       dbUrl: '',
       serverUrl: serverUrlValue,
       gtmId: gtmIdValue,
+      cloudflareApiToken: cloudflareApiTokenValue,
+      cloudflareZoneId: cloudflareZoneIdValue,
+      cloudflarePurgeOnStart: cloudflarePurgeOnStartValue,
     };
   }
 

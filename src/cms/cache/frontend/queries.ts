@@ -3,19 +3,69 @@ import { getPayload } from 'payload';
 import configPromise from '@payload-config';
 import type { Navigation, NotFound, Page, SiteSetting, Translation } from '@/payload-types';
 import { CACHE_TAGS } from './constants';
+import { registerPageSlugs } from './revalidate';
+import type { FrontendLocale } from './routes';
 import { normalizeSlug } from './utils';
 
-export type FrontendLocale = 'en' | 'de';
+export type { FrontendLocale } from './routes';
 
 /**
- * Safety-net TTL: stale after 1 h, refetch after at most 7 days. Freshness is
- * driven by the Payload hooks via revalidateTag; cacheLife is only the fallback
- * that keeps prod from staying stale forever.
+ * Cache profiles feeding BOTH layers of the cache stack:
+ *
+ * - Next.js data cache (server): a tag flush (`revalidateTag(tag, { expire: 0 })`
+ *   from the Payload hooks) re-renders on the next request.
+ * - Browser/router + Cloudflare edge: the profile's RSS-derived
+ *   `cacheLife.revalidate` becomes the client/router stale time; the edge TTL
+ *   itself comes from the public `Cache-Control` header (next.config.ts,
+ *   mirroring these values) which Cloudflare honours (cache rule "respect
+ *   origin"). Long TTLs are only safe because every hook flushes the tag AND
+ *   purges the matching edge objects synchronously (see revalidate.ts).
+ *
+ * `stale-if-error` keeps the site up while the single origin container is
+ * restarting (every deploy), which is why the TTLs are long.
  */
-const CACHE_LIFE_FRONTEND = { stale: 3600, revalidate: 604800 } as const;
+const CACHE_PROFILES = {
+  page: { stale: 3600, revalidate: 86400, expire: 604800 },
+  sitemap: { stale: 3600, revalidate: 3600, expire: 604800 },
+  global: { stale: 3600, revalidate: 86400, expire: 604800 },
+} as const;
 
 async function getPayloadClient() {
   return getPayload({ config: configPromise });
+}
+
+/** Records every slug the site knows about, for the edge-purge route mapping. */
+async function fetchAllSlugs(): Promise<void> {
+  const payload = await getPayloadClient();
+  const result = await payload.find({
+    collection: 'pages',
+    draft: false,
+    limit: 1000,
+    depth: 0,
+    select: { slug: true },
+  });
+  registerPageSlugs((result.docs ?? []).map((doc) => doc.slug));
+}
+
+// -- Route registry ----------------------------------------------------------
+
+/**
+ * Slug list for the edge purge: a single cached list of `cms:pages`, so the
+ * purge mapping of a bare `cms:pages` flush stays exact without a DB query per
+ * flush. Not rendered, never part of the page cache entry.
+ */
+export async function getCachedRouteRegistryStatic(): Promise<void> {
+  'use cache';
+  cacheTag(CACHE_TAGS.ALL, CACHE_TAGS.pages);
+  cacheLife(CACHE_PROFILES.sitemap);
+  await fetchAllSlugs();
+}
+
+export function getCachedRouteRegistry(): Promise<void> {
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return Promise.resolve();
+  }
+  return getCachedRouteRegistryStatic();
 }
 
 // -- Pages -------------------------------------------------------------------
@@ -45,7 +95,7 @@ export async function getCachedPageBySlugStatic(
   'use cache';
   const normalized = normalizeSlug(slug);
   cacheTag(CACHE_TAGS.ALL, CACHE_TAGS.pages, CACHE_TAGS.pageByPath(normalized));
-  cacheLife(CACHE_LIFE_FRONTEND);
+  cacheLife(CACHE_PROFILES.page);
   return fetchPageBySlug(normalized, locale);
 }
 
@@ -68,13 +118,16 @@ async function fetchAllPages(): Promise<Page[]> {
     draft: false,
     limit: 1000,
   });
-  return result.docs ?? [];
+  const docs = result.docs ?? [];
+  // Full route set for the edge purge (cms:pages / cms:all mapping).
+  registerPageSlugs(docs.map((doc) => doc.slug));
+  return docs;
 }
 
 export async function getCachedAllPagesStatic(): Promise<Page[]> {
   'use cache';
   cacheTag(CACHE_TAGS.ALL, CACHE_TAGS.pages, CACHE_TAGS.sitemap);
-  cacheLife(CACHE_LIFE_FRONTEND);
+  cacheLife(CACHE_PROFILES.sitemap);
   return fetchAllPages();
 }
 
@@ -100,7 +153,7 @@ async function fetchSiteSettings(locale: FrontendLocale): Promise<SiteSetting> {
 export async function getCachedSiteSettingsStatic(locale: FrontendLocale): Promise<SiteSetting> {
   'use cache';
   cacheTag(CACHE_TAGS.ALL, CACHE_TAGS.siteSettings);
-  cacheLife(CACHE_LIFE_FRONTEND);
+  cacheLife(CACHE_PROFILES.global);
   return fetchSiteSettings(locale);
 }
 
@@ -121,7 +174,7 @@ async function fetchTranslations(locale: FrontendLocale): Promise<Translation> {
 export async function getCachedTranslationsStatic(locale: FrontendLocale): Promise<Translation> {
   'use cache';
   cacheTag(CACHE_TAGS.ALL, CACHE_TAGS.translations);
-  cacheLife(CACHE_LIFE_FRONTEND);
+  cacheLife(CACHE_PROFILES.global);
   return fetchTranslations(locale);
 }
 
@@ -140,7 +193,7 @@ async function fetchNavigation(locale: FrontendLocale): Promise<Navigation> {
 export async function getCachedNavigationStatic(locale: FrontendLocale): Promise<Navigation> {
   'use cache';
   cacheTag(CACHE_TAGS.ALL, CACHE_TAGS.navigation);
-  cacheLife(CACHE_LIFE_FRONTEND);
+  cacheLife(CACHE_PROFILES.global);
   return fetchNavigation(locale);
 }
 
@@ -159,7 +212,7 @@ async function fetchNotFound(locale: FrontendLocale): Promise<NotFound> {
 export async function getCachedNotFoundStatic(locale: FrontendLocale): Promise<NotFound> {
   'use cache';
   cacheTag(CACHE_TAGS.ALL, CACHE_TAGS.notFound);
-  cacheLife(CACHE_LIFE_FRONTEND);
+  cacheLife(CACHE_PROFILES.global);
   return fetchNotFound(locale);
 }
 

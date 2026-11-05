@@ -1,9 +1,11 @@
 import { revalidateTag } from 'next/cache';
 import { CACHE_TAGS } from './constants';
+import { enqueueCloudflarePurge } from './purges';
+import { FRONTEND_LOCALES, pagePath } from './routes';
 import { normalizeSlug } from './utils';
 
 /**
- * On-demand cache invalidation (OSR).
+ * On-demand cache invalidation (OSR) + Cloudflare edge purge.
  *
  * Next 16 does not flush on revalidateTag; it records an in-doubt timestamp
  * (`revalidatedAt`). Entries only become stale lazily on the next read
@@ -15,34 +17,121 @@ import { normalizeSlug } from './utils';
  * for CMS content.
  *
  * Note the layout entry caches site settings and navigation together under
- * `cms:global:*`, so a globals flush also drops the layout shell.
+ * `cms:global:*`, so a globals flush also drops the layout shell. In the
+ * browser, `cacheLife.revalidate` (7 days) becomes the client/router stale
+ * time — that is why every hook also purges the edge, see below.
+ *
+ * EDGE PURGE MAPPING (Cloudflare, see ./cloudflare.ts for why URL purges):
+ *
+ * | Tag                       | Purged edge objects                                   |
+ * | ------------------------- | ----------------------------------------------------- |
+ * | `cms:all`                 | purge everything (all hosts)                          |
+ * | `cms:pages`               | every public content route, both locales              |
+ * | `cms:pages:<slug>`        | `/en/<slug>` + `/de/<slug>` (`home` → `/en`, `/de`)   |
+ * | `cms:sitemap`             | `/sitemap.xml`                                        |
+ * | `cms:global:*`            | every public content route (layout-level global)      |
+ *
+ * The slug → routes part needs the page list (it is the only place that knows
+ * every slug). `registerPageSlugs` is fed by the cached page queries, so the
+ * mapping stays exact without a second DB read.
  */
 
 type RevalidateMode = 'blocking' | 'swr';
+
+/** Home route is always cacheable content, even before the page list loaded. */
+const KNOWN_SLUGS = new Set<string>(['home']);
+
+/**
+ * Publish the slugs the cached page reads have produced. Called from
+ * `getCachedPageBySlugStatic` and `getCachedAllPagesStatic` (the two places
+ * that know the full set), so the edge purge can map a bare `cms:pages` flush
+ * onto the real route set.
+ */
+export function registerPageSlugs(slugs: readonly string[]): void {
+  for (const slug of slugs) {
+    const normalized = normalizeSlug(slug);
+    if (normalized) KNOWN_SLUGS.add(normalized);
+  }
+}
+
+/**
+ * Route paths an edge purge has to remove for a tag.
+ *
+ * `home` is always included: the layout renders the globals on every page and
+ * the home route is the one page that exists without a DB read, so a page-set
+ * flush (`cms:pages`) must never leave it behind.
+ */
+export function edgePurgePathsForTag(
+  tag: string,
+  slugs: readonly string[] = [...KNOWN_SLUGS],
+): string[] {
+  const routeSlugs = slugs.includes('home') ? slugs : ['home', ...slugs];
+  const contentPaths = routeSlugs.flatMap((slug) =>
+    FRONTEND_LOCALES.map((locale) => pagePath(locale, slug)),
+  );
+
+  if (tag === CACHE_TAGS.ALL || tag === CACHE_TAGS.pages || tag.startsWith('cms:global:')) {
+    // Applies to every page: the layout renders the globals, the page set
+    // drives the nav and the sitemap.
+    return contentPaths;
+  }
+
+  if (tag === CACHE_TAGS.sitemap) {
+    return ['/sitemap.xml'];
+  }
+
+  if (tag.startsWith('cms:pages:')) {
+    const slug = normalizeSlug(tag.slice('cms:pages:'.length));
+    return FRONTEND_LOCALES.map((locale) => pagePath(locale, slug));
+  }
+
+  return [];
+}
+
+/**
+ * Edge counterpart of a tag flush. `cms:all` maps to a full purge; everything
+ * else to the exact routes above. No-op when Cloudflare is not configured.
+ */
+function purgeEdgeForTag(tag: string, label: string): void {
+  if (tag === CACHE_TAGS.ALL) {
+    enqueueCloudflarePurge({ type: 'everything' }, label);
+    return;
+  }
+  const paths = edgePurgePathsForTag(tag);
+  if (paths.length > 0) {
+    enqueueCloudflarePurge({ type: 'urls', paths }, label);
+  }
+}
 
 /**
  * Single entry point for all flushes. try/catch is mandatory: hooks run inside
  * the admin request context, but migrations, seeding and CLI contexts do not,
  * and revalidateTag throws there ("static generation store missing").
+ *
+ * The edge purge is enqueued regardless of whether the Next flush found a
+ * request store: a seed/migration still changes what the edge serves.
  */
 export function safeRevalidate(
   tag: string,
   label: string,
   mode: RevalidateMode = 'blocking',
 ): boolean {
+  let nextFlushed = false;
   try {
     // 'blocking' = { expire: 0 }: stale content is never served, the next
     // request waits for a fresh render (read-your-own-writes after a CMS edit).
     // 'swr' = explicit 1h stale window.
     revalidateTag(tag, mode === 'blocking' ? { expire: 0 } : { expire: 3600 });
-    return true;
+    nextFlushed = true;
   } catch (error) {
     console.warn(
       `[cms-cache] Revalidation '${label}' (tag: ${tag}) uebersprungen — kein Next.js-Request-Kontext.`,
       error,
     );
-    return false;
   }
+
+  purgeEdgeForTag(tag, label);
+  return nextFlushed;
 }
 
 /**

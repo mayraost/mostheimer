@@ -19,6 +19,9 @@ import type { FrontendLocale } from '@/cms/cache/frontend/frontendCache';
 import { envConfig } from '@/envConfig';
 import { MaintenanceScreen, MaintenanceBadge } from '@/components/MaintenanceScreen';
 import { CookieConsent } from '@/components/consent/CookieConsent';
+import { ReleaseGuard } from '@/components/ReleaseGuard';
+import { runPendingCloudflarePurges } from '@/cms/cache/frontend/purges';
+import { getCachedRouteRegistry } from '@/cms/cache/frontend/queries';
 import { ConsentBootstrapScript } from '@/lib/consent/ConsentBootstrapScript';
 import { getCommandItems } from '@/components/ui/commandItems';
 import { getPayload } from 'payload';
@@ -193,6 +196,25 @@ async function LayoutShell({
 }) {
   await connection();
 
+  // Route registry for the edge purge: refreshes the slug → route map (cached
+  // under cms:pages) so a globals/media flush purges every real page even after
+  // a cold start. No-op during the build phase.
+  await getCachedRouteRegistry();
+
+  // Cloudflare phase coupling: a CMS save flushes the Next tag AND enqueues the
+  // matching edge purge. The purge runs HERE, before anything renders, so this
+  // response can never re-cache stale content behind the purge (see
+  // src/cms/cache/frontend/purges.ts). No-op without Cloudflare credentials.
+  const edgePurge = await runPendingCloudflarePurges();
+  if (edgePurge.pending > 0) {
+    // Console diagnostic (server log) — proof that an edge purge ran while this
+    // render happened, including the URL count it covered.
+    console.info(
+      `[cf-cache] Purge beim Request: ${edgePurge.status} ` +
+        `(${edgePurge.pending} Flush(es), ${edgePurge.urls} URLs)`,
+    );
+  }
+
   const [siteSettings, translations, navigation] = await Promise.all([
     getCachedSiteSettings(locale),
     getCachedTranslations(locale),
@@ -254,6 +276,9 @@ async function LayoutShell({
             cookieSettingsLabel={translations.cookies}
           />
           <CookieConsent gtmId={envConfig.gtmId} />
+          {/* Reloads an open tab once after a deploy, instead of letting it
+              navigate with the previous build's client bundle. */}
+          <ReleaseGuard />
         </div>
       </SettingsProvider>
     </TranslationsProvider>
