@@ -1,14 +1,12 @@
 import React from 'react';
 
 /**
- * ─── Industrial UI Primitives ─────────────────────────────────────────────
- *
- * Gemeinsame Vokabeln des Dark-Industrial-Systems (Bento-Grid mit 8px-Gaps,
- * Hairline-Borders, 6px Cards / 8px Container, Emerald/Cyan-Akzente,
- * Mono-Labels). Rein präsentational — kein State, server-renderbar.
+ * Shared vocabulary of the dark-industrial design system (bento grid with 8px
+ * gaps, hairline borders, emerald/cyan accents, mono labels). Purely
+ * presentational — no state, server-renderable.
  */
 
-/** Bento-Grid: 8px Gaps sind Teil der Design-Sprache (Spec). */
+/** Bento tile: the 8px gaps are part of the design language. */
 export function BentoTile({
   children,
   className = '',
@@ -32,7 +30,7 @@ export function BentoTile({
   );
 }
 
-/** Status-Dot (Spec: kleine gefüllte emerald Kreise neben Labels). */
+/** Status dot: small filled emerald circles next to labels. */
 export function StatusDot({
   tone = 'primary',
   className = '',
@@ -56,10 +54,10 @@ export function StatusDot({
 }
 
 /**
- * Chip/Badge:
- * - `fill` = emerald filled pill, dunkler Mono-Uppercase-Text
- * - `outline` = hairline border, Mono-Uppercase, voll-kontrastiger Text
- * - `cyan` = Cyan-Pill (sekundäre Betonung)
+ * Chip/badge variants:
+ * - `fill` = emerald filled pill with dark mono-uppercase text
+ * - `outline` = hairline border, mono-uppercase, full-contrast text
+ * - `cyan` = cyan pill (secondary emphasis)
  */
 export function Chip({
   children,
@@ -89,7 +87,7 @@ export function Chip({
   );
 }
 
-/** Section-Rule mit kurzem Emerald→Cyan-Unterstrich (Spec). */
+/** Section rule with a short emerald→cyan underline. */
 export function RuleAccent({ className = '' }: { className?: string }) {
   return (
     <div className={`relative h-px w-full bg-border ${className}`}>
@@ -98,7 +96,7 @@ export function RuleAccent({ className = '' }: { className?: string }) {
   );
 }
 
-/** Sektions-Eyebrow: emerald Dot + Mono-Label. */
+/** Section eyebrow: emerald dot plus mono label. */
 export function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
     <p className="mono-label flex items-center gap-2 text-primary">
@@ -108,7 +106,7 @@ export function Eyebrow({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Corner-Crosshair-Ticks (optional Industrial-Detail an Cards). */
+/** Corner crosshair ticks (optional industrial detail on cards). */
 export function CornerTicks() {
   const tick = 'absolute h-2 w-2 border-border-strong';
   return (
@@ -122,8 +120,8 @@ export function CornerTicks() {
 }
 
 /**
- * Button-Klassen (Spec): primary = solid Cyan/Emerald mit Near-Black-Text,
- * outline = transparent + Hairline, subtle = #1C1F26-Fill + Emerald-Text.
+ * Button classes: primary = solid accent with near-black text, outline =
+ * transparent with hairline border, subtle = dark fill with emerald text.
  */
 export function buttonClass(
   variant: 'primary' | 'secondary' | 'outline' | 'subtle' = 'primary',
@@ -141,8 +139,8 @@ export function buttonClass(
 }
 
 /**
- * Gauge/Ring-Motiv: circular progress ring in Emerald→Cyan mit Mono-
- * Prozentzahl in der Mitte. `value` 0–100.
+ * Gauge motif: circular progress ring in emerald→cyan with a mono percentage in
+ * the middle. `value` is 0–100.
  */
 export function GaugeRing({
   value,
@@ -174,7 +172,7 @@ export function GaugeRing({
   );
 }
 
-/** Deterministic 1–100 Ring-Wert aus einem String (rein dekorativ/statisch). */
+/** Deterministic gauge value from a string (purely decorative, static). */
 export function stableGaugeValue(seed: string, min = 62, max = 96): number {
   let hash = 0;
   for (let i = 0; i < seed.length; i += 1) {
@@ -183,7 +181,7 @@ export function stableGaugeValue(seed: string, min = 62, max = 96): number {
   return min + (hash % (max - min + 1));
 }
 
-/** Header-Zeile einer Card: Mono-Label + optionaler Meta-Text. */
+/** Card header row: mono label plus optional meta text. */
 export function CardHeader({
   label,
   meta,
@@ -209,7 +207,7 @@ export function CardHeader({
   );
 }
 
-/** Absätze aus `\n\n`-getrennter CMS-Textarea. */
+/** Paragraphs from a `\n\n`-separated CMS textarea. */
 export function splitParagraphs(text?: string | null): string[] {
   if (!text) return [];
   return text

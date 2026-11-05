@@ -1,10 +1,8 @@
 'use client';
 
 /**
- * Custom-Admin-View /admin/cache-clear — triggert den manuellen Cache-Flush
- * ueber die Server Action clearAllFrontendCaches (Admin-gated). Kein
- * API-Route-Umweg: interne Admin-Session reicht (AGENTS-Regel "Server
- * Actions vor API-Routen").
+ * Custom admin view /admin/cache-clear: triggers the manual cache flush through
+ * the admin-gated Server Action clearAllFrontendCaches.
  */
 import { useState } from 'react';
 import { Button } from '@payloadcms/ui';

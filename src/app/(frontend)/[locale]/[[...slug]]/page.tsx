@@ -19,41 +19,31 @@ import { derivePageDescription } from '@/cms/aeo/pageMetadata';
 import { ogImageUrl } from '@/components/og/ogCard';
 
 /**
- * Über-Mich-artige Slugs → ProfilePage-JSON-LD (AEO-Layer, Research
- * aeo-discovery-layer: ProfilePage deckt die „About Me"-Page ab; die
- * Homepage selbst ist WebSite-Kandidat).
- *
- * Weitere Content-Slugs bekommen ihren Knoten in `buildPageJsonLd`:
- * Career → ProfilePage mit `hasOccupation` aus der Timeline,
- * Case-Studies → WebPage + ItemList aus den Case-Study-Blöcken,
- * Tech-Radar/Leadership/Contact → schlanke WebPage (Contact zusätzlich
- * mit den Person-Kontaktfakten).
- *
- * Unbekannte Slugs bekommen keinen erfundenen `@type` — nur einen
- * neutralen WebPage-Knoten über `buildWebPageJsonLd`.
+ * About-me-like slugs render as ProfilePage JSON-LD; the homepage itself is a
+ * WebSite candidate, not a ProfilePage. All other slugs get their node from
+ * `buildPageJsonLd` (career → ProfilePage with `hasOccupation` from the
+ * timeline, case studies → WebPage + ItemList, tech-radar/leadership/contact →
+ * slim WebPage). Unknown slugs get a neutral WebPage node, never an invented
+ * `@type`.
  */
 const PROFILE_PAGE_SLUGS = new Set(['about', 'about-me', 'ueber-mich', 'ueber']);
 
-/** Kanonischer Pfad einer Seite (mit Locale-Präfix). */
+/** Canonical page path including the locale prefix. */
 function pagePath(locale: FrontendLocale, slug: string): string {
   return slug === 'home' ? `/${locale}` : `/${locale}/${slug}`;
 }
 
-// Locales sind build-statisch (kein DB-Lookup noetig) — ohne diese
-// generateStaticParams bricht der Build-Prerender-Versuch ab (Root-Param).
+// Required because `locale` is a root dynamic segment: without it the build's
+// prerender attempt aborts. Locales are build-static, so no DB lookup is needed.
 export function generateStaticParams() {
   return ['en', 'de'].map((locale) => ({ locale }));
 }
 
-// Skill-Profil „Build ohne DB": Blockanteil des Route-Renders bewusst
-// erlaubt (siehe page.tsx-Kommentar) — verhindert Dev-Nagging
-// (connection() ohne Route-eigenes Suspense-Boundary).
+// Allows the blocking render: this route calls connection() without its own
+// Suspense boundary, which Next otherwise flags during dev.
 export const instant = false;
 
-/**
- * Page-Level-JSON-LD, rein serverseitig aus den bereits gecachten
- * Page-Daten (kein zusätzlicher DB-Read, kein Client-JS).
- */
+/** Page-level JSON-LD, built on the server from already cached page data (no extra read, no client JS). */
 function buildPageJsonLd(
   slug: string,
   locale: FrontendLocale,
@@ -110,11 +100,8 @@ function buildPageJsonLd(
 }
 
 export default async function Page({ params }: PageProps<'/[locale]/[[...slug]]'>) {
-  // connection() stoppt den Build-Prerender-Versuch (Coolify-Docker-Build
-  // ohne DB): kein HTML-Prerender ohne DB-Zugriff → Runtime-Rendering mit
-  // 'use cache'-Datenlayer + Hook-Invalidierung. instant=false erlaubt den
-  // Blocking-Render (Skill-Profil „Build ohne DB"), sonst meckert Next
-  // ueber connection() ohne eigenes Suspense-Boundary auf Route-Ebene.
+  // Aborts the build-time prerender attempt: the Coolify build container has no
+  // DB, so pages render at runtime against the 'use cache' layer instead.
   await connection();
 
   const resolvedParams = await params;
@@ -126,10 +113,6 @@ export default async function Page({ params }: PageProps<'/[locale]/[[...slug]]'
     return notFound();
   }
 
-  // JSON-LD (AEO-Layer): Homepage → WebSite + Person; Profil-Slugs →
-  // ProfilePage; career/case-studies/tech-radar/leadership/contact →
-  // passende WebPage-Varianten. SiteSettings-Read ist gecacht und läuft
-  // ohnehin im Layout (gleicher Cache-Entry).
   const siteSettings = await getCachedSiteSettings(locale);
   const jsonLd = buildPageJsonLd(
     slug,
@@ -139,11 +122,9 @@ export default async function Page({ params }: PageProps<'/[locale]/[[...slug]]'
     siteSettings.siteName || 'Mostheimer',
   );
 
-  // Semantic-<h1>-Garantie (Findings v2 B5): case-studies / tech-radar /
-  // career hatten keinen h1, weil keiner ihrer Blocks einen emittiert.
-  // Der Page-Title wird AUSSCHLIESSLICH dann als h1 gerendert, wenn kein
-  // Hero-Block vorhanden ist (Hero emittiert bereits seinen eigenen h1 —
-  // kein Duplikat, "one h1 per page" bleibt gewahrt).
+  // Semantic <h1> guarantee: case-studies / tech-radar / career have no block
+  // that emits one. The title renders as h1 only when no hero block exists,
+  // since the hero already emits its own (one h1 per page).
   const layout = page.layout ?? [];
   const hasHeroBlock = layout.some((block) => block.blockType === 'hero');
 
@@ -178,20 +159,18 @@ export async function generateMetadata({
 
   const baseUrl = envConfig.serverUrl;
   const canonical = `${baseUrl}${pagePath(locale, slug)}`;
-  // Per-Page-Description aus dem CMS-Inhalt; Fallback = Layout-Default
-  // (kein eigenes description-Feld am Node, damit Next den Layout-Wert
-  // erbt statt ein leeres Tag zu rendern).
+  // Derived from CMS content; falls back to the layout default — the node
+  // carries no own description field so Next inherits the layout value
+  // instead of rendering an empty tag.
   const description = derivePageDescription(page);
 
   return {
-    // `absolute`: der Layout-Titel trägt die Brand ohne Template — ohne
-    // absolute würde Next das `%s`-Template (falls später ergänzt) doppelt
-    // anwenden. Der Brand-Suffix bleibt pro Seite einheitlich.
+    // `absolute` keeps the layout's template from wrapping the brand suffix
+    // a second time if a `%s` template is added later.
     title: { absolute: `${page.title} - Mostheimer` },
     ...(description ? { description } : {}),
-    // AEO-Layer OG/Twitter-Parity (Research P2): per-Page-Karte via
-    // /og-Route (opengraph-image-Dateikonvention ist im [[...slug]]-
-    // Catch-All nicht möglich — siehe src/app/og/route.tsx).
+    // Per-page OG card via the /og route: the opengraph-image file convention
+    // cannot live inside the [[...slug]] catch-all (see src/app/og/route.tsx).
     openGraph: {
       title: page.title,
       type: 'website',
@@ -210,9 +189,7 @@ export async function generateMetadata({
       languages: {
         en: `${baseUrl}/en${slug === 'home' ? '' : `/${slug}`}`,
         de: `${baseUrl}/de${slug === 'home' ? '' : `/${slug}`}`,
-        // x-default → deutsche Fassung (Primäraudienz ist de; die
-        // Startseite unterscheidet sich sprachlich, die übrigen Seiten
-        // haben identische Slugs).
+        // x-default → German: de is the primary audience.
         'x-default': `${baseUrl}/de${slug === 'home' ? '' : `/${slug}`}`,
       },
     },

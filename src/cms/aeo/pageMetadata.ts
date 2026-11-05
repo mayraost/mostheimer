@@ -1,22 +1,19 @@
 import type { Page } from '@/payload-types';
 
 /**
- * Meta-Description-Ableitung aus dem CMS-Inhalt (AEO/SEO-Layer).
+ * Derives the meta description from CMS content.
  *
- * Die `pages`-Collection hat kein Description-Feld — Metadaten fielen
- * bislang auf die globale Site-Description des Layouts zurück (identisch
- * auf JEDER Seite, Lighthouse-SEO-/Snippet-Schwachpunkt). Statt das Schema
- * zu ändern (Migration + Admin-UI) leiten wir die Description aus dem
- * ersten inhaltstragenden Block ab:
+ * The `pages` collection has no description field, so every page used to fall
+ * back to the layout's global site description. Rather than change the schema
+ * (migration + admin UI), the description is taken from the first content-
+ * bearing block: an intentional short summary (`hero.subheading`,
+ * `statusBlock.description`) wins, otherwise the first text block
+ * (`techSection.body`, `caseStudy.context`, `richText`, `imageText.text`,
+ * `callToAction.text`).
  *
- * - erste bewusst gesetzte Kurzbeschreibung (`hero.subheading`,
- *   `statusBlock.description`) gewinnt,
- * - sonst der erste Textblock (`techSection.body`, `caseStudy.context`,
- *   `richText`-Fließtext, `imageText.text`, `callToAction.text`).
- *
- * Ergebnis wird auf ~155 Zeichen (Google-Snippet-Breite) an einer
- * Wortgrenze gekürzt; zu kurze Treffer (< 40 Zeichen) gelten als
- * „keine Description" → `null`, damit der Aufrufer den Fallback nutzt.
+ * Results are truncated to ~155 characters at a word boundary (Google snippet
+ * width); anything under 40 characters counts as "no description" and returns
+ * `null` so the caller uses its fallback.
  */
 
 export const META_DESCRIPTION_MAX = 155;
@@ -24,7 +21,7 @@ const META_DESCRIPTION_MIN = 40;
 
 type PageBlock = NonNullable<Page['layout']>[number];
 
-/** Lexical-Root → reiner Text (Absätze mit Leerzeichen verbunden). */
+/** Lexical root → plain text, with nodes joined by spaces. */
 function lexicalToText(node: unknown): string {
   if (!node || typeof node !== 'object') return '';
   const record = node as { text?: unknown; children?: unknown };
@@ -46,13 +43,13 @@ function blockText(block: PageBlock): string {
     case 'caseStudy':
       return block.context ?? block.solution ?? '';
     case 'imageText':
-      // `imageText.text` ist ein Lexical-Rich-Text-Feld (kein String).
+      // `imageText.text` is a Lexical rich-text field, not a string.
       return lexicalToText(JSON.parse(JSON.stringify(block.text)));
     case 'callToAction':
       return block.text ?? '';
     case 'richText': {
-      // `content` ist typseitig ein Lexical-Root-Objekt; der Textabzug
-      // arbeitet auf der JSON-Form (children/text rekursiv).
+      // `content` is typed as a Lexical root object; the extractor walks its
+      // JSON form (children/text recursively).
       return lexicalToText(JSON.parse(JSON.stringify({ root: block.content })));
     }
     default:
@@ -60,12 +57,12 @@ function blockText(block: PageBlock): string {
   }
 }
 
-/** Whitespace normalisieren (CMS-Textareas enthalten Absatz-Umbrüche). */
+/** Collapse whitespace (CMS textareas contain paragraph line breaks). */
 function normalize(text: string): string {
   return text.replace(/\s+/g, ' ').trim();
 }
 
-/** An einer Wortgrenze auf `max` Zeichen kürzen, mit Ellipse. */
+/** Truncate to `max` characters at a word boundary, with an ellipsis. */
 export function truncateDescription(text: string, max = META_DESCRIPTION_MAX): string {
   const normalized = normalize(text);
   if (normalized.length <= max) return normalized;
@@ -76,8 +73,8 @@ export function truncateDescription(text: string, max = META_DESCRIPTION_MAX): s
 }
 
 /**
- * Beschreibung der Seite aus ihrem Inhalt; `null`, wenn kein Block einen
- * verwendbaren Text liefert.
+ * Description of a page from its content; `null` when no block yields usable
+ * text.
  */
 export function derivePageDescription(page: Pick<Page, 'layout'>): string | null {
   for (const block of page.layout ?? []) {

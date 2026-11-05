@@ -1,8 +1,7 @@
 /**
- * Normalisiert Seiten-Slugs fuer Cache-Tag-Keys.
- * - fuehrende/trailende Slashes abwerfen (`/impressum/` => `impressum`)
- * - Wildcard-Match abfangen (Pflicht, sonst Tag-Gleichheit brechen)
- * - leerer Root-Slug => `home` (Page slug `home` = Wurzelseite)
+ * Normalizes page slugs for cache tag keys: strips leading/trailing slashes
+ * (`/impressum/` => `impressum`) and maps the empty root slug to `home`, the
+ * slug of the root page.
  */
 export function normalizeSlug(slug: string): string {
   const cleaned = slug.replace(/^\/+|\/+$/g, '');

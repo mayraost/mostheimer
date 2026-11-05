@@ -48,9 +48,9 @@ export function MaintenanceScreen({ locale }: { locale: 'en' | 'de' }) {
 }
 
 /**
- * Kleines fixed Info-Badge für eingeloggte CMS-User während des
- * Wartungsmodus: sie sehen das normale Layout und müssen erkennen
- * können, dass Nicht-Eingeloggte aktuell die Wartungsseite sehen.
+ * Small fixed info badge for logged-in CMS users during maintenance: they see
+ * the normal layout and need to know that visitors currently get the
+ * maintenance screen.
  */
 export function MaintenanceBadge({ locale }: { locale: 'en' | 'de' }) {
   const t = MESSAGES[locale] ?? MESSAGES.en;

@@ -1,8 +1,6 @@
 'use client';
 
-/**
- * Admin-Nav-Eintrag fuer die Custom-View /admin/cache-clear.
- */
+/** Admin nav entry for the custom view /admin/cache-clear. */
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 

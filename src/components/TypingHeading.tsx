@@ -4,21 +4,18 @@ import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { useSettings } from './SettingsProvider';
 
 /**
- * Typing-Effekt auf dem Hero-Display (Client-Insel).
+ * Typing effect for the hero display (client island).
  *
- * A11y-Entscheidung (Findings-Driven): Der volle Text steht von Anfang an
- * im Accessible-Name (`aria-label` auf dem Wrapper) und im sr-only-Fallback;
- * die sichtbare Tipp-Animation ist `aria-hidden`.
+ * A11y: the full text is in the accessible name (aria-label on the wrapper) and
+ * in an sr-only fallback from the start; the visible animation is aria-hidden.
  *
- * Layout-Entscheidung (CLS, Lighthouse 04.11.2026): Das Hero-Heading ist
- * der LCP-Text der Startseite. Eine einzeilig auslaufende Tipp-Animation
- * lässt die Überschrift zeilenweise wachsen und schiebt den kompletten
- * Content darunter — gemessen 0.25 Layout-Shift auf ~1/3 Viewport-Höhe
- * (Score-Einbruch Performance 85→99). Deshalb reserviert der Wrapper die
- * ENDHÖHE des Textes (an einer unsichtbaren, volltextigen Kopie gemessen,
- * per ResizeObserver auch bei Resize/Font-Swap nachgeführt) und die
- * Animation läuft in diesem festen Rahmen: reiner Paint-Effekt, kein
- * Reflow. Bis zur Messung steht der Platzhalter auf `min-height: 1em`.
+ * CLS: the hero heading is the homepage LCP text, so letting it grow line by
+ * line pushed all the content below it (measured 0.25 layout shift on about a
+ * third of the viewport). The wrapper therefore reserves the text's FINAL
+ * height, measured on an invisible full-text copy (kept in sync via
+ * ResizeObserver and font-ready), and the animation runs inside that fixed
+ * frame as a pure paint effect with no reflow. Until measured it sits at
+ * `min-height: 1em`.
  */
 function useReservedHeight() {
   const ref = useRef<HTMLSpanElement | null>(null);
@@ -31,8 +28,8 @@ function useReservedHeight() {
     const measure = () => setHeight(element.getBoundingClientRect().height);
     measure();
 
-    // ResizeObserver statt reiner Fenster-Listener: deckt Width-Resize,
-    // Font-Swap und Container-Resize (Sidebar-Layout) in einem ab.
+    // ResizeObserver instead of window listeners: covers width changes, font
+    // swap and container resize (sidebar layout) in one place.
     if (typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(measure);
     observer.observe(element);
@@ -59,7 +56,7 @@ function TypingHeadingEffect({
   const isTyping = progress < text.length;
 
   useLayoutEffect(() => {
-    // Respect disabled animations: nothing to reveal.
+    // Animations disabled: show nothing to reveal.
     if (!animationsOn) return;
 
     let i = 0;
@@ -76,7 +73,7 @@ function TypingHeadingEffect({
 
   return (
     <>
-      {/* Unsichtbare Volltext-Kopie: definiert die Endhöhe des Blocks. */}
+      {/* Invisible full-text copy: defines the block's final height. */}
       <span
         ref={measureRef}
         aria-hidden="true"

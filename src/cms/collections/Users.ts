@@ -3,21 +3,17 @@ import type { CollectionConfig } from 'payload';
 export const Users: CollectionConfig = {
   slug: 'users',
   auth: {
-    // Cookie-Haertung (Payload-4-Keys verifiziert in
-    // node_modules/payload/dist/auth/types.d.ts: cookies.{secure,sameSite}).
-    // Secure + SameSite strict: Admin-Cookies nur via HTTPS (Tunnel/localhost-
-    // Secure-Context ok) und ohne Cross-Site-Sendung; Live-Preview-iframe
-    // ist same-origin -> 'Strict' blockiert das nicht.
+    // Hardened admin cookies: Secure (HTTPS only — fine behind the tunnel and
+    // on localhost's secure context) and SameSite=Strict (never sent
+    // cross-site). The live-preview iframe is same-origin, so 'Strict' is safe.
     cookies: {
       secure: true,
       sameSite: 'Strict',
     },
-    // Native Payload API-Keys fuer den MCP-Plugin-Bearer-Flow:
-    // `Authorization: users API-Key <value>` (Auth-Header-Format verifiziert in
-    // node_modules/payload/dist/auth/strategies/apiKey.js). reveal: true erlaubt
-    // Admins, den verschluesselten Key via POST /api/users/:id/api-key/reveal
-    // auszulesen. Key wird encrypted gespeichert (api_key ciphertext +
-    // HMAC api_key_index + api_key_last4; Migration add_mcp_api_keys).
+    // Native Payload API keys for the MCP client's auth
+    // (`Authorization: users API-Key <value>` — not a Bearer token). Keys are
+    // stored encrypted; `reveal` lets an admin read one back via
+    // POST /api/users/:id/api-key/reveal.
     useAPIKey: { reveal: true },
   },
   admin: {

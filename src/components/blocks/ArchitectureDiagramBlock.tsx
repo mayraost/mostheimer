@@ -13,18 +13,18 @@ type ArchLayer = NonNullable<ArchitectureDiagramBlockData['layers']>[number];
 type ArchPrinciple = NonNullable<ArchLayer['principles']>[number];
 
 /**
- * Interaktives System-Architektur-Schaubild (Spec-Highlight).
+ * Interactive system architecture diagram.
  *
- * Edge → App/BFF → Core/CMS → Data/State als klickbare Layer-Stationen.
- * A11y-Vertrag:
- * - Layer-Knoten bilden eine echte `tablist` (aria-orientation="vertical"),
- *   jeder Knoten ist ein `tab` mit `aria-selected`/`aria-controls`.
- * - Pfeiltasten (↑/↓/←/→) bewegen den Fokus nach dem Roving-Tabindex-
- *   Muster; Home/End springen an die Enden; Enter/Space aktiviert.
- * - Das Detail-Panel ist ein `tabpanel` mit `aria-labelledby` auf den
- *   aktiven Tab und `tabIndex={0}` (scrollbar per Tastatur).
- * - Fluss-Pulse laufen ausschließlich über transform/opacity und werden
- *   unter prefers-reduced-motion sowie bei body.no-animations deaktiviert.
+ * Edge → App/BFF → Core/CMS → Data/State as clickable layer stations.
+ * A11y contract:
+ * - The layer nodes form a real `tablist` (aria-orientation="vertical"); each
+ *   node is a `tab` with `aria-selected`/`aria-controls`.
+ * - Arrow keys (↑/↓/←/→) move focus following the roving-tabindex pattern;
+ *   Home/End jump to the ends; Enter/Space activates.
+ * - The detail panel is a `tabpanel` labelled by the active tab and has
+ *   `tabIndex={0}` so it can be scrolled by keyboard.
+ * - Flow pulses animate transform/opacity only and stop under
+ *   prefers-reduced-motion and body.no-animations.
  */
 export function ArchitectureDiagramBlock({ block }: { block: ArchitectureDiagramBlockData }) {
   const layers = block.layers ?? [];
@@ -101,7 +101,7 @@ export function ArchitectureDiagramBlock({ block }: { block: ArchitectureDiagram
         </div>
 
         <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          {/* ── Layer-Tabs (vertikale Pipeline) ───────────────────────── */}
+          {/* ── Layer tabs (vertical pipeline) ────────────────────────── */}
           <div
             role="tablist"
             aria-orientation="vertical"
@@ -187,7 +187,7 @@ export function ArchitectureDiagramBlock({ block }: { block: ArchitectureDiagram
             })}
           </div>
 
-          {/* ── Detail-Panel ──────────────────────────────────────────── */}
+          {/* ── Detail panel ──────────────────────────────────────────── */}
           <div
             role="tabpanel"
             id={panelId}

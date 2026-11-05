@@ -1,13 +1,12 @@
 'use client';
 
 /**
- * Live-Preview-Bridge (Variante B des nextjs-payload-caching-Skills):
- * Payload-Admin emittiert postMessage-Save-Events → router.refresh() →
- * RSC-Re-Render der /preview-Route mit frischen Draft-Daten.
+ * Live-preview bridge: the Payload admin emits postMessage save events →
+ * router.refresh() → RSC re-render of the /preview route with fresh draft data.
  *
- * serverURL MUSS dem tatsaechlichen Request-Origin des Admin-Panels
- * entsprechen (postMessage-Origin-Check) — wird spaeder vom /preview-Page
- * aus Request-Headers abgeleitet (Cloudflare-Tunnel-Gotcha des Skills).
+ * serverURL MUST match the admin panel's actual request origin (postMessage
+ * origin check), which is why the /preview page derives it from request headers
+ * instead of config — needed behind the Cloudflare tunnel.
  */
 import { RefreshRouteOnSave as PayloadLivePreview } from '@payloadcms/live-preview-react';
 import { useRouter } from 'next/navigation';

@@ -6,19 +6,17 @@ export const Media: CollectionConfig = {
   upload: {
     staticDir: 'public/media',
     adminThumbnail: 'thumbnail',
-    // Hart Beschraenkt auf Bitmap-Bildformate: SVG (aus der vorherigen
-    // wildcard 'image/*'-Freigabe) kann skriptinhalt tragen (XSS via
-    // Upload-Storage) und bleibt daher bewusst ausgeschlossen; alles
-    // non-image ebenso. Größenlimit global in src/payload.config.ts
-    // (upload.limits.fileSize — busboy, verifiziert in node_modules).
+    // Bitmap formats only, no wildcard: SVG can carry script (stored XSS via
+    // upload storage) and is deliberately excluded, as is anything non-image.
+    // The size limit lives in src/payload.config.ts (upload.limits.fileSize).
     mimeTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/avif'],
   },
   access: {
     read: () => true,
   },
   hooks: {
-    // Media wird in Blocks/Globals (OG-Image) referenziert — hier ist der
-    // Ziel-Cache nicht punktgenau ableitbar, deshalb breiter Flush.
+    // Media is referenced from blocks and globals (OG images), so the affected
+    // cache target cannot be pinpointed — flush broadly.
     afterChange: [() => revalidateAllFrontendCmsCaches()],
     afterDelete: [() => revalidateAllFrontendCmsCaches()],
   },

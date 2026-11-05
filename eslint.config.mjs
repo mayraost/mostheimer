@@ -30,10 +30,10 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    // Payload-migrations-Codegen erzeugt Hook-Signaturen mit ungebrauchten
-    // Params (payload/req/db) — generierter Autocode; Hand-Fixes verlieren
-    // sich beim nächsten migrate:create. Override bewusst NACH dem globalen
-    // Plugin-Block — in Flat Config gewinnt der spätere Entry.
+    // Payload migration codegen emits hook signatures with unused params
+    // (payload/req/db); manual fixes would be lost on the next migrate:create.
+    // This override must come AFTER the plugin block — in flat config the
+    // later entry wins.
     files: ['src/migrations/**'],
     rules: {
       'unused-imports/no-unused-vars': 'off',

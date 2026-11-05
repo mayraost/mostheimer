@@ -16,23 +16,18 @@ import { Translations } from './cms/globals/Translations';
 import { envConfig } from '@/envConfig';
 import { migrations } from './migrations';
 
-// Upload-Groessengrenze (Hardening): 10 MB in bytes — busboy-limits-Key
-// `upload.limits.fileSize` verifiziert in node_modules/payload/dist/config/
-// types.d.ts (GlobalUploadConfig) + dist/uploads/resolveURLUploadInput.js
-// (URL-Uploads lesen denselben Key).
+// Upload size cap (hardening): 10 MB. Applies to multipart and URL uploads
+// alike (both read upload.limits.fileSize).
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
 const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
 
 export default buildConfig({
-  // GraphQL-Endpoint deaktiviert: dieses Projekt konsumiert Payload
-  // ausschliesslich via Local API ('use cache'-Queries) + REST-Preview.
-  // Payload-4-Shape verifiziert: RootGraphQLConfig { disable?: boolean }
-  // (node_modules/payload/dist/config/types.d.ts) — `graphQL: false` wie in
-  // Payload-3 ist hier NICHT die Typsignatur.
+  // GraphQL is disabled: Payload is consumed only via the Local API
+  // ('use cache' queries) plus the REST preview. Payload 4 expects an object
+  // (`{ disable: true }`), not the `graphQL: false` of Payload 3.
   graphQL: { disable: true },
-  // Anonyme Nutzungsstatistik aus.
   telemetry: false,
   admin: {
     user: Users.slug,
@@ -42,7 +37,7 @@ export default buildConfig({
     components: {
       views: {
         'cache-clear': {
-          // Manuelles Cache-Flush-Panel (Server Action clearAllFrontendCaches)
+          // Manual cache-flush panel (Server Action clearAllFrontendCaches).
           Component: { path: '/cms/admin/views/CacheClearView' },
           path: '/cache-clear',
           meta: {
@@ -68,19 +63,17 @@ export default buildConfig({
   },
   db: postgresAdapter({
     prodMigrations: migrations,
-    // Dev-Schema-Push deaktiviert: Schemaaenderungen laufen IMMER ueber
-    // payload migrate / migrate:create (Worktree-Snapshot-Diff), damit
-    // Migration-Verlauf + Prod-DB nicht divergieren (vgl. AGENTS.md).
+    // No dev schema push: schema changes always go through payload
+    // migrate / migrate:create so the migration history and the prod DB never
+    // diverge.
     push: false,
     pool: {
       connectionString: envConfig.dbUrl,
     },
   }),
   upload: {
-    // Multipart-Request-Gesamtlimit (Busboy/performant upload pipeline —
-    // Key verifiziert: FetchAPIFileUploadOptions in config/types.d.ts,
-    // Default 50 MB). Etwas Headroom über dem fileSize-Limit unten,
-    // damit Fields/Headers nicht zum Abbruch führen.
+    // Whole-request limit (default 50 MB). A little headroom over the fileSize
+    // limit below so fields and headers do not abort the upload.
     requestSizeLimit: 11 * 1024 * 1024,
     limits: { fileSize: MAX_UPLOAD_BYTES },
     transformers: [
@@ -108,18 +101,14 @@ export default buildConfig({
     ],
   },
   plugins: [
-    // MCP-Plugin (@payloadcms/plugin-mcp, exakt 4.0.0-beta.6).
-    // Die Docs-Seite (payloadcms.com/docs/plugins/mcp) beschreibt die 3.x-API
-    // (API-Key-Collection, `enabled: true`, per-Key-Toggles); die installierte
-    // 4.0.0-beta.6 verifiziert in node_modules/@payloadcms/plugin-mcp/dist:
-    //   - tools-Map mit Opt-out (`false` disables den Built-in; default ON)
-    //   - Auth ueber Payload-native API-Keys (Users.useAPIKey; Header
-    //     `Authorization: users API-Key <value>`; Bearer = JWT)
-    //   - keine per-Key-Toggles: Access Control kommt aus den Permissions des
-    //     Key-Owner-Users ("Step 2"-Modell im Docs-Beta entfaellt)
-    // Scope (User-Decision 04.11.): alle Built-ins ON bis auf delete@media;
-    // users read-only via find-only (Auth-Felder hash/salt werden im
-    // overrideResponse redigiert, Text-Blocks + structuredContent).
+    // MCP plugin. The published docs still describe the 3.x API; the installed
+    // 4.0.0-beta.6 behaves differently:
+    //   - the tools map opts out with `false` (built-ins are ON by default),
+    //   - auth uses Payload-native API keys (Header
+    //     `Authorization: users API-Key <value>`; Bearer means JWT),
+    //   - there are no per-key toggles: permissions come from the key owner.
+    // Scope: every built-in on except delete@media; users is read-only, with
+    // hash/salt redacted from text blocks and structuredContent.
     mcpPlugin({
       collections: {
         pages: {
@@ -136,7 +125,7 @@ export default buildConfig({
             update: false,
             find: {
               overrideResponse: (response) => {
-                // Security: Auth-Felder hash/salt verlassen MCP nie.
+                // Security: auth fields hash/salt never leave MCP.
                 const redact = (text: string) =>
                   text.replace(/"(hash|salt)":\s*"(?:[^"\\]|\\.)*"/g, '"$1": "[redacted]"');
                 response.content = response.content.map((c) =>

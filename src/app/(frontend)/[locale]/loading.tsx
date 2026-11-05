@@ -1,7 +1,6 @@
 /**
- * Route-Level-Skeleton (§5 des nextjs-payload-caching-Skills):
- * statisch, kein Payload-Bezug; deckt Seitenwechsel ab, waehrend die
- * dynamische Shell (LayoutShell/connection) laedt.
+ * Route-level skeleton: static with no Payload dependency, so it covers
+ * navigation while the dynamic shell (LayoutShell/connection) loads.
  */
 export default function LocaleLoading() {
   return (

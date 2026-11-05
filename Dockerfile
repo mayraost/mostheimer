@@ -1,20 +1,18 @@
 # syntax=docker/dockerfile:1
 
-# node:26.13.0-alpine3.24 statt bookworm-slim: ~100 MB kleineres Basis-Image (musl).
-# Achtung: sharp (0.35) liefert musl-Prebuilds mit -> npm ci zieht im Container
-# automatisch @img/sharp-linuxmusl-*; Build wurde gegen alpine verifiziert.
+# alpine instead of bookworm-slim: ~100 MB smaller base. sharp ships musl
+# prebuilds, so npm ci pulls @img/sharp-linuxmusl-* automatically.
 FROM node:26.13.0-alpine3.24 AS deps
 WORKDIR /app
-# Layer-Order: Package-Files zuerst -> node_modules-Layer cacht stabil Builds
+# Package files first so the node_modules layer stays cached.
 COPY package.json package-lock.json ./
-# BuildKit-Cache-Mount: npm-Cache bleibt zwischen Builds erhalten -> schneller
+# BuildKit cache mount keeps the npm cache between builds.
 RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 
 FROM node:26.13.0-alpine3.24 AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
-# Build-Kontext ist via .dockerignore verschmaelt (tests/docs/configs/README)
 COPY . .
 RUN npm run build
 
@@ -24,28 +22,23 @@ ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
     HOSTNAME=0.0.0.0
-# adduser/addgroup: alpine-busybox kennt nur Kurz-Flags (kein --system --gid)
+# alpine busybox adduser/addgroup only support the short flags.
 RUN addgroup -S -g 1001 nodejs \
   && adduser -S -u 1001 -G nodejs nextjs
-# Runner nimmt NUR standalone + statische Assets; node_modules liegt
-# komplett in ./.next/standalone/node_modules (Next-trimmed, kein Duplikat)
+# The runner takes only the standalone output; node_modules is already in
+# ./.next/standalone (Next-trimmed, no duplicate).
 COPY --from=build --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=build --chown=nextjs:nodejs /app/.next/static ./.next/static
-# Next served public Assets nur aus <root>/public; Repo haelt sie in src/public
-# (kein Next-Config-Option dafuer) -> hierher legen. Standalone enthaelt
-# src/public NICHT (.next/standalone = server.js + node_modules + package.json),
-# daher bleibt der Build-Stage-Copy die Quelle der Wahrheit.
+# Next serves public assets only from <root>/public and the repo keeps them in
+# src/public (no config option for that), so copy them over here.
 COPY --from=build --chown=nextjs:nodejs /app/src/public ./public
-# Nur media-Dir fuer Volume-Mount vorbereiten (chown nur dieses Verzeichnis,
-# nicht rekursiv über den ganzen Runner)
+# Prepare only the media dir for the volume mount (no recursive chown).
 RUN mkdir -p /app/public/media && chown nextjs:nodejs /app/public/media
-# '/app' selbst gehoert root (COPY --chown faerbt nur die kopierten INHALTE).
-# Next schreibt zur Laufzeit den 'use cache'-Store nach /app/.next/cache —
-# ohne beschreibbares Ziel scheitern alle Cache-Writes still, und die
-# On-Demand-Invalidierung (revalidateTag aus Payload-Hooks) greift
-# inkonsistent: einzelne Routen bleiben dauerhaft auf einem alten Snapshot
-# (gemessen 04.11.2026: /en-Home behielt den Stand von vor einer
-# Content-Aenderung, waehrend /de korrekt aktualisierte).
+# '/app' itself stays owned by root (COPY --chown only recolours the copied
+# contents). Next writes the 'use cache' store to /app/.next/cache at runtime;
+# without a writable target all cache writes fail silently and revalidateTag
+# from Payload hooks only applies inconsistently — single routes stay on an old
+# snapshot (measured: /en home kept stale content while /de updated).
 RUN mkdir -p /app/.next/cache && chown -R nextjs:nodejs /app/.next/cache
 USER nextjs
 EXPOSE 3000

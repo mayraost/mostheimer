@@ -3,47 +3,42 @@ import type { Page } from '@/payload-types';
 import { envConfig } from '@/envConfig';
 
 /**
- * JSON-LD-Bausteine für den AEO/Discovery-Layer (Spec-Basis:
- * llm-wiki research aeo-discovery-layer, verifiziert 03.11.2026 gegen
- * Google-Search-Doku „ProfilePage" + llmstxt.org v2):
+ * JSON-LD building blocks for the AEO/discovery layer:
  *
- * - Homepage: `WebSite` + `Person` als @graph — die Homepage selbst ist
- *   KEIN ProfilePage-Kandidat (Google: „About Me"-Page, nicht Store-Home).
- * - Über-Mich-artige Inhaltsseiten: `ProfilePage` mit Pflicht-`mainEntity`
- *   = `Person` (Google-validierte Pflicht-Eigenschaft).
- * - Weitere Inhaltsseiten: schlanke `WebPage`-Knoten + page-spezifische
- *   Erweiterung (`ItemList` für Verzeichnisse, `ProfilePage` für den CV).
+ * - Homepage: `WebSite` + `Person` as an @graph — the homepage is not a
+ *   ProfilePage candidate (Google wants an "About me" page, not a site home).
+ * - About-me-like pages: `ProfilePage` with the required `mainEntity` =
+ *   `Person`.
+ * - Other content pages: slim `WebPage` nodes, extended per page (`ItemList`
+ *   for listings, `ProfilePage` for the CV).
  *
- * Alle Fakten (`PERSON`) sind belegt: Impressum (§ 5 DDG), eigene
- * öffentliche Profile (GitHub/LinkedIn) und die Case-Study-/Timeline-
- * Inhalte der Site selbst. Keine erfundenen Grade, Titel oder Angaben
- * zur Verfügbarkeit.
+ * Every fact in `PERSON` is backed by the imprint (§ 5 DDG), public profiles
+ * (GitHub/LinkedIn) or the site's own case-study/timeline content — no invented
+ * degrees, titles or availability claims.
  *
- * Typing: minimale lokale Strukturtypen statt Paket `schema-dts` —
- * Zero-Dependency-Anforderung (kein npm-Install in diesem Feature).
+ * Types are minimal local structures instead of the `schema-dts` package to
+ * keep this feature dependency-free.
  */
 
 const BASE_URL = envConfig.serverUrl;
 
 export type JsonLdObject = Record<string, unknown>;
 
-/** `de-DE`/`en-US` — BCP-47-Tags für `inLanguage`-Felder. */
+/** BCP-47 tags for `inLanguage` fields. */
 export function jsonLdLanguageTag(locale: FrontendLocale): 'de-DE' | 'en-US' {
   return locale === 'de' ? 'de-DE' : 'en-US';
 }
 
 /**
- * Identitäts-Anker: Ich-Objekt mit stabiler `@id`. Werte aus dem
- * Impressum (§ 5 DDG — verifiziert in src/app/(frontend)/[locale]/impressum)
- * plus öffentliche Profile und die auf der Site selbst genannten
- * Berufsangaben (Case Studies / Career-Timeline).
+ * Identity anchor: the Person object with a stable `@id`. Values come from the
+ * imprint (§ 5 DDG), public profiles and the professional facts stated on the
+ * site itself (case studies / career timeline).
  *
- * Bewusst NICHT enthalten:
- * - `image`: Google fordert ein echtes, crawlbares Foto (≥ 50k px, kein
- *   Placeholder). Ein fehlendes `image` ist unkritisch; ein
- *   Platzhalter-OG-Card als Person-Foto wäre dagegen eine Spec-Verletzung.
- * - `seeks`/`makesOffer`/„available for work": Die Badge auf der
- *   Startseite ist Marketing-Copy, kein belegter Verfügbarkeitsstatus.
+ * Deliberately omitted:
+ * - `image`: Google requires a real crawlable photo; a missing image is
+ *   harmless, a placeholder OG card posing as the person's photo is not.
+ * - `seeks`/`makesOffer`/"available for work": that badge is marketing copy,
+ *   not a verified availability status.
  */
 const PERSON: JsonLdObject = {
   '@type': 'Person',
@@ -77,7 +72,7 @@ const PERSON: JsonLdObject = {
   },
 };
 
-/** Person als eigenständige Referenz (gleicher `@id` → Graph-Verknüpfung). */
+/** Person as a standalone reference (same `@id` → graph link). */
 function personRef(): JsonLdObject {
   return { '@id': `${BASE_URL}/#person` };
 }
@@ -89,9 +84,8 @@ export interface SiteJsonLdInput {
 }
 
 /**
- * Homepage-Graph: `WebSite` + `Person` im selben `@graph` (Identität
- * über stabile `@id`s verlinkbar — „#person"-Wiring wie im Research
- * empfohlen).
+ * Homepage graph: `WebSite` + `Person` in one `@graph`, wired through stable
+ * `@id` references.
  */
 export function buildSiteJsonLd(input: SiteJsonLdInput): JsonLdObject {
   return {
@@ -113,20 +107,19 @@ export function buildSiteJsonLd(input: SiteJsonLdInput): JsonLdObject {
 
 export interface ProfilePageJsonLdInput {
   locale: FrontendLocale;
-  /** Slug-path ohne Basis-URL, mit Locale-Präfix (z. B. `/en/about`). */
+  /** Slug path without base URL, with locale prefix (e.g. `/en/about`). */
   path: string;
-  /** CMS-Titel der Seite (sichtbarer Name der Entität). */
+  /** CMS page title (visible name of the entity). */
   name?: string;
-  /** Meta-Description der Seite (bereits aus CMS-Inhalt abgeleitet). */
+  /** Meta description of the page (already derived from CMS content). */
   description?: string | null;
   dateModified?: string | null;
 }
 
 /**
- * Über-Mich-/CV-Page: `ProfilePage` — Pflicht-Eigenschaft `mainEntity` =
- * `Person` (Google ProfilePage-Richtlinie, verifiziert 03.11.2026).
- * (Referenz-Einheit des Research: ISO 8601, ohne Datum weiterhin gültig).
- * `dateModified` basiert auf dem CMS-`updatedAt` der Page, wenn vorhanden.
+ * About-me/CV page: `ProfilePage` with the required `mainEntity` = `Person`
+ * (Google's ProfilePage guideline). Dates are ISO 8601; `dateModified` comes
+ * from the page's CMS `updatedAt` when present.
  */
 export function buildProfilePageJsonLd(input: ProfilePageJsonLdInput): JsonLdObject {
   return {
@@ -146,23 +139,23 @@ export function buildProfilePageJsonLd(input: ProfilePageJsonLdInput): JsonLdObj
 
 export interface WebPageJsonLdInput {
   locale: FrontendLocale;
-  /** Slug-path ohne Basis-URL, mit Locale-Präfix (z. B. `/de/contact`). */
+  /** Slug path without base URL, with locale prefix (e.g. `/de/contact`). */
   path: string;
   name?: string | null;
   description?: string | null;
   dateModified?: string | null;
   /**
-   * `/contact`: Kontaktfakten als zweiter Graph-Knoten (Person-Referenz +
-   * ContactPoint) — dieselbe Datenquelle wie `PERSON`, kein Duplikat.
+   * `/contact`: contact facts as a second graph node (Person reference +
+   * ContactPoint), from the same source as `PERSON` — not a duplicate.
    */
   includeContact?: boolean;
 }
 
 /**
- * Schlanker `WebPage`-Knoten für Inhaltsseiten ohne eigene Rich-Result-
- * Typen: `isPartOf` → `#website`, `inLanguage`, `about`/`author` →
- * `#person`. `mainEntity` nur, wenn die Seite eine benennbare Entität
- * trägt (Kontakt → Person) — sonst bewusst weggelassen.
+ * Slim `WebPage` node for content pages without their own rich-result type:
+ * `isPartOf` → `#website`, `inLanguage`, `about`/`author` → `#person`.
+ * `mainEntity` only when the page carries a nameable entity (contact →
+ * Person), otherwise omitted on purpose.
  */
 export function buildWebPageJsonLd(input: WebPageJsonLdInput): JsonLdObject {
   const url = `${BASE_URL}${input.path}`;
@@ -196,16 +189,14 @@ export function buildWebPageJsonLd(input: WebPageJsonLdInput): JsonLdObject {
   };
 }
 
-// -- CV-Daten aus der Career-Page (Timeline-Block) ---------------------------
+// -- CV data from the career page (timeline block) ---------------------------
 
 type PageBlock = NonNullable<Page['layout']>[number];
 
 /**
- * Monats-genaues Datum aus den CMS-`period`-Strings parsen.
- * Erwartet Muster wie `09/2024`, `Seit 09/2024 – Heute`, `2012 – 2014`.
- * Nur `JJJJ` oder `MM/JJJJ` werden akzeptiert; alles andere (z. B.
- * „Heute", „Jetzt", freie Texte) liefert `null` → Feld wird weggelassen
- * (kein erfundenes Enddatum).
+ * Parses a month-precise date token from the CMS `period` strings (e.g.
+ * `09/2024`, `2014`). Anything else ("Heute", "Jetzt", free text) returns
+ * `null` so the field is omitted rather than invented.
  */
 function parsePeriodToken(token: string): string | null {
   const yearOnly = /^(\d{4})$/.exec(token);
@@ -225,17 +216,17 @@ export interface ParsedPeriod {
 }
 
 /**
- * `period`-String in ein `startDate`/`endDate`-Paar übersetzen — nur wenn
- * beide Enden maschinell lesbar sind. Offene Zeiträume („Heute") und
- * unklare Angaben liefern nur `startDate`; nicht parsebare Strings `null`.
+ * Turns a `period` string into a `startDate`/`endDate` pair. Open-ended
+ * ranges ("Heute") and unclear values yield only `startDate`; unparseable
+ * strings yield `null`.
  */
 export function parsePeriod(period: string | null | undefined): ParsedPeriod | null {
   if (!period) return null;
   const normalized = period
     .replace(/^[ \t]*Seit[ \t]+/i, '')
     .replace(/^[ \t]*Since[ \t]+/i, '')
-    // Jahres-/Jahresbereich mit Suffix („2012 – 2014") bleibt unverändert;
-    // reine Jahresangaben mit Sprachwort („2014 erworben") sind keine Zeiträume.
+    // Year ranges split on the dash; a lone year followed by prose is not a
+    // range and yields only a startDate.
     .trim();
   const parts = normalized.split(/\s*[–—-]\s*/).filter(Boolean);
   if (parts.length === 0) return null;
@@ -259,10 +250,10 @@ export interface CareerJsonLdInput {
 }
 
 /**
- * Career-Page: `ProfilePage` + `Person.hasOccupation`-Liste, gebaut aus den
- * echten Timeline-Einträgen des CMS (Rolle = `role`, Firma = `company`,
- * Zeitraum nur wenn maschinell lesbar). Keine `hasCredential`/`alumniOf`-
- * Angaben — das CMS liefert keine Grade, und „Studium" ist kein Abschluss.
+ * Career page: `ProfilePage` plus a `Person.hasOccupation` list built from the
+ * real timeline entries (role, company, period only when machine-readable).
+ * No `hasCredential`/`alumniOf` — the CMS holds no degrees, and "studied" is
+ * not a completed degree.
  */
 export function buildCareerJsonLd(input: CareerJsonLdInput): JsonLdObject {
   const occupations: JsonLdObject[] = [];
@@ -315,9 +306,9 @@ export interface CaseStudiesJsonLdInput {
 }
 
 /**
- * Case-Studies-Page: `WebPage` + `ItemList` aus den `caseStudy`-Blöcken
- * (Name = `client`, Beschreibung = `context`, Kanonische URL = `link`).
- * `headline` = Rollen-Angabe des Blocks, nur wenn gesetzt.
+ * Case-studies page: `WebPage` + `ItemList` from the `caseStudy` blocks
+ * (name = `client`, description = `context`, URL = `link`). `headline` only
+ * when the block sets a role.
  */
 export function buildCaseStudiesJsonLd(input: CaseStudiesJsonLdInput): JsonLdObject {
   const url = `${BASE_URL}${input.path}`;
@@ -371,10 +362,9 @@ export function buildCaseStudiesJsonLd(input: CaseStudiesJsonLdInput): JsonLdObj
 }
 
 /**
- * Offizielles Injektions-Pattern (Next-Doku json-ld.md): natives
- * `<script type="application/ld+json">` in einer Server Component —
- * NICHT `next/script` (optimiert auf Code-Ausführung, nicht Daten).
- * `<`-Scrubbing mit `\u003c` (XSS-Gegenmechanismus aus der Doku).
+ * Official injection pattern: a native `<script type="application/ld+json">`
+ * in a Server Component, NOT `next/script` (which optimises for code
+ * execution, not data). `<` is escaped to `\u003c` to prevent XSS.
  */
 export function JsonLdScript({ data }: { data: JsonLdObject }) {
   return (

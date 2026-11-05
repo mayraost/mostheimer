@@ -1,13 +1,12 @@
 'use server';
 
 /**
- * Manueller Cache-Flush "ohne Publish" — Server Action (verbindliche
- * Praeferenz vor API-Routen: kein externer Trigger noetig, Admin-Session
- * reicht). Wird aus der Custom-Admin-View /admin/cache-clear getriggert.
+ * Manual cache flush without a publish. A Server Action rather than an API route
+ * because no external trigger is needed — the admin session suffices. Triggered
+ * from the custom admin view /admin/cache-clear.
  *
- * Wichtig: Server Actions laufen ausschliesslich im Request-Kontext —
- * hier gilt kein Prerender-Gotcha fuer payload.auth (vgl. Skill:
- * auth erst nach connection() gilt nur in prerenderbaren Routen).
+ * Server Actions always run in a request context, so the "call connection()
+ * before payload.auth" prerender rule does not apply here.
  */
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
@@ -19,9 +18,8 @@ import { collectRevalidationResults } from './revalidate';
 type ClearCachesResult = { ok: true; tags: string[] } | { ok: false; error: string };
 
 /**
- * Auth-Gate: payload.auth gegen den payload-token-Cookie der Admin-Session.
- * Users-Collection hat keine Rollen — jeder authentifizierte User gilt als
- * berechtigt; Anonymous scheitert.
+ * Auth gate via the admin session's payload-token cookie. The users collection
+ * has no roles, so any authenticated user may flush; anonymous is rejected.
  */
 async function requireAdminUser() {
   const payload = await getPayload({ config: configPromise });
@@ -47,10 +45,10 @@ export async function clearAllFrontendCaches(): Promise<ClearCachesResult> {
     return { ok: false, error: 'Nicht authentifiziert — Anmelde-Session noetig.' };
   }
 
-  // Breiter Flush: alle Scalar-Tags dieser App + RSC/HTML-Shell per
-  // revalidatePath (Notanker fuer Sonderfaelle wie die Home-Route).
-  // Blocking-Invalidierung ({ expire: 0 }, siehe revalidate.ts) — der
-  // naechste Request muss garantiert frische CMS-Daten sehen.
+  // Broad flush of every scalar tag, plus the RSC/HTML shell via revalidatePath
+  // as a safety net for special cases like the home route. Blocking
+  // invalidation ({ expire: 0 }, see revalidate.ts): the next request must see
+  // fresh CMS data for certain.
   const tags = [
     { tag: CACHE_TAGS.ALL, label: `manual flush by user ${user.email}` },
     { tag: CACHE_TAGS.pages, label: 'manual flush: pages' },

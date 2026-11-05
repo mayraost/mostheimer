@@ -4,17 +4,16 @@ import { getPayload } from 'payload';
 import type { User } from '@/payload-types';
 
 /**
- * Gemeinsamer Seed-Route-Guard (seed-home, seed-globals):
+ * Shared guard for the seed routes (seed-home, seed-globals):
  *
- * 1. Prod-Gate: In Produktion sind Seed-Routen per Default GESPERRT — eine
- *    Seed-Route an der Single-Site-Produktion ist per se ein Fallback-Werkzeug,
- *    kein Betriebselement. Freischaltung bewusst via `ALLOW_SEED=true`-Env
- *    (opt-in, dokumentiert in .env.example).
- * 2. Auth-Gate: Nur mit gueltiger Payload-Admin-Session; unauthentifiziert
- *    waere die Route sonst Seed-Spam-Oberflaeche.
+ * 1. Prod gate: seed routes are disabled in production by default — they are
+ *    a fallback tool, not an operating feature. Explicit opt-in via
+ *    `ALLOW_SEED=true` (documented in .env.example).
+ * 2. Auth gate: a valid Payload admin session is required; otherwise the route
+ *    is an unauthenticated seed-spam surface.
  *
- * Der Prod-Gate-Block laeuft VOR getPayload() (kein Adapter-Connect/Migrate),
- * bevor irgendein Write-Call ausgefuehrt werden kann.
+ * The prod gate blocks BEFORE getPayload(), so no adapter connect/migrate and
+ * no write can happen for a rejected request.
  */
 export type SeedAccessResult =
   { payload: Awaited<ReturnType<typeof getPayload>>; user: User } | { response: Response };
@@ -22,8 +21,7 @@ export type SeedAccessResult =
 export async function assertSeedAccess(req: Request): Promise<SeedAccessResult> {
   const forHeaders = req.headers;
 
-  // Prod-Gate: BEFORE irgendein Payload-Init/Delete/Write. 403 plain-text,
-  // kein body mit Debug-Details (kein Info-Leak).
+  // Before any Payload init/delete/write. Plain-text 403 without a debug body.
   if (process.env.NODE_ENV === 'production' && process.env.ALLOW_SEED !== 'true') {
     return {
       response: new Response('Forbidden', {

@@ -4,19 +4,17 @@ import type { FrontendLocale } from '@/cms/cache/frontend/frontendCache';
 import type { NotFound } from '@/payload-types';
 
 /**
- * 404-Boundary auf Route-Group-Level, ÜBER dem [locale]-Layout.
+ * 404 boundary at route-group level, ABOVE the [locale] layout.
  *
- * Wirft das NotFoundGate im [locale]-Layout ([locale]/layout.tsx) einen
- * unbekannten Slug via notFound(), faengt diese Boundary das Error und
- * rendert im Error-Document-Shell von Next (__next_error__) — das
- * [locale]-Layout ist zu dem Zeitpunkt bereits verworfen. In dem Shell
- * gibt es kein <link rel="stylesheet">, daher arbeitet diese Komponente
- * bewusst mit Inline-Styles (kein Tailwind) und liefert die konfigurierten
- * NotFound-Texte aus dem CMS (Fallback bei Datenfehler).
+ * When the NotFoundGate in [locale]/layout.tsx calls notFound() for an unknown
+ * slug, this boundary catches it and renders inside Next's error document shell
+ * (__next_error__) — by then the [locale] layout has already been discarded.
+ * That shell has no <link rel="stylesheet">, so this component deliberately uses
+ * inline styles (not Tailwind) and falls back to the configured CMS texts when
+ * the data cannot be read.
  *
- * Ergänzt die [locale]/not-found.tsx — diese bleibt fuer in-tree
- * notFound() der Page-Komponenten zustaendig (rendert innerhalb des
- * vollstaendigen App-Layouts mit Styles).
+ * Complements [locale]/not-found.tsx, which still handles in-tree notFound()
+ * from page components inside the full styled app layout.
  */
 
 const FALLBACK_DE: Pick<NotFound, 'title' | 'message' | 'buttonLabel' | 'buttonLink'> = {
@@ -57,7 +55,7 @@ export default async function GroupNotFound() {
       };
     }
   } catch {
-    // Error-/Build-Kontext ohne DB-Cache: Fallback-Texte reichen.
+    // Build/error context without a DB-backed cache: the fallback texts suffice.
   }
 
   return (

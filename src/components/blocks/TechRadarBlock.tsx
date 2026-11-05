@@ -8,7 +8,7 @@ type Quadrant = NonNullable<TechRadarBlockData['quadrants']>[number];
 type RadarItem = NonNullable<Quadrant['items']>[number];
 
 /**
- * Tier-Vokabular (Spec):
+ * Tier vocabulary:
  * - core   = emerald FILLED pill
  * - proven = emerald OUTLINE pill
  * - focus  = cyan OUTLINE pill

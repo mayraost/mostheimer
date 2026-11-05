@@ -10,9 +10,9 @@ type TestimonialBlockData = Extract<
 type TestimonialItem = NonNullable<TestimonialBlockData['items']>[number];
 
 /**
- * Testimonial: Zitatkarten mit überdimensionalem Anführungszeichen,
- * Emerald-Left-Accent-Bar und Mono-Attribution. Bewusst andere Kanten-Sprache
- * als CaseStudy (Bars + große Typo statt Meta-Spalte).
+ * Testimonial: quote cards with an oversized quotation mark, emerald left accent
+ * bar and mono attribution. Deliberately a different edge language than the case
+ * study block (bars and large type instead of a meta column).
  */
 export function TestimonialBlock({ block }: { block: TestimonialBlockData }) {
   const items = block.items ?? [];

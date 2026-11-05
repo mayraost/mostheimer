@@ -16,11 +16,10 @@ export const metadata: Metadata = {
   },
 };
 
-// depth MUSS konsistent bleiben (Skill: depth-Divergenz verliert
-// Relationships) — hier rein serverseitig gerendert, kein Client-State.
-// Locales sind build-statisch (kein DB-Lookup noetig) — ohne diese
-// generateStaticParams bricht der Build-Prerender-Versuch ab (Root-Param).
-// Prerender selbst abortiert an connection() → nur statische Shell.
+// depth must stay consistent with the public reads (mixing depths loses
+// relationships). Renders server-side only, no client state.
+// Requires a root param at build time; locales are build-static. The prerender
+// itself aborts at connection(), so only the static shell is produced.
 export function generateStaticParams() {
   return ['en', 'de'].map((locale) => ({ locale }));
 }
@@ -28,9 +27,9 @@ export function generateStaticParams() {
 const PREVIEW_DEPTH = 2;
 
 /**
- * Tatsaechliche ServerURL aus Request-Headers (Skill: Origin-Gotcha hinter
- * Proxies/Tunnel — postMessage-Origin muss dem Admin-Panel-Origin
- * entsprechen, nicht envConfig.serverUrl).
+ * Real server URL from request headers. Behind a proxy or tunnel the
+ * postMessage origin must match the admin panel's actual origin, not
+ * envConfig.serverUrl.
  */
 async function getRequestServerURL(): Promise<string> {
   const headersList = await headers();
@@ -58,8 +57,8 @@ type PreviewPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-// Skill-Profil „Build ohne DB": Blocking-Render bewusst erlaubt (siehe
-// [[...slug]]/page.tsx-Kommentar).
+// Allows the blocking render that connection() requires without a route-level
+// Suspense boundary.
 export const instant = false;
 
 export default async function PreviewPage({ params, searchParams }: PreviewPageProps) {
@@ -70,9 +69,8 @@ export default async function PreviewPage({ params, searchParams }: PreviewPageP
   const slugParam = getKey(resolvedSearch.slug);
   const slug = slugParam ? normalizeSlug(slugParam) : 'home';
 
-  // connection() zwingend VOR payload.auth (Date.now-Prerender-Gotcha,
-  // Skill §4); die Route wird dadurch nie prerenderd. instant=false erlaubt
-  // den Blocking-Render (kein Route-eigenes Suspense-Boundary noetig).
+  // connection() must run BEFORE payload.auth, which reads Date.now() and
+  // would otherwise be prerendered once and reused.
   await connection();
 
   const payload = await getPayload({ config: configPromise });

@@ -1,23 +1,20 @@
 /**
- * OG-Karten-Bausteine für `next/og` ImageResponse (AEO-Layer, P2 des
- * Research aeo-discovery-layer).
+ * Building blocks for the `next/og` ImageResponse OG card.
  *
- * Satori-Constraints (verifiziert gegen image-response.md):
- * - Jeder Container braucht `display: 'flex'` + explizite px-Größen/
- *   Prozentwerte — kein Tailwind im ImageResponse-Render.
- * - Default-Font: @vercel/og bündelt Geist-Regular als Default-Font
- *   (Geist-Regular.ttf in node_modules/next/dist/compiled/@vercel/og/) —
- *   Text rendert ohne `fonts`-Option; kein Font-Asset nötig, kein
- *   Repo-Binary nötig.
- * - Root-Größe kommt aus der ImageResponse-`size`-Option;.inneres
- *   Layout percent-basiert:
+ * Satori constraints:
+ * - Every container needs `display: 'flex'` plus explicit px or percentage
+ *   sizes; Tailwind does not apply inside an ImageResponse render.
+ * - Text renders without a `fonts` option because @vercel/og bundles
+ *   Geist-Regular as its default font — no font asset or repo binary needed.
+ * - The root size comes from the ImageResponse `size` option; inner layout is
+ *   percentage-based.
  */
 
 export const OG_SIZE = { width: 1200, height: 630 } as const;
 
 export type OgLocale = 'en' | 'de';
 
-/** Brand-Farben aus globals.css Design Tokens (Light-Theme). */
+/** Brand colours from the globals.css design tokens (light theme). */
 export const OG_BRAND = {
   background: '#FFFFFF',
   backgroundTint: '#FCE4EC',
@@ -26,18 +23,17 @@ export const OG_BRAND = {
   muted: '#6B6B6B',
 } as const;
 
-/** Der Single-Path aus src/components/Logo.tsx (fill=currentColor → Farbe hier). */
+/** Same path as src/components/Logo.tsx (fill=currentColor there; colour set here). */
 const LOGO_PATH =
   'M73 142c0 38 0 40-2 41-5 2-4 14 0 16 2 0 2 5 2 39v38h29v-5l1-30c0-24 0-25 2-27q5-6 0-12c-9-8-20 3-13 12 2 3 2 4 2 28v25H81v-67l3-3a699 699 0 0 1-2-78v-8h35l29 35c35 40 33 38 35 35l28-36 26-34h35v9l1 9 7 2q32 10 43 41 3 9 1 10-7 9-1 15 3 2 1 6c-7 28-33 48-63 47h-10v17h-13v-20l-5-2q-14-6-22-16l-5-5-3 2-2 4c0 3 14 16 23 21 5 2 5 1 5 11l1 11v3h50v-19l5-1c24-10 43-29 47-50q1-5 4-9 6-7 0-13l-4-9c-5-23-23-43-44-50l-7-3-1-10v-10h-46l-16 21-36 46q-1 3-9-8l-48-56-3-3H73zm174-23-4 5q0 3-11 9-14 9-13 16l-11 15-31 35c-13-15-32-39-32-42q0-7-8-8-2 1-13-13l-11-13H94v70h3c5 1 5 1 6-32v-30h2q3 0 10 8c13 14 13 15 13 19q1 6 7 8h3l16 18c26 31 24 29 26 27l19-22c25-30 24-30 27-28q1 3 6-1c28-23 70-6 70 30 0 42-60 56-83 18-1-2-6 3-6 6 0 4 12 15 23 20 51 23 99-37 61-77-14-16-44-21-60-10q-8 6-10 2c-5-3 0-10 7-10q4 1 7-2l9-3q6 1 8-2c6-8-3-19-11-13m4 36-2 1v69h2c6 2 6 5 6-35s0-37-6-35m19 35c0 37 0 37 6 32 2-1 2-1 2-32v-32l-3-1c-5-2-5-4-5 33m-155 0c0 30 0 31-2 34l-2 5 2 6c2 1 2 3 2 17v15h-2q-4-1-3 5v4h14v-20c0-18 0-19 2-21q5-6 0-12c-2-3-2-4-2-23l1-20 14 17c31 37 30 36 30 40q1 9 10 9 8 0 9-10c-1-3 0-4 7-12l20-23 12-14v12l1 13 3 3c5 5 5 5 5-24l-1-27-27 32c-28 33-30 34-34 29l-53-63c-6-7-6-7-6 28m-36-2c3 3-1 8-4 6v-6zm252 1q-1 5-5 4-2-2 0-5t5 1m-150 45q3 3-1 5-3 2-4-1c-2-3 2-7 5-4m-26 28c-5 15-5 15-2 15s3-1 7-12c5-15 5-16 2-16-2 0-3 1-7 13m12-8q-3 2 3 6 6 3-1 6-5 7-1 7c5-2 12-8 12-10-1-3-12-11-13-9m-27 4-5 5c0 2 11 11 13 9q3-2-2-6-7-3 0-6l3-4q-1-4-9 2m130 5v4h-13v-3q-1-5 4-4c9-1 9-1 9 3';
 
 const OG_TITLE_MAX_LENGTH = 200;
 
 /**
- * URL-Builder für die /og-Route (src/app/og/route.tsx): generateMetadata
- * verweist hierher statt auf eine Dateikonvention — opengraph-image-Files
- * sind im [[...slug]]-Catch-All nicht möglich (siehe Route-Kommentar).
- * Relative URL bewusst — `metadataBase` aus dem Layout löst relative
- * OG-URLs zu absoluten auf.
+ * URL builder for the /og route: generateMetadata points here instead of using a
+ * file convention, which the [[...slug]] catch-all does not allow (see the route
+ * comment). The URL stays relative on purpose — `metadataBase` from the layout
+ * resolves it to an absolute one.
  */
 export function ogImageUrl(title: string, locale: OgLocale): string {
   const params = new URLSearchParams({
@@ -48,21 +44,21 @@ export function ogImageUrl(title: string, locale: OgLocale): string {
   return `/og?${params.toString()}`;
 }
 
-/** Control-Zeichen strippen und Länge cappen (Textslot-Hygiene). */
+/** Strip control characters and cap the length (text-slot hygiene). */
 export function sanitizeOgTitle(input: string): string {
   return input.replace(/[\u0000-\u001f]/g, ' ').slice(0, OG_TITLE_MAX_LENGTH);
 }
 
 export interface OgCardProps {
-  /** großer Titel (per-Page CMS-Titel oder Site-Name) */
+  /** Large title (per-page CMS title or site name). */
   title: string;
-  /** Subtitle (Site-Name bzw. Kurz-Byline) */
+  /** Subtitle (site name or short byline). */
   subtitle?: string;
 }
 
 /**
- * Satori-Karte: Brand-Zeile (Logo + Site-Name) oben, Titel unten links;
- * Rose-Tint-Gradient als Flächenakzent (Token-Muster primary-muted).
+ * The card itself: brand row (logo + site name) on top, title bottom-left, with
+ * a rose-tint gradient as the surface accent.
  */
 export function OgCard({ title, subtitle }: OgCardProps) {
   return (

@@ -4,15 +4,14 @@ import { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 
 /**
- * Copy-to-Clipboard-Button (Spec §2.3).
+ * Copy-to-clipboard button.
  *
- * - `navigator.clipboard` wenn verfuegbar (secure context), sonst
- *   `document.execCommand('copy')`-Fallback mit temporaerem textarea.
- * - In insecure contexts, wo BEIDE Wege scheitern, bleibt der Button ein
- *   stiller No-op (kein Fehler-Throw, kein falsches "Kopiert").
- * - Rueckmeldung ueber eine separate `aria-live="polite"`-Region, damit
- *   Screenreader die Bestaetigung hoeren (label-content-name bleibt
- *   konsistent: der Button selbst behaelt seinen Namen).
+ * - Uses `navigator.clipboard` when available (secure context), otherwise the
+ *   `document.execCommand('copy')` fallback with a temporary textarea.
+ * - Where both fail (insecure context) the button is a silent no-op: no throw
+ *   and no false "copied" state.
+ * - Confirmation is announced through a separate `aria-live="polite"` region so
+ *   the button keeps its own accessible name (label-content-name stays valid).
  */
 export function CopyButton({
   value,
@@ -61,7 +60,7 @@ export function CopyButton({
     }
 
     if (!ok) {
-      // Graceful no-op: keine falsche Bestaetigung, kein Crash.
+      // Graceful no-op: no false confirmation, no crash.
       setFailed(true);
       return;
     }

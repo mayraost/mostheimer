@@ -8,10 +8,9 @@ import { normalizeSlug } from './utils';
 export type FrontendLocale = 'en' | 'de';
 
 /**
- * Safety-Net-TTL: stale 1 h, Neubefuellung nach max. 7 Tagen.
- * Die eigentliche Frische steuern die Payload-Hooks via revalidateTag;
- * cacheLife ist nur der Fallback dafuer, dass auf Produktion nichts
- * unaufgeloest steckenbleibt.
+ * Safety-net TTL: stale after 1 h, refetch after at most 7 days. Freshness is
+ * driven by the Payload hooks via revalidateTag; cacheLife is only the fallback
+ * that keeps prod from staying stale forever.
  */
 const CACHE_LIFE_FRONTEND = { stale: 3600, revalidate: 604800 } as const;
 
@@ -38,7 +37,7 @@ async function fetchPageBySlug(slug: string, locale: FrontendLocale): Promise<Pa
   return result.docs?.[0] ?? null;
 }
 
-/** Interne 'use cache'-Variante — oeffentliches Modul nutzt getCachedPageBySlug. */
+/** Internal 'use cache' variant — callers go through getCachedPageBySlug. */
 export async function getCachedPageBySlugStatic(
   slug: string,
   locale: FrontendLocale,
@@ -50,10 +49,10 @@ export async function getCachedPageBySlugStatic(
   return fetchPageBySlug(normalized, locale);
 }
 
-/** Oeffentlicher Page-Read (immer statisch, keine draftMode-Divergenz). */
+/** Public page read: always cached, never diverges on draftMode. */
 export function getCachedPageBySlug(slug: string, locale: FrontendLocale) {
-  // Build-ohne-DB-Guard (Skill §4): kein DB-Fetch und kein Cache-Write
-  // waehrend der Produktion-Build-Phase (Coolify-Docker: keine DB erreichbar).
+  // DB-less build guard: no fetch and no cache write during the production
+  // build phase (the Coolify build container cannot reach the DB).
   if (process.env.NEXT_PHASE === 'phase-production-build') {
     return Promise.resolve(null);
   }
@@ -80,7 +79,7 @@ export async function getCachedAllPagesStatic(): Promise<Page[]> {
 }
 
 export function getCachedAllPages() {
-  // Build-ohne-DB-Guard (Skill §4) — siehe getCachedPageBySlug.
+  // DB-less build guard — see getCachedPageBySlug.
   if (process.env.NEXT_PHASE === 'phase-production-build') {
     return Promise.resolve([]);
   }
@@ -106,8 +105,8 @@ export async function getCachedSiteSettingsStatic(locale: FrontendLocale): Promi
 }
 
 export function getCachedSiteSettings(locale: FrontendLocale) {
-  // Wird nur nach Layout-connection() im Request-Kontext gerendert →
-  // kein Build-Guard noetig.
+  // Only rendered in a request context after the layout's connection(), so no
+  // build guard is needed.
   return getCachedSiteSettingsStatic(locale);
 }
 

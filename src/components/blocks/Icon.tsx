@@ -1,21 +1,18 @@
 import React from 'react';
 
 /**
- * Icons als statisches Inline-SVG (Server Component, kein Client-JS).
+ * Icons as static inline SVG (server component, no client JS).
  *
- * Warum nicht `import { icons } from 'lucide-react'`: diese Map zieht ALLE
- * ~1600 Lucide-Icons in den Bundle und war der größte Einzelposten im
- * JS-Payload der Home (Perf-Fix 04.11.2026). Stattdessen ein bewusst
- * kleiner, expliziter Pfad-Katalog: der CMS-Select-Wert (PascalCase,
- * tolerant gegen kebab/lower-case) wird nachgeschlagen und als `<svg>`
- * gerendert. Unbekannte oder leere Werte rendern NICHTS — kein
- * irreführender Fragezeichen-Fallback (Findings v2 #9, 6 Säulen / 5 Icons).
+ * Do NOT switch to `import { icons } from 'lucide-react'`: that map pulls all
+ * ~1600 Lucide icons into the bundle. Instead a small explicit path catalogue
+ * is looked up by CMS select value and rendered as `<svg>`. Unknown or empty
+ * values render NOTHING — no misleading question-mark fallback.
  */
 
 /**
- * Statischer Import-Katalog der im CMS waehlbaren Icons. Bewusst klein und
- * explizit: ein Select-Wert ausserhalb dieser Liste rendert keinen Icon
- * (statt die ganze Library zu importieren).
+ * Static catalogue of the icons selectable in the CMS. Deliberately small and
+ * explicit: a value outside this list renders no icon rather than importing the
+ * whole library.
  */
 export const ICON_CATALOG = {
   Globe:
@@ -54,7 +51,7 @@ function resolve(name?: string | null): string | null {
   if (!name) return null;
   const direct = ICON_CATALOG[name as IconName];
   if (direct) return direct;
-  // CMS-Select-Werte sind Lucide-PascalCase; toleriere kebab/lower-case.
+  // CMS select values are Lucide PascalCase; tolerate kebab/lower-case too.
   const pascal = name
     .split(/[-_\s]+/)
     .filter(Boolean)
@@ -85,7 +82,7 @@ export function Icon({ name, className }: { name?: string | null; className?: st
   );
 }
 
-/** Fuer den CMS-Select: verfuegbare Icon-Werte (kein Client-Bundle-Ballast). */
+/** Icon values offered in the CMS select (no client bundle weight). */
 export const ICON_NAMES: IconName[] = Object.keys(ICON_CATALOG) as IconName[];
 
 export function isKnownIcon(name?: string | null): boolean {

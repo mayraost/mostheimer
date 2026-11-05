@@ -5,10 +5,9 @@ import { assertSeedAccess } from '../_seedGuard';
 export const maxDuration = 60;
 
 // ---------------------------------------------------------------------------
-// Helper: Upsert-artiges Localized Seeding (EN create/update + DE update in
-// einem sauberen Flow). PAGES WERDEN NICHT MEHR GELÖSCHT: bestehende Dokumente
-// werden via find → update aktualisiert, nur fehlende Slugs werden erstellt
-// (Defense-in-Depth gegen irreversiblen Content-Verlust).
+// Upsert-style localized seeding: EN create/update plus DE update. Existing
+// documents are NEVER deleted — they are found and updated, and only missing
+// slugs are created (guards against irreversible content loss).
 // ---------------------------------------------------------------------------
 async function seedLocalizedPage(
   payload: Payload,
@@ -27,8 +26,7 @@ async function seedLocalizedPage(
   let pageId: string | number;
   if (existing.totalDocs > 0) {
     pageId = existing.docs[0].id;
-    // Existierendes Dokument wird aktualisiert (nicht geloescht): EN hier,
-    // DE unten — identisches Seed-Ergebnis wie vormals delete+create.
+    // Update rather than delete: EN here, DE below.
     await payload.update({
       collection: 'pages',
       id: pageId,
@@ -53,9 +51,9 @@ async function seedLocalizedPage(
         title: enData.title,
         slug: slug,
         layout: enData.layout,
-        // Drafts-enabled Collection: Local-API-Create defaultet _status 'draft'
-        // Seed-Seiten wären sonst für die published-only Public-Reads unsichtbar
-        // (404). Bewusst published seeden.
+        // Drafts-enabled collection: Local API create defaults to _status
+        // 'draft', which would make seeded pages invisible to the
+        // published-only public reads (404). Seed as published on purpose.
         _status: 'published',
       },
     });
@@ -88,7 +86,7 @@ export async function POST(req: Request) {
 
   try {
     // -----------------------------------------------------------------------
-    // PARALLEL EXECUTION: Volle Ladung für alle 10 Seiten
+    // Seed all pages in parallel
     // -----------------------------------------------------------------------
     await Promise.all([
       // --- 1. HOME ---
@@ -1510,8 +1508,8 @@ export async function POST(req: Request) {
       message: 'All localized pages seeded successfully with deep architectural content!',
     });
   } catch (err: unknown) {
-    // Details/Stack nur serverseitig loggen — Response-Body bleibt generisch
-    // (kein Leak interner Fehler-Details wie DB-Fehlertexte).
+    // Log details server-side only; the response body stays generic so internal
+    // error details (e.g. DB errors) never leak.
     console.error('seed-home failed:', err);
     return Response.json({ error: 'An internal error occurred' }, { status: 500 });
   }
