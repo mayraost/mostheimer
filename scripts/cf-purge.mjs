@@ -1,32 +1,53 @@
 /**
  * Cloudflare edge-cache purge after a deploy.
  *
- * Why: two different Next.js builds emit IDENTICAL static chunk filenames
- * (`/_next/static/chunks/0fkvblgiahdcs.js`) which are served
- * `public, max-age=31536000, immutable` and cached at the edge. A deploy changes
- * what those URLs return, so without a flush the edge keeps serving the previous
- * release's JS next to the new HTML ("works in CI, broken for visitors").
- * CMS edits purge their own routes through the hooks; a new release changes
- * every route, so it purges everything exactly once.
+ * WHAT IS PURGED (and what never is)
  *
- * Invocation: `scripts/entrypoint.sh` starts `node server.js` and then runs this
- * script in the background. Plain Node on purpose — the standalone runner image
- * has Node, no curl.
+ * A deploy changes every rendered route, so all public content URLs are purged
+ * once per release: the locale roots, one URL per page slug and locale, and
+ * `/sitemap.xml` — derived from the live `/sitemap.xml` so the list cannot drift
+ * from the CMS.
  *
- * Idempotency per release:
- *   - The Dockerfile bakes the build info into `/app/.cf-release` (build time =
- *     per image). A restart of the same image therefore sees the same release
- *     id and skips → no purge storm from crash loops or Coolify restarts.
- *   - A successful purge writes `/tmp/.cf-purge-<release>.done`; a restart of
- *     the same release skips immediately even if the release id was passed in
- *     via the environment.
+ * `/_next/static/**` is NEVER purged. Those objects are immutable
+ * (`public, max-age=31536000`) and content-addressed by build; a CMS edit or a
+ * deploy cannot change what an existing chunk URL returns. Purging them would
+ * waste the Free-plan purge budget (5 requests/min) and, worse, would throw
+ * away the warm CSS/JS the edge needs to keep serving a *styled* page while the
+ * single origin container restarts. An unstyled page during an outage is the
+ * exact failure this script must not cause.
+ *
+ * Escape hatch: if a deploy ever ships different bytes under an unchanged chunk
+ * filename (the documented `immutable` hazard), the only remedy is a full flush
+ * — run `cf-purge.mjs --everything` by hand during the incident. It is
+ * deliberately not the default and not reachable from the entrypoint.
+ *
+ * WHY NOT `purge_everything` BY DEFAULT
+ *
+ * It also drops every static asset (see above). Measured alternative — purge by
+ * cache tag — is not usable here: a Cache Response Rule can set `Cache-Tag`,
+ * but purging by that tag leaves the object `HIT` with a growing `Age`, i.e. it
+ * is a silent no-op. So the default is an explicit URL list.
+ *
+ * IDEMPOTENCY PER RELEASE
+ *
+ *   - The Dockerfile bakes the build id into `/app/.cf-release` at build time,
+ *     so it is identical for every container started from the same image. It is
+ *     the PRIMARY release identity.
+ *   - `RELEASE_ID` / `--release` is an explicit operator override only.
+ *   - `SOURCE_COMMIT` / `COOLIFY_COMMIT` are a LOCAL-RUN fallback only. They
+ *     must never outrank the baked id: Coolify sets `SOURCE_COMMIT` on a
+ *     *restart* to the restart's synthetic commit, which made every plain
+ *     restart re-purge everything. On the Free plan (5 purges/min) a crash loop
+ *     would exhaust the bucket and CMS edits would stop purging.
+ *   - A successful purge writes `/tmp/.cf-purge-<hash>.done`, so even a
+ *     restart that somehow resolves a different id still skips.
  *   - `--wait-for-release` waits for the new build to answer `/api/health`, so
- *     the purge never runs before the new origin is actually serving (otherwise
- *     the edge would re-cache the old origin).
+ *     the purge never runs before the new origin serves (otherwise the edge
+ *     would immediately re-cache the old origin).
  *
- * Fail-soft: missing credentials, the kill switch, network errors, non-2xx —
- * each logs one concise warning and exits 0. The app never fails to start
- * because of a purge. The token is never logged.
+ * Fail-soft: missing credentials, kill switch, no release, network errors,
+ * non-2xx — each logs one concise warning and exits 0. The app never fails to
+ * start because of a purge. The token is never logged.
  *
  * Token permission: Zone → Cache Purge → Purge, scoped to the mosthi.de zone.
  */
@@ -43,14 +64,17 @@ const REQUEST_TIMEOUT_MS = 10_000;
 const WAIT_TIMEOUT_MS = 180_000;
 const WAIT_INTERVAL_MS = 2_000;
 const RELEASE_FILE = process.env.CF_RELEASE_FILE || '/app/.cf-release';
+/** The site's own host; the sitemap needs no auth and lists every live route. */
+const SITE_ORIGIN = process.env.CF_SITE_ORIGIN || 'https://mosthi.de';
 
 /** Parse `--flag [value]` pairs; unknown flags are ignored on purpose. */
 function parseArgs(argv) {
-  const args = { waitForRelease: false, release: '', dryRun: false };
+  const args = { waitForRelease: false, release: '', dryRun: false, everything: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--wait-for-release') args.waitForRelease = true;
     else if (arg === '--dry-run') args.dryRun = true;
+    else if (arg === '--everything') args.everything = true;
     else if (arg === '--release') args.release = argv[index + 1] ?? '';
   }
   return args;
@@ -59,18 +83,24 @@ function parseArgs(argv) {
 const log = (message) => console.log(`[cf-purge] ${message}`);
 const warn = (message) => console.warn(`[cf-purge] ${message}`);
 
-/** Release identity: explicit flag, env (Coolify SOURCE_COMMIT), or image info. */
+/**
+ * Release identity. Order is the whole point (see header): explicit override,
+ * then the image-baked id, and only then the environment.
+ */
 function resolveRelease(args) {
   if (args.release) return args.release;
-  for (const key of ['RELEASE_ID', 'SOURCE_COMMIT', 'COOLIFY_COMMIT']) {
-    const value = process.env[key];
-    if (value) return value;
-  }
+  if (process.env.RELEASE_ID) return process.env.RELEASE_ID;
   try {
     const baked = readFileSync(RELEASE_FILE, 'utf8').trim();
-    if (baked) return `${baked}${process.env.IMAGE_TAG ? `-${process.env.IMAGE_TAG}` : ''}`;
+    if (baked) return baked;
   } catch {
-    // No build info baked in (local run) — fall through.
+    // No build info baked in (local run) — fall through to the env vars.
+  }
+  // Local-run fallback only. Never trusted inside the container: Coolify rewrites
+  // SOURCE_COMMIT on a restart to the restart's synthetic commit.
+  for (const key of ['SOURCE_COMMIT', 'COOLIFY_COMMIT']) {
+    const value = process.env[key];
+    if (value) return value;
   }
   return '';
 }
@@ -96,14 +126,46 @@ async function waitForHealthy(port) {
   return false;
 }
 
-async function purgeEverything({ token, zoneId }) {
+/** Site-relative paths from the live sitemap; null when unavailable. */
+async function fetchContentPaths() {
+  try {
+    const response = await fetch(`${SITE_ORIGIN}/sitemap.xml`, {
+      // Bypass the edge: the sitemap is itself cached and must not go circular.
+      headers: { 'Cache-Control': 'no-cache' },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    if (!response.ok) return null;
+    const xml = await response.text();
+    const paths = new Set(['/', '/sitemap.xml']);
+    for (const match of xml.matchAll(/<loc>([^<]+)<\/loc>/g)) {
+      try {
+        paths.add(new URL(match[1].trim()).pathname);
+      } catch {
+        // Ignore malformed entries rather than aborting the whole purge.
+      }
+    }
+    return [...paths];
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Static assets are immutable and content-addressed; a purge must never touch
+ * them (see header). Mirrors `isPurgeablePath` in src/cms/cache/frontend/routes.ts.
+ */
+function isPurgeable(path) {
+  return !path.startsWith('/_next/static/');
+}
+
+async function purge({ token, zoneId, body }) {
   const response = await fetch(`${API_BASE}/zones/${zoneId}/purge_cache`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ purge_everything: true }),
+    body: JSON.stringify(body),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   return response.status;
@@ -132,12 +194,12 @@ async function main() {
   }
 
   const marker = markerPath(release);
-  if (existsSync(marker)) {
+  if (existsSync(marker) && !args.everything) {
     log(`release ${release} already purged — skipping`);
     return;
   }
   if (args.dryRun) {
-    log(`dry run: release ${release}, would wait for health then purge everything`);
+    log(`dry run: release ${release}, would wait for health then purge content URLs`);
     return;
   }
 
@@ -149,16 +211,32 @@ async function main() {
     }
   }
 
+  // Operator escape hatch only (see header); never the default path.
+  let body;
+  let description;
+  if (args.everything) {
+    body = { purge_everything: true };
+    description = 'EVERYTHING (manual)';
+  } else {
+    const paths = (await fetchContentPaths())?.filter(isPurgeable);
+    if (!paths || paths.length === 0) {
+      warn('could not read the content route list from /sitemap.xml — deploy purge skipped');
+      return;
+    }
+    body = { files: paths.map((path) => `${SITE_ORIGIN}${path}`) };
+    description = `${paths.length} content URLs (static assets excluded)`;
+  }
+
   try {
-    const status = await purgeEverything({ token, zoneId });
+    const status = await purge({ token, zoneId, body });
     if (status < 200 || status >= 300) {
       warn(
         `purge failed (HTTP ${status}) — the edge keeps the previous release until the next successful purge`,
       );
       return;
     }
-    writeFileSync(marker, new Date().toISOString());
-    log(`purged everything (release ${release})`);
+    if (!args.everything) writeFileSync(marker, new Date().toISOString());
+    log(`purged ${description} (release ${release})`);
   } catch (error) {
     // Message only: the request object carries the token.
     const message = error instanceof Error ? `${error.name}: ${error.message}` : 'unknown error';

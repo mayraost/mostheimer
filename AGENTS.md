@@ -703,14 +703,48 @@ not support account owned tokens`) → alles über Rulesets.
 **Cache-Response-Rules** (`http_response_cache_settings`) — sie **ersetzen** den
 Ursprungs-Header (Cloudflare überschreibt streamed-HTML-Header sonst nie):
 
-1. `f2123ca4d9434c82bc9adf26b42317b7` — Site-Content (`/de…`, `/en…`, `/`, ohne
+1. `a1bbaf90d2fb4a9eb93f88304a171322` — **\_next/static** (`/_next/static/*`,
+   Site-Hosts) → `public, max-age=31536000, immutable, s-maxage=31536000`,
+   `no-store`/`no-cache`/`private` entfernt.
+2. `f2123ca4d9434c82bc9adf26b42317b7` — Site-Content (`/de…`, `/en…`, `/`, ohne
    preview/settings, ohne RSC) → `public, max-age=0, s-maxage=604800,
 stale-while-revalidate=604800, stale-if-error=604800`.
-2. `5d536ce10cf543399b3a37b372c6a363` — dieselben Pfade: entfernt
-   `no-store`/`no-cache` (Next-Render-Default), damit die Cache-Entscheidung
-   cachebar sieht.
-3. `20ea9da823a5489c8d2ac37c47556682` — alles andere (admin/API/preview/
-   settings/OG, andere Hosts, RSC) → `no-store`, keine Proxy-TTL.
+3. `5d536ce10cf543399b3a37b372c6a363` — Content-Pfade **und** `/_next/static`:
+   entfernt `no-store`/`no-cache` (Next-Render-Default), damit die
+   Cache-Entscheidung cachebar sieht.
+4. `20ea9da823a5489c8d2ac37c47556682` — alles andere (admin/API/preview/
+   settings/OG, andere Next-Internals, andere Hosts, RSC) → `no-store`, keine
+   Proxy-TTL. **Expression MUSS `_next/static` ausnehmen** (`not (content or
+static)`), sonst setzt der zweite Auswertungs-Pass `no-store` erneut auf die
+   Assets und die sind wieder `BYPASS` — genau der Bug vom 05.11.2026.
+
+**Trailing-Slash-Redirect** (`http_request_dynamic_redirect`, Entrypoint
+`a3f28e523e3544c6a811bb18049c02ea`, Rule `37b1fa8281cf49289d35383917b8f0be`):
+`/<pfad>/` → `/<pfad>` mit **308** (methodenerhaltend, wichtig für `_next/static`
+und POST-APIs), Query bleibt. Läuft **vor** der Cache-Phase, der Origin sieht
+keine Trailing-Slash-Varianten mehr (Next würde sonst selbst 308en, ungecacht,
+durch den Tunnel). Expression:
+
+```
+(http.host eq "mosthi.de" or … mostheimer.de …) and
+http.request.uri.path ne "/" and ends_with(http.request.uri.path, "/")
+→ target: concat("https://", http.host, substring(http.request.uri.path, 0, -1))
+```
+
+- `substring(path, 0, -1)` ist die **Free-Plan-Form** (schneidet genau den
+  letzten Slash). `regex_replace` ist **Business+** — API lehnt sonst ab mit
+  „not entitled: … Business plan or a WAF Advanced plan is required".
+- `if()`/`len()`/`sub()` gibt es in `target_url` **nicht** (Parser: „unknown
+  identifier"); Query-String übernimmt `preserve_query_string: true`.
+- `http.request.uri.path ne "/"`-**Guard ist Pflicht**: ohne ihn würde `/`
+  auf einen leeren Pfad umgeleitet und die Sprach-Route (`307 → /en`) gekillt.
+- Host-Scoping wie bei den Cache-Regeln: fremde `*.mosthi.de`-Projekte bekommen
+  **keinen** Rewrite aufgezwungen (verifiziert: `scobio2026.mosthi.de/de/` →
+  weiterhin 404 `DYNAMIC`, `coolify.mosthi.de/de/` → 302 Login).
+- Edge-Beleg (ohne Logs): die 308-Antwort trägt **kein** `cf-cache-status`,
+  **keine** CSP/HSTS-Header des Origins und antwortet in ~45 ms; derselbe Pfad
+  direkt am Origin (`127.0.0.1:3300/de/`) liefert weiterhin einen eigenen 308 —
+  der Origin wird also nicht mehr befragt.
 
 **Fallstricke, verifiziert (nicht wieder einbauen):**
 
@@ -737,11 +771,82 @@ Statuscode-Legende: `BYPASS`/`DYNAMIC` bei Nicht-Content = korrekt (nicht
 cachebar). `HIT` auf `/de` mit `Age: 0` direkt nach einer Änderung + `Age` > 0
 ≥ 1 s später = Purge lief.
 
-### `/_next/static` bleibt ein Restrisiko (nicht gelöst)
+### INVARIANTE: statische Assets werden NIE gepurgt (Stand 05.11.2026)
+
+**Rule:** `/_next/static/**` ist immutable und content-addressed (pro Build) —
+es wird **nie** gepurgt, weder bei CMS-Änderungen noch bei Deploys.
+
+Begründung (alle drei treffen zu):
+
+1. **Budget:** Free-Plan = 5 Purge-Requests/min. Assets zu purgen verbrennt
+   Requests für Objekte, die sich durch einen CMS-Edit gar nicht ändern können.
+2. **Korrektheit:** HTML purgen ist billig und richtig; Assets purgen ist
+   sinnlos. Ein CMS-Edit ändert keinen Chunk-Inhalt.
+3. **Ausfall-Resistenz (der eigentliche Grund):** Beim Ausfall des **einen**
+   Origin-Containers sind die warmen Edge-Kopien von CSS/JS das Einzige, was
+   die Seite noch _gestylt_ ausliefert. Genau das war der User-Bug vom
+   05.11.2026 (unstyled Seite), und ein Asset-Purge würde ihn bei jedem
+   Deploy/Edit/Crash-Loop reproduzierbar machen.
+
+Umsetzung (drei Schichten, damit es strukturell nicht wiederkommt):
+
+- **`purge_everything` ist aus dem Anwendungscode entfernt** — der Typ
+  `CloudflarePurgeTarget` hat nur noch `{ type: 'urls' }`. `cms:all` mappt auf
+  die vollständige Content-Routen-Liste + `/sitemap.xml` (ein API-Call).
+- **`isPurgeablePath`** (`src/cms/cache/frontend/routes.ts`) ist der einzige
+  Choke-Point; **`toPurgeUrls`** filtert dort noch einmal, sodass kein Aufrufer
+  (auch kein künftiger) eine `/_next/static`-URL an die API geben kann.
+- **Tests** (`tests/int/cloudflare-purge.int.spec.ts`) halten die Invariante
+  fest: Asset-Pfade werden verworfen, „asset-only" → `nothing-to-purge` ohne
+  API-Call, und kein Tag mappt je auf einen Asset-Pfad.
+
+**Deploy-Purge (URL-Liste statt `purge_everything`):** `scripts/cf-purge.mjs`
+liest `/sitemap.xml` (unauth, kann nicht driften), baut daraus
+`{ files: [...] }` für die Content-URLs (+ `/`, `/sitemap.xml`) und schickt
+**einen** Request. `/_next/static` wird per `isPurgeable` gefiltert.
+
+**Tag-Purge ist hier NICHT nutzbar (gemessen, nicht vermutet):** eine
+Cache-Response-Rule _kann_ `Cache-Tag: mosthi-html` setzen (Header erscheint in
+der Antwort), und die API akzeptiert `{ tags: [...] }` mit `success: true` —
+aber der Purge ist ein **stiller No-op**: das Objekt blieb `HIT` mit monoton
+wachsendem `Age` (445 → 449 → 453 s). Der Header-Transform läuft offenbar nach
+der Cache-Key-Bildung, Tags werden nicht indiziert. Die Probe-Rule wurde wieder
+entfernt.
+
+**Edge-Case „gleicher Dateiname, anderer Inhalt"** (der dokumentierte
+`immutable`-Hazard aus „Gelernte Fehler"): bewusst **akzeptiert**, nicht
+automatisiert. Turbopack content-hasht die Chunks pro Build; der ursprünglich
+gemessene Fall stammte von älteren Builds. Der Fallback ist ein **manueller,
+explizit dokumentierter Notausgang** — `cf-purge.mjs --everything`
+(`purge_everything`, Operator-only, nicht aus dem Entrypoint erreichbar) bzw.
+ein `purge_everything`-Call im Incident. Bewusst nicht als Deploy-Default, weil
+er genau die Ausfall-Resistenz zerstört.
+
+### Deploy-Purge-Idempotenz (Release-ID-Reihenfolge, Stand 05.11.2026)
+
+`resolveRelease()` in `scripts/cf-purge.mjs` — Reihenfolge ist die eigentliche
+Korrektheit:
+
+1. `--release <id>` (expliziter Operator-Override)
+2. `RELEASE_ID` (expliziter Operator-Override)
+3. **`/app/.cf-release`** — die im Image gebackene Build-ID (primär im Container)
+4. `SOURCE_COMMIT` → `COOLIFY_COMMIT` — **nur** Local-Run-Fallback
+
+**Nie** `SOURCE_COMMIT` vor die gebackene ID ziehen: Coolify setzt
+`SOURCE_COMMIT` bei einem **Restart** auf den synthetischen Commit des Restarts
+→ jeder Restart purgt erneut. Bei 5 Purges/min ist nach einem Crash-Loop das
+Budget leer und CMS-Edits purgen nicht mehr. `scripts/entrypoint.sh` setzt
+`RELEASE_ID` deshalb **nicht** mehr aus `SOURCE_COMMIT` (das war der Bug).
+Zweitsicherung: Marker `/tmp/.cf-purge-<sha16>.done` (existiert → „already
+purged — skipping").
+
+### `/_next/static` bleibt ein Restrisiko (Client-Bundle-Skew)
 
 Static-Chunks werden 1 Jahr `immutable` gearbeitet, und **zwei Builds erzeugen
-identische Chunk-Namen** (siehe Gelernte Fehler). Der Deploy-Purge räumt die
-Edge-Kopie, **nicht** Browser-Caches. Für „neuer Deploy, alter Client-Bundle":
+identische Chunk-Namen** (siehe Gelernte Fehler). Seit der Never-Purge-Invariante
+räumt **kein** Deploy mehr die Edge-Kopie der Chunks (Edge **und** Browser behalten
+sie) — dafür ist der ebenfalls gecachte Cache-Layer wertvoller im Ausfall.
+Für „neuer Deploy, alter Client-Bundle":
 `ReleaseGuard` (`src/components/ReleaseGuard.tsx`) holt `/api/health`
 (`release` = Build-ID aus `src/build-info.ts`, beim Build generiert), vergleicht
 sie mit der des Tabs und lädt einen alten Tab beim Mount/Fokus exakt einmal hart
@@ -870,6 +975,10 @@ Vor jedem Commit wird diese Datei auf Aktualität geprüft und bei Bedarf ergän
 - **[Consent/Migration]** Feldgruppe in einer localized-Global-Definition (`Translations.cookies`) ohne Migration = `translations`-Global 500 in Prod, sobald die Definition auf `main` ist (Payload selektiert alle konfigurierten Felder). Neue Globals-Felder immer im selben Merge wie die Spalten-Migration ausliefern; rein additive `ADD COLUMN IF NOT EXISTS … DEFAULT … NOT NULL` füllt Bestandszeilen ohne Backfill. (05.11.2026, PR #57.)
 - **[Consent/State]** Banner blieb nach Klick auf „Nur notwendige"/„Alle akzeptieren" offen, obwohl die Entscheidung korrekt in `mosthi.consent.v1` landete: `visible = mounted && (open || initialConsent === undefined)`. Der `initialConsent`-Anteil war für Erstbesucher DAUERHAFT `true` (nie nachbelegt), damit konnte `setOpen(false)` den Banner nie schließen — und bei unveränderten Toggles bailt React sogar gänzlich ohne Re-Render aus. Fix: explizites `undecided`-Boolean als EINZIGER Auto-Open-Trigger, das `decide()` (und `closeIfDecided`) auf `false` setzt; Toggle-/Speicher-Init kommt aus EINEM `getStoredConsent()`-Read im Lazy-Initializer. Merke: „automatisch offen" nie als Ableitung aus einem State formulieren, den der Schließ-Pfad nicht selbst mutiert — es braucht ein Flag, das der Aktions-Handler explizit löscht. Repro-Beleg: genau 2 Render-States (`mounted:false/true`) vor+`open:false` nach Klick, Banner trotzdem sichtbar. (05.11.2026, Bugfix.)
 - **[Dev/Client]** `next dev` (Turbopack) in diesem Setup hydratisiert KEINE Client-Komponenten (Header-Suche inert, Banner erscheint nicht, HMR-Websocket `ERR_INVALID_HTTP_RESPONSE`, keine Console-Errors). Consent-/Client-Verhalten daher IMMER gegen den Produktions-Standalone-Build prüfen: `npm run build`, `cp -r public .next/standalone/ && cp -r .next/static .next/standalone/.next/`, dann `node .next/standalone/server.js` (nicht `next start` — warnt bei `output: 'standalone'`). Playwright-Browser: `chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox'] })`, weil die lokal installierte Playwright-Revision nicht zur Projekt-Version passt. CLS immer als **Delta** messen (mit vs. ohne Banner via vorbelegtem `mosthi.consent.v1`): Hero-Typing-Animation trägt ~0.021 vorbestehend bei, der Consent-Banner exakt 0. (05.11.2026, GTM-Verifikation.)
+- **[Cache/Statics] „Unstyled Seite" = Cloudflare-Catch-all setzte `no-store` auf `/_next/static`** (05.11.2026, Prod-Bug). Symptom: HTML kam aus dem Edge-Cache (`HIT`), CSS/JS fehlten beim Besucher → Seite mit Inhalt, aber ohne Styles. Header-Beweis: der **Origin** lieferte korrekt `public, max-age=31536000, immutable` (geprüft via `ssh coolify "curl -sI http://127.0.0.1:3300/_next/static/…"`), durch Cloudflare kam dieselbe URL als `public, max-age=31536000, immutable, no-store` mit `cf-cache-status: BYPASS`. Ursache: die Catch-all-Response-Regel `no-store` (`20ea9da823…`) hatte die Expression `not (<content paths>)` — `/_next/static` ist **kein** Content-Pfad, also **matchte** die Catch-all-Regel die Assets und hängte `no-store` an. `no-store` gewinnt gegen `immutable` → Cloudflare cacht nie. `next.config.ts` war unschuldig (`headers()` setzt nie `Cache-Control` für Assets; Next-Doku: „cannot be overridden"). Fix: eigene `_next/static`-Regel **vor** der Content-Regel **plus** `_next/static` aus der Catch-all-Expression ausnehmen (zweiter Auswertungs-Pass!). Merke: „Catch-all `not (content)`" ist **kein** Catch-all für „nicht cachebar", sondern für „alles, was ich nicht bedacht habe" — jeder neue cachebare Pfad (`/_next/static`, `/fonts`, `/media`) muss dort ausgenommen werden, sonst stiller `BYPASS`.
+- **[Cloudflare] Purge-by-Tag ist in diesem Setup ein stiller No-op** (05.11.2026, gemessen): Header-Transform-Rule setzt `Cache-Tag: mosthi-html` (Header ist in der Antwort sichtbar), `POST /purge_cache {"tags":[…]}` ⇒ `success: true`, aber das Objekt bleibt `HIT` mit monoton steigendem `Age` (445 → 449 → 453 s). Purge-by-tag ist damit **kein** Weg zur strukturellen Asset-Ausnahme; URL-Purge + Filter (`isPurgeablePath`) ist die funktionierende Variante. „API gibt 200" ist **kein** Beweis, dass ein Purge gewirkt hat — immer `cf-cache-status`/`Age` nachmessen.
+- **[Cloudflare/Redirect]** Trailing-Slash-Regel: Free-Plan kann **kein** `regex_replace` in `target_url` (Fehler „not entitled … Business plan or a WAF Advanced plan"), und `if()`/`len()`/`sub()` sind dort **nicht** im Sprachumfang (`unknown identifier`). Funktioniert: `ends_with(path,"/") and path ne "/"` + `concat("https://", http.host, substring(http.request.uri.path, 0, -1))` + `preserve_query_string: true`, Status 308. `substring(…, 0, -1)` schneidet genau ein Zeichen — kein Regex, plan-konform.
+- **[Turbopack/Stale-Cache #2]** `npm run build` im frisch erzeugten Worktree panickte mit `invalid utf-8 sequence of 1 bytes from index …` (SourceMap-Asset), obwohl derselbe Commit auf `origin/main` sauber baute. Ursache: vererbter/inkrementeller `.next`-Zustand aus dem Worktree-Anlegen (Nutzer lesen `node_modules`/`.next` vom Haupt-Checkout). Fix: `rm -rf .next` und erneut bauen → grün. Merke (wie beim `@tailwindcss/turbopack`-Fall): bei „Build-Panic ohne Codebezug" **zuerst** `.next` löschen, bevor Deps/Code verdächtigt werden.
 - **[Coolify/Build-ARGs]** Coolify injiziert ALLE App-Envs als Build-ARGs (unabhängig von Compose-Refs) → Secrets landen in `docker history`-Layer. Fix: Coolify-Env-Flag `is_buildtime: false` (REST PATCH envs) + Compose-`$SECRET`-Referenzen entfernen. Nach jedem Deploy: `docker history <image> | grep -iE 'SECRET|DATABASE'` (presence-only, nie Werte drucken).
 - **[Secure-Cookie]** `cookies: { secure: true }` + Safari: Secure-Cookie wird auf `http://localhost` NICHT gesetzt → Dev-Login in Safari bricht (Chrome/FF ok, localhost gilt dort als secure context). Hinweis-Only.
 - **[CORP]** Media wird auch via `/api/media/file/:file*`-Endpoint ausgeliefert → CORP-Header doppelt setzen (beide Paths in `next.config.ts` `headers()`).
