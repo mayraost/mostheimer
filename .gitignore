@@ -49,6 +49,7 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 
+
 # sqlite / job db files
 *.sqlite3
 *.sqlite3-shm

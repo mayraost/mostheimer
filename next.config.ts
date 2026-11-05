@@ -91,8 +91,27 @@ const PERMISSIONS_POLICY = [
   'browsing-topics=()',
 ].join(', ');
 
+/**
+ * Edge cache TTL for public content routes — see the Cache-Control block in
+ * `headers()` below and AGENTS.md § "Cloudflare Edge-Cache". Long TTLs are
+ * safe because every CMS change purges the matching edge objects
+ * synchronously; stale-if-error keeps the site up during deploys.
+ */
+const PUBLIC_CACHE_CONTROL =
+  'public, s-maxage=86400, stale-while-revalidate=604800, stale-if-error=604800';
+
+/**
+ * Release identity of this build, inlined into the server bundle and served by
+ * /api/health: the client-side ReleaseGuard reloads an open tab once after a
+ * deploy instead of letting it navigate with the previous build's chunks.
+ * Prefers the CI commit (Coolify passes SOURCE_COMMIT as a build arg), falls
+ * back to the build timestamp.
+ */
+const RELEASE_ID = process.env.SOURCE_COMMIT || `build-${Date.now()}`;
+
 const nextConfig: NextConfig = {
   output: 'standalone',
+  env: { NEXT_RELEASE_ID: RELEASE_ID },
   // Tailwind v4 via the native Turbopack loader. postcss.config.mjs was
   // removed: with the loader AND headless PostCSS Tailwind would run twice.
   // `as: '*.css'` makes the loader emit CSS instead of JS.
@@ -148,6 +167,36 @@ const nextConfig: NextConfig = {
       // (/api/media/file/<filename>), so it needs the same CORP header.
       source: '/api/media/file/:path*',
       headers: [{ key: 'Cross-Origin-Resource-Policy', value: 'same-origin' }],
+    },
+    // -- Edge cache contract (Cloudflare, see AGENTS.md § "Cloudflare Edge-
+    // Cache") -------------------------------------------------------------
+    // Cache-Control survives for route/static responses; for streamed HTML the
+    // renderer keeps its own `no-store` (next.config headers() cannot override
+    // it), which is why the zone enforces the same contract with a Cache
+    // Response Rule. These entries document the TTL per route and keep
+    // admin/API/preview/settings explicitly no-store (defence in depth next to
+    // the zone's bypass rule). No entry ever lowers a route to private.
+    {
+      // Home of each locale: `/de` and `/en`.
+      source: '/:locale(de|en)',
+      headers: [{ key: 'Cache-Control', value: PUBLIC_CACHE_CONTROL }],
+    },
+    {
+      // Public content pages of each locale: `/de/<slug>`. Live preview
+      // (`/de/preview`) and the per-visitor settings page stay out.
+      source: '/:locale(de|en)/:slug((?!preview$|settings$).*)',
+      headers: [{ key: 'Cache-Control', value: PUBLIC_CACHE_CONTROL }],
+    },
+    {
+      // Admin panel, REST/API surface, live preview and the OG renderer: never
+      // cacheable at the edge, regardless of TTL.
+      source: '/:path(admin|api|preview|og)(.*)',
+      headers: [{ key: 'Cache-Control', value: 'private, no-store' }],
+    },
+    {
+      // Locale-scoped preview and settings routes.
+      source: '/:locale(de|en)/:path(preview|settings)(.*)',
+      headers: [{ key: 'Cache-Control', value: 'private, no-store' }],
     },
   ],
 };

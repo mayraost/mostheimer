@@ -583,6 +583,170 @@ payload migrate:create ...`-Kommando falls generiert) + `npx payload migrate`.
   (Payload fragt interaktiv, Server hängt); deshalb DB-Fresh-Reset vor
   Prod-Verifikation und dauerhaft `DATABASE_TYPE` aus dem Projekt entfernt.
 
+## Cloudflare Edge-Cache (Stand 05.11.2026)
+
+Der Edge (Cloudflare, Zone `mosthi.de` `fc81dba86a79cddf0b956eed4a25a965`)
+cacht das öffentliche HTML; **jede** Next.js-Revalidierung purgt die exakt
+betroffenen Objekte im selben Code-Pfad, und jeder Deploy purgt einmal alles.
+
+### Ohne Cache-Control greift keine Cloudflare-Cache (wichtig erklärt)
+
+Streamed HTML aus Next 16 (`cacheComponents` + `connection()`) trägt immer
+Nexts eigenes `Cache-Control: no-store`/`private…` — `headers()` aus
+`next.config.ts` überschreibt das **nicht** (empirisch geprüft: dev wie
+Production-Build). `next.config.ts` bleibt trotzdem die Origin-Quelle der
+Wahrheit; die **Durchsetzung** am Edge läuft über Cache Response Rules, die
+exakt dieselben Werte schreiben. Beide Stellen MÜSSEN synchron bleiben
+(`PUBLIC_CACHE_CONTROL` in `next.config.ts` ↔ Rule 1 der Response-Rules).
+
+### TTL- und Purge-Vertrag
+
+| Pfad                                                                       | Cache-Control (Edge, sichtbar beim Besucher)                                               | TTL      | Was purgt                                                |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | -------- | -------------------------------------------------------- |
+| `/`, `/de…`, `/en…` (public Seiten, anonym)                                | `public, max-age=0, s-maxage=604800, stale-while-revalidate=604800, stale-if-error=604800` | 7 d Edge | Hooks (Tag-Flush, synchron) + Deploy-Purge + Admin-Flush |
+| `/admin*`, `/api/*`, `/_next/*`, `*preview*`, `*settings*`, `/og`, `/mcp*` | `no-store`                                                                                 | keine    | n/a — nie gecacht                                        |
+| andere Hosts in der Zone (`*.mosthi.de` → andere Projekte)                 | `no-store`, `DYNAMIC`/`BYPASS`                                                             | keine    | n/a — nie gecacht                                        |
+
+**Warum die TTL lang ist:** Korrektheit kommt nicht aus kurzer TTL, sondern
+aus dem synchronen Purge bei jeder CMS-Änderung und bei jedem Deploy. Eine
+kurze TTL würde dagegen bei jedem Ablauf den Ursprung durch den Tunnel treffen.
+`stale-if-error` (7 d) hält die Seite erreichbar, während der **einzige**
+Origin-Container neu startet (passiert bei jedem Deploy = 502-Gefahr).
+
+**Fehlermodus:** schlägt ein Purge fehl (429/Rate-Limit, Netz, Token), bleibt
+das Objekt bis zur nächsten erfolgreichen Purge bzw. höchstens
+`s-maxage` = 7 Tage veraltet. Der Fehler wird geloggt
+`[cf-cache] Edge-Purge '…' fehlgeschlagen (<reason>)` — **Token wird nie
+geloggt**. Nach einem Fehler öffnet ein Circuit Breaker für 2 min, damit ein
+kaputter Token CMS-Saves nicht mit hängenden Requests ausbremst.
+
+### Tag → Purge-Mapping (`src/cms/cache/frontend/`)
+
+| Tag                | Gepurgte Edge-Objekte                                                                                                         |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| `cms:all`          | `purge_everything` (alle Hosts)                                                                                               |
+| `cms:pages`        | alle öffentlichen Routen (`/en`, `/de` + jede Seite), via Route-Registry (`getCachedRouteRegistry`, cached unter `cms:pages`) |
+| `cms:pages:<slug>` | `/en/<slug>` + `/de/<slug>` (`home` → `/en`, `/de`), immer auf allen drei Site-Hosts                                          |
+| `cms:sitemap`      | `/sitemap.xml`                                                                                                                |
+| `cms:global:*`     | alle öffentlichen Routen (Layout rendert die Globals)                                                                         |
+
+Hosts der URL-Purges: `https://mosthi.de`, `https://mostheimer.de`,
+`https://www.mostheimer.de` (die Purge-API braucht den **exakten** Host; es
+gibt kein Vary-artiges Purging). `NEXT_PUBLIC_SERVER_URL` kann weitere,
+`;`-getrennte Hosts ergänzen.
+
+**Warum URL-Purge, nicht Cache-Tags:** Tag-Purge braucht einen `Cache-Tag`-
+Response-Header auf genau der gecachten Antwort; die App kann ihn nicht setzen
+(HTML-Header werden von Next/Rules gesetzt). URL-Purge braucht nichts vom
+Origin und ist hier exakt, weil die Routenmenge klein und bekannt ist.
+**Plan-Fakt:** Zone ist **Free** → URL-Purge verfügbar, aber **5 Purge-Requests
+pro Minute** (Account-weit, Token-Bucket 25, max 100 URLs/Request). Darum
+sammelt jeder Flush seine Pfade und schickt **einen** Request; `cms:all`
+schlägt alle URL-Purges (ein Request statt vielen).
+
+### Phasen-Kopplung (wichtig bei Änderungen)
+
+Ein Purge entfernt nur Objekte, die **schon** gecacht sind. Ein Purge mitten im
+Request N kann also von Requests N eigenem Render überholt werden. Deshalb:
+Hooks rufen `safeRevalidate` → setzt Next-Tag **und** reiht den Edge-Purge in
+eine Queue (`purges.ts`); das `[locale]`-Layout leert die Queue **vor** dem
+ersten Byte (`runPendingCloudflarePurges()`). Nie den Purge aus dem Render
+herausnehmen oder hinter `Suspense` verschieben.
+
+### Env & Token-Rechte
+
+| Variable                    | Zweck                                   | Fehlt sie                         |
+| --------------------------- | --------------------------------------- | --------------------------------- |
+| `CLOUDFLARE_API_TOKEN`      | Purge-API                               | Purge = No-op (lokal/Build inert) |
+| `CLOUDFLARE_ZONE_ID`        | Zone `fc81dba86a79cddf0b956eed4a25a965` | Purge = No-op                     |
+| `CLOUDFLARE_PURGE_ON_START` | `0` = Deploy-Purge aus                  | Default: an                       |
+
+**Beide server-only, NIE `NEXT_PUBLIC_`.** Token-Rechte: **Zone → Cache Purge
+→ Purge**, beschränkt auf die Zone `mosthi.de` — nichts anderes. In Coolify als
+App-Env mit `is_buildtime: false` setzen (Secrets gehören nicht in den
+Build-ARG-Layer).
+
+### Deploy-Purge (eine Purge pro Release, nie pro Restart)
+
+- `Dockerfile`: `CMD ["/app/scripts/entrypoint.sh"]`; das Image bettet die
+  Build-ID in `/app/.cf-release` ein (Build-Zeit ⇒ pro Image identisch).
+- `scripts/entrypoint.sh`: startet `node server.js`, **danach** im Hintergrund
+  `node scripts/cf-purge.mjs --wait-for-release`.
+- `scripts/cf-purge.mjs`: wartet, bis `/api/health` der **neuen** Version
+  antwortet (sonst würde der Edge den alten Origin wieder cachen), purgt dann
+  `purge_everything` und schreibt `/tmp/.cf-purge-<hash>.done`. Ein Restart
+  desselben Images/Restarts sieht die Markierung → **skip** (kein Purge-Storm
+  bei Crash-Loop/Restart-Policy). Fail-soft überall: kein Token, Netzfehler,
+  non-2xx, Kill-Switch → eine Warnung, `exit 0`, App startet immer.
+- Release-ID: `RELEASE_ID` → `SOURCE_COMMIT` (Coolify) → eingebettete
+  Build-ID (+ `IMAGE_TAG`).
+- **Alternative** (dokumentiert, nicht nötig): Coolify-Post-Deployment-Hook auf
+  der App → `node /app/scripts/cf-purge.mjs --release $SOURCE_COMMIT`. Der
+  Entrypoint-Weg bleibt der Standard, weil er ohne Coolify-Konfiguration und
+  ohne Deploy-Loop-Risiko funktioniert.
+
+### Zone-Regeln (Rulesets, keine Page Rules)
+
+Page Rules API ist für Account-Tokens gesperrt (`1011 Page Rules endpoint does
+not support account owned tokens`) → alles über Rulesets.
+
+**Cache-Rules** (`http_request_cache_settings`, Entrypoint `default`):
+
+1. `0aaea1abb6284fec811c86e8545dec0b` — **eligible**: Site-Hosts (3) ohne
+   `/admin`, `/api/`, `/_next/`, `/mcp`, `/cdn-cgi/`; `cache: true`,
+   `edge_ttl: respect_origin`, `browser_ttl: respect_origin` (**kein Override-TTL**).
+2. `f9a2c1660c81498fb1b08cbf5d1b92ed` — **deny by default**: `not (...)`
+   Site-Hosts → `cache: false`. Neue Projekt-Subdomains unter `*.mosthi.de`
+   erben **nicht** von Regel 1 (sie matchen sie nicht) und sind per Default
+   gebypassed.
+
+**Cache-Response-Rules** (`http_response_cache_settings`) — sie **ersetzen** den
+Ursprungs-Header (Cloudflare überschreibt streamed-HTML-Header sonst nie):
+
+1. `f2123ca4d9434c82bc9adf26b42317b7` — Site-Content (`/de…`, `/en…`, `/`, ohne
+   preview/settings, ohne RSC) → `public, max-age=0, s-maxage=604800,
+stale-while-revalidate=604800, stale-if-error=604800`.
+2. `5d536ce10cf543399b3a37b372c6a363` — dieselben Pfade: entfernt
+   `no-store`/`no-cache` (Next-Render-Default), damit die Cache-Entscheidung
+   cachebar sieht.
+3. `20ea9da823a5489c8d2ac37c47556682` — alles andere (admin/API/preview/
+   settings/OG, andere Hosts, RSC) → `no-store`, keine Proxy-TTL.
+
+**Fallstricke, verifiziert (nicht wieder einbauen):**
+
+- Rules einer Phase werden **in Reihenfolge ausgewertet, letzter Match gewinnt**
+  und **mehrfach** (Request-Pass + Caching-Pass) ausgewertet. Eine Catch-all-
+  Regel mit `no-store`, die nach der Content-Regel läuft, killt den Cache
+  wieder (2. Pass sieht `no-store` und matcht). `no-store` gehört in die
+  _letzte_ Regel und darf auf Content-Pfaden nicht wieder gesetzt werden.
+- `set_cache_control` **schreibt** den Header sichtbar für den Besucher
+  (kein `cloudflare_only` bei `s-maxage`), darum sehen Kunden `s-maxage` +
+  unsere Direktiven — das ist gewollt (und deckt sich mit `next.config.ts`).
+- `layer0`/`edge_cache_ttl`-ähnliche Overrides erzeugen genau die „Edge zeigt
+  andere TTL als Origin"-Falle — deshalb `respect_origin` + Response-Rule.
+
+### Prüfen (Live)
+
+```bash
+curl -sI https://mosthi.de/de      | grep -iE '^(cache-control|cf-cache-status|age)'   # MISS → HIT
+curl -sI https://mosthi.de/admin   | grep -iE '^(cache-control|cf-cache-status)'       # DYNAMIC/BYPASS, no-store
+curl -sI https://scobio2026.mosthi.de/ | grep -i cf-cache-status                       # DYNAMIC (nie gecacht)
+```
+
+Statuscode-Legende: `BYPASS`/`DYNAMIC` bei Nicht-Content = korrekt (nicht
+cachebar). `HIT` auf `/de` mit `Age: 0` direkt nach einer Änderung + `Age` > 0
+≥ 1 s später = Purge lief.
+
+### `/_next/static` bleibt ein Restrisiko (nicht gelöst)
+
+Static-Chunks werden 1 Jahr `immutable` gearbeitet, und **zwei Builds erzeugen
+identische Chunk-Namen** (siehe Gelernte Fehler). Der Deploy-Purge räumt die
+Edge-Kopie, **nicht** Browser-Caches. Für „neuer Deploy, alter Client-Bundle":
+`ReleaseGuard` (`src/components/ReleaseGuard.tsx`) holt `/api/health`
+(`release` = Build-ID aus `src/build-info.ts`, beim Build generiert), vergleicht
+sie mit der des Tabs und lädt einen alten Tab beim Mount/Fokus exakt einmal hart
+neu. Härteste Lösung bleibt Next-Skew-Protection (`deploymentId`) — offen.
+
 ## Workflow-Regeln
 
 1. **Nach jeder Dateiänderung** `npm run lint:fix` ausführen.
