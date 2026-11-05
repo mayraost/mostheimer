@@ -922,6 +922,12 @@ Vor jedem Commit wird diese Datei auf Aktualität geprüft und bei Bedarf ergän
 
   **Kaum-Fehler beim Einbau (06.11.2026, live aufgefallen):** die Box-Höhe per `setState` + `useLayoutEffect` zu setzen ist EINEN Frame zu spät — React painted das Overlay erst ungeklemmt (`h1` 485 px) und schrumpfte dann auf 346 px (CLS 0.048 live, obwohl lokal 0.000). Bei kurzem lokalem Copy fiel das nicht auf, weil beide Höhen zufällig gleich waren. Richtig: Clamp **synchron im Ref-Callback** (`node.style.height = staticRef.height`) — der läuft beim DOM-Attach, vor dem Paint. Merke: Geometrie-Reservierung nie über State, wenn das Element im selben Commit schon sichtbar ist.
 
+- **[Perf/CLS] `h1` darf KEIN `display:flex` sein, wenn ein `absolute`-Kind darin liegt** (06.11.2026, der eigentliche Live-Rest). Das Hero-`<h1>` hatte `flex justify-start`. Ein `absolute`-Kind ist im Flex-Kontext **trotzdem ein Flex-Item** und bekommt einen eigenen Platz im Row-Layout — die unsichtbare Mess-Kopie „fraß" Breite, das sichtbare Overlay wurde auf 485 px / **7 Zeilen** gequetscht statt 354 px / 4 Zeilen (in der Live-Messung als `span.block.w-full 184->181` + `p.mb-8 708->567` sichtbar). Fix: `flex justify-start` entfernt (war ohnehin wirkungslos, ein einziges Kind). Merke: Layout-Shift-Untersuchungen immer **auch** die eigenen Container-Displays prüfen — `absolute` heißt nicht „raus aus dem Layout", wenn der Parent Flex/Grid ist.
+
+  Nach dem Fix (Live-Copy, lokal, Production-Standalone): 375 = 0.0033, 768 = 0.0030, 1280 = 0.0067, 1920 = 0.0032 — **non-caret überall exakt 0.0000**, H1-Endhöhen 166/125/346/354 px (= echte Space-Grotesk-Geometrie).
+
+  **Mess-Fallstrick Nummer 2:** bei JS-off/SSR-Messung des Hero-`h1` die **sichtbare** Span nehmen (letztes Kind des `span.relative`-Wrappers). Die unsichtbare Mess-Kopie und der `sr-only`-Span liefern sonst falsche Zeilenzahlen (5 statt 3), was jede Fallback-Kalibrierung unbrauchbar macht.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 ## This is NOT the Next.js you know
