@@ -101,7 +101,6 @@ src/
       api/            # Payload REST-API-Route
       layout.tsx      # Admin-Layout
     api/
-      seed-home/      # Seed-Route für Startseite
       health/         # Healthcheck-Route ({status:'ok'}, force-dynamic)
     globals.css       # Tailwind CSS v4 Design Tokens & globale Styles
   cms/
@@ -239,7 +238,7 @@ import type { Page } from '@payload-config'; // Payload-Config-Alias
 
 - `HeroBlock` – Hero-Bereich mit Tipp-Animation; Felder `showStackBadge` (Stack-Badge-Zeile über dem Heading), `ctaLabel/ctaLink` (Primary-Pill) und `ctaLabel2/ctaLink2` (Ghost-Pill) – Pillen nur bei Label+Link
 - `RichTextBlock` – echter Lexical-Renderer via `RichText` aus `@payloadcms/richtext-lexical/react` (kein raw-JSON mehr)
-- `SkillsetBlock` – Skill-Karten (Items: name, level als **Freitext-Badge** — bewusst kein Skill-Balken, description, iconName-Select mit leerer „Kein Icon"-Option, highlight); Block-CTA nur Label+Link; Featured-Sektion auf Home + Wiederverwendung je Kategorie auf `/skills` (Seed `seed-home`). Lucide-Gotcha: `Figma` (Trademark-Removal) und `FileCode2` existieren 2026 nicht mehr → `PenTool`/`FileCode`; iconName leer → gar kein Icon, kein CircleHelp-Fallback im SkillsetBlock.
+- `SkillsetBlock` – Skill-Karten (Items: name, level als **Freitext-Badge** — bewusst kein Skill-Balken, description, iconName-Select mit leerer „Kein Icon"-Option, highlight); Block-CTA nur Label+Link; Featured-Sektion auf Home + Wiederverwendung je Kategorie auf `/skills`. Lucide-Gotcha: `Figma` (Trademark-Removal) und `FileCode2` existieren 2026 nicht mehr → `PenTool`/`FileCode`; iconName leer → gar kein Icon, kein CircleHelp-Fallback im SkillsetBlock.
 - `BentoGridBlock` – Bento-Raster (4-Spalten, `featured` = 2 Spalten); Items: highlight/title/description/iconName/ctaLabel/ctaLink/featured (aktive Tile CTA nur mit Link, Label `… →`)
 - `StatusBlock` – Status-Karte (badgeLabel/title/description) mit `networkTopics`-Array als Tag-Pillen
 - `TechSectionBlock` – Deep-Dive-Sektion (sectionLabel/heading/body, Absätze via `\n\n`) mit `keyFacts`-dl (label/value)
@@ -406,9 +405,20 @@ await payload.delete({ collection: 'posts', id: '123' });
 6. **Draft Status**: `_status`-Feld wird automatisch eingefügt wenn Drafts aktiviert
 7. **Typen**: Werden erst nach `generate:types` aktualisiert
 
-## Payload-MCP (CMS-Zugriff, Stand 04.11.2026)
+## Payload-MCP (CMS-Zugriff)
 
-- **Verbindliche Regel:** Agents bearbeiten CMS-Daten (Pages, Globals, Media, User-Content) ab sofort **ausschließlich via den Payload-MCP-Server** (`mcp`-Server in der Projekt-`opencode.json`). Direkte Writes (Local-API-/Seed-/REST-Scripts, `payload.update`/`create`-One-Shots) nur noch ausdrücklich für **Infra-Fälle** (Migrationen, Seed-Infrastruktur, Tests) — nicht für Inhaltsänderungen.
+- **Verbindliche Regel (verschärft 05.11.2026): Content wird AUSSCHLIESSLICH über den Payload-MCP gesetzt.** Jede Inhaltsänderung an Pages, Globals (Navigation, SiteSettings, Translations, NotFound) und Media läuft über den MCP-Server (`payload` lokal, `payload-prod` für Produktion) in der Projekt-`opencode.json`.
+- **Verboten für Content** (nicht mehr verwenden, auch nicht „nur schnell"):
+  - Seed-Routen — die Routen `/api/seed-home` und `/api/seed-globals` wurden am 05.11.2026 **gelöscht** und kehren nicht zurück; der MCP ersetzt sie vollständig.
+  - REST-Writes per Skript (`PATCH /api/pages/<id>`, `curl` gegen die API)
+  - Local-API-One-Shots (`payload.create`/`update` in `tsx`-Scripts)
+  - direkte SQL-Writes gegen Postgres
+- **Erlaubte Ausnahmen** (explizit, damit die Regel nicht überdehnt wird):
+  - Migrationen (`npx payload migrate*`) — Schema-Infrastruktur, kein Content
+  - Build-Artefakte (`generate:types`, `generate:importmap`, `generate:css`)
+  - Tests, die eine **Wegwerf**-Datenbank befüllen
+  - Der Payload-Admin selbst (menschliche Redaktion)
+- **Warum:** Der MCP läuft durch dieselben Payload-Hooks wie der Admin (Validierung, `overrideAccess`-Semantik, Cache-Invalidierung inkl. Edge-Purge). Skripte und Seed-Routen umgehen genau diese Kette und haben in der Vergangenheit Draft-/Published- und Cache-Zustände inkonsistent gemacht (siehe „Gelernte Fehler": Draft-Default bei Seeds, verpasster OSR-Flush).
 - **Server-Bindings** (Projekt-`opencode.json`, beide `type: remote`, Header `Authorization: users API-Key {file:...}` — NICHT Bearer, Beta.6 authentifiziert Payload-native User-API-Keys):
   - `payload` (lokal): `http://localhost:3000/api/mcp`, Secret-File `~/.config/opencode/.secrets/payload-mcp-api-key`
   - `payload-prod` (Produktion): `https://mostheimer.de/api/mcp` (kanonische Domain; die Alt-Domains antworten nur noch mit 301), Secret-File `~/.config/opencode/.secrets/payload-mcp-prod-api-key` (nur Pfad-Referenz — Werte nie lesen/printen)
@@ -1130,7 +1140,7 @@ Vor jedem Commit wird diese Datei auf Aktualität geprüft und bei Bedarf ergän
 
 - **[i18n] `de`-Diagramm-Copy war korrekt, `en` leakt Deutsch (offen)** (05.11.2026): Der `architectureDiagram`-Block auf `home` (id 4) rendert auf `/de` vollständig deutsch (4 Layer × 3 Prinzipien). Ein erneutes Schreiben der deutschen Texte ist **nicht** nötig und wurde bewusst unterlassen (kein Busywork, kein Überschreib-Risiko). Tatsächliches Problem an anderer Stelle: `de` und `en` sind im `translations`-Global und bei mehreren `home`-Blöcken **byte-identisch** — `en` erbt die deutschen Texte (bekannt, siehe „Still wrong" in `.visual-test/HANDOVER-UI.md`). Wer `en` „repariert", muss zuerst prüfen, ob die Quelle tatsächlich der `en`-Locale-Eintrag ist und nicht ein Fallback.
 
-- **[Payload/Seed+Drafts]** `payload.create` bei drafts-enabled Collections defaultet `_status: 'draft'` — Seed-Seiten waren unsichtbar für die published-only Public-Reads (Gate 404 trotz Seed 200). Fix: Seed-Create/Update setzen `draft: false` + `_status: 'published'` explizit; Live-Hotfix via REST `PATCH /api/pages/<id>?locale=en { _status:'published' }` (afterChange-Flush inklusive). (04.11.2026, /skills-404 nach Seed).
+- **[Payload/Seed+Drafts]** `payload.create` bei drafts-enabled Collections defaultet `_status: 'draft'` — seeding-created Seiten waren unsichtbar für die published-only Public-Reads (Gate 404 trotz erfolgreichem Write). Merke: ein Create ohne explizites `_status: 'published'` + `draft: false` landet als Draft. **Heute gilt:** Content wird via Payload-MCP gesetzt (dort `_status`/`published` explizit mitgeben); der frühere Live-Hotfix via REST `PATCH /api/pages/<id>` ist **nicht mehr erlaubt** (siehe „Payload-MCP"). (04.11.2026, /skills-404 nach Seed; Regel verschärft 05.11.2026).
 
 - **[Payload/Blocks]** `layout`-blocks-Field ist **NICHT jsonb**: Payload 4 + Postgres normalisiert jeden Blocktyp in eigene Tabellen (`pages_blocks_<slug>` + `pages_blocks_<slug>_items` + `_pages_v_blocks_<slug>*`-Versions-Tabellen). Neuer Blocktyp = **IMMER `npx payload migrate:create <name>`** (Snapshot-Diff, `*.json` mitcommitten) + Deploy erst danach — sonst seedet Local API gegen `relation "pages_blocks_skillset" does not exist` (500). Falsche Annahme „Block = JSON im layout-Field → keine DDL" (04.11.2026, Skillset-Feature; Seed 500, Migration nachgereicht).
 - **[Payload/Blocks]** `type: 'text', hasMany: true` in einem Block (z. B. `tags` als „array of text") erzeugt KEINE block-spezifische Tabelle, sondern eine **geteilte Join-Tabelle pro Collection** (`pages_texts` + `_pages_v_texts`), diskriminiert über die `path`-Spalte — anders als `type: 'array'`-Felder, die `pages_blocks_<slug>_<field>`-Tabellen bekommen. Auch das ist echte DDL in der Migration (kein jsonb), also normal committen. (04.11.2026, spec-rebuild-Blöcke CaseStudy/Timeline/Testimonial/TechRadar).
@@ -1143,7 +1153,7 @@ Vor jedem Commit wird diese Datei auf Aktualität geprüft und bei Bedarf ergän
 - **[TS/TS7-Hybrid]** Natives TS 7 (Go-Compiler, keine JS-API) parallel als Alias-DevDep `"@typescript/native": "npm:typescript@7.0.2"` (EXAKT pinnen, kein `^` — dist-tag latest wandert; `@typescript/native` existiert nicht auf npm, `npx @typescript/native` → E404). TS 6.0.3 bleibt kanonisch (typescript-eslint-Peer <6.1, Payload-CLI/tsx/next build laden `require('typescript')`). Fallstricke: (1) `.bin/tsc` bei zwei Packages mit `bin: tsc` wird von npm **lautlos last-wins** verlinkt — im Projekt resolved `npx tsc` dadurch jetzt auf TS 7.0.2 (nicht TS 6!), deshalb Skript **Direkt-Pfad-Pflicht**: `node node_modules/@typescript/native/bin/tsc --noEmit`; Kanonisch tsc-Aufrufe nur via explizitem `node node_modules/typescript/bin/tsc`. (2) Next 16 `useTypeScriptCli` resolvet das echte `typescript`-Package (unberührt → Build-Autorität bleibt TS 6). (3) TS7-Advisory `npm run typecheck`: 0 exit, ~1.0 s vs. TS6-TSC 3.1 s (ohne npm-Overhead). (4) Keine Shim-Variante (`typescript: npm:@typescript/typescript6`) — kein `bin.tsc`, bricht Next-CLI-Discovery. Upgrade-Pfad zu echtem TS 7 erst wenn typescript-eslint #10940/#12803 (TS7-API) und vercel/next.js #97334 (Shim-Aliase) released sind.
 
 - **[Payload/Upload]** `media`-Collection erlauben nur explizite image-mimeTypes (`image/png`, `image/jpeg`, `image/webp`, `image/avif`) — SVG ausgeschlossen (XSS via Upload-Storage), kein Wildcard `image/*`. User-Auth-Cookies via `cookies: { secure: true, sameSite: 'Strict' }` in der Users-Collection-Config gehärtet (Live-Preview-iframe ist same-origin → Strict ok).
-- **[Sicherheit]** Seed-Routen (`/api/seed-home`, `/api/seed-globals`): nur `POST` (GET → 405, kein unauth-Flood-Vektor), Auth-Gate via `payload.auth({ headers })` aus gemeinsamem `src/app/api/_seedGuard.ts`, Prod-Gate als Konserve (`NODE_ENV === 'production' && ALLOW_SEED !== 'true'` → 403, vor `getPayload()`); Error-Responses nie Stack/Debug-Details (nur serverseitiges `console.error`).
+- **[Sicherheit]** ~~Seed-Routen (`/api/seed-home`, `/api/seed-globals`)~~ — **entfernt am 05.11.2026.** Die Routen (samt `src/app/api/_seedGuard.ts` und `ALLOW_SEED`) sind gelöscht; **Content wird ausschließlich via Payload-MCP gesetzt** (Verbot + Ausnahmen siehe Abschnitt „Payload-MCP"). Nicht wieder einführen. Die generelle Regel bleibt: externe API-Routen nie ohne Auth-Gate + Prod-Gate, Error-Responses nie mit Stack/Debug-Details (nur serverseitiges `console.error`).
 - **[Payload-Admin]** `admin.components.actions`-Einträge sind direkt `CustomComponent` (= `PayloadComponent`; String-Pfad via importMap baseDir oder `{ path }`) — kein `{ Component: '...' }`-Wrapper (TS2353). Custom-Views (`AdminViewConfig`) dagegen WOHL mit `Component`, `path`, `meta`. `@payloadcms/ui`-Button: `buttonStyle="destructive"` (kein `'error'`).
 - **[Cache]** `revalidateTag` in Next 16 verlangt 2-Arg `revalidateTag(tag, 'max')` (Single-Arg deprecated → TS-Fehler); `connection()` kommt aus `next/server` (nicht `react`) und muss inside `Suspense` laufen, sonst blockierende Navigations-Shell (Next-16 cacheComponents).
 - **[TS]** "Cannot find module" auf Barrel: Ursache war das falsche Pfadlevel (`../cache/frontendCache` statt `../cache/frontend/frontendCache`) — zuerst Pfadlevel/Trace-Resolution (`tsc --traceResolution`) prüfen, nicht TS-Config fixen.

@@ -40,12 +40,11 @@ npm run dev            # dev server on http://localhost:3000 (admin at /admin)
 
 Environment variables (see `.env.example`):
 
-| Variable         | Description                                                                                   |
-| ---------------- | --------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`   | PostgreSQL connection string (required, no default)                                           |
-| `PAYLOAD_SECRET` | Secret key for Payload CMS (required in production)                                           |
-| `APP_PORT`       | Published host port for the Docker Compose deployment (default `3300`)                        |
-| `ALLOW_SEED`     | Only set to `true` to enable seed routes in production (they stay admin-session gated anyway) |
+| Variable         | Description                                                            |
+| ---------------- | ---------------------------------------------------------------------- |
+| `DATABASE_URL`   | PostgreSQL connection string (required, no default)                    |
+| `PAYLOAD_SECRET` | Secret key for Payload CMS (required in production)                    |
+| `APP_PORT`       | Published host port for the Docker Compose deployment (default `3300`) |
 
 ## Scripts
 
@@ -78,8 +77,6 @@ src/
       api/               # Payload REST API routes
     api/
       health/            # Health check endpoint ({status:'ok'})
-      seed-home/         # Content seed routes (POST-only, gated)
-      seed-globals/
   cms/
     blocks/              # Payload block definitions
     cache/frontend/      # 'use cache' query layer + revalidation/clearCaches
@@ -174,7 +171,6 @@ Configuration lives in `vitest.config.mts` (integration) and `playwright.config.
 
 ## Security Notes
 
-- Seed routes (`/api/seed-home`, `/api/seed-globals`) are POST-only, require an admin session, and are disabled in production by default (`ALLOW_SEED=false`).
 - Local API reads pass `overrideAccess: false` whenever a user context is supplied; hooks always forward `req` to nested operations to keep transactions atomic and avoid infinite hook loops (context flags).
 - Payload auth cookies are hardened (`secure: true`, `SameSite=Strict`).
 - Security headers are centralized in `next.config.ts`: HSTS, nosniff, `X-Frame-Options: SAMEORIGIN` (required for admin live preview iframes), strict Referrer-Policy, restrictive Permissions-Policy, COOP, CSP (enforce + report-only rollout), and CORP on media routes.

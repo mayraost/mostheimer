@@ -8,9 +8,10 @@ import { expect, test } from '@playwright/test';
  * the Next bundler — `NODE_OPTIONS=--import=tsx/esm` in the test script fails on
  * it). Everything goes through HTTP against the running server.
  *
- * The slugs come from the seeded CMS (`seed-home` / `seed-globals`); a slug that
- * does not exist must never appear in the database, so a clearly synthetic path
- * is used for the negative cases.
+ * The slugs the positive cases touch (`/de`, `/en`) come from the CMS content
+ * stored in the local/Prod database; a slug that does not exist must never
+ * appear in the database, so a clearly synthetic path is used for the negative
+ * cases.
  */
 const BASE = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000';
 

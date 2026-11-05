@@ -6,7 +6,7 @@ import { StatusDot } from '../ui/industrial';
 
 type HeroBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'hero' }>;
 
-const STACK_ITEMS = ['Node 24', 'Next.js 16', 'Tailwind 4', 'PayloadCMS 4'];
+const STACK_ITEMS = ['Node 26', 'Next.js 16', 'Tailwind 4', 'PayloadCMS 4'];
 
 const METRICS = [
   { label: 'Experience', value: '~10 yrs' },
