@@ -242,4 +242,50 @@ const nextConfig: NextConfig = {
   ],
 };
 
-export default withPayload(nextConfig);
+/**
+ * Payload's `withPayload` appends `Accept-CH` / `Critical-CH:
+ * Sec-CH-Prefers-Color-Scheme` to EVERY response (see
+ * @payloadcms/next/dist/withPayload/withPayload.js). `Critical-CH` signals a
+ * client-hint negotiation, and Cloudflare refuses to store any response that
+ * carries it — every page stayed `cf-cache-status: DYNAMIC` while
+ * /_next/static (no such header) and /robots.txt cached fine (measured
+ * 05.11.2026). It is also the reason `/de/career` stopped being edge-cached:
+ * the header arrives with the Next 16 / Payload 4 baseline, not with a cache
+ * change.
+ *
+ * The admin panel still needs the hint (theme resolution reads
+ * `Sec-CH-Prefers-Color-Scheme`), so it is re-emitted for /admin only — the
+ * public frontend does not depend on it (theme comes from the pre-hydration
+ * bootstrap script), and those are exactly the responses that need to cache.
+ *
+ * Plugins append their `headers()` AFTER `nextConfig.headers()`, so the
+ * removal has to be the LAST entry — hence this wrapper around withPayload.
+ */
+const config = withPayload(nextConfig);
+
+const stripsClientHint = (headers: Awaited<ReturnType<NonNullable<NextConfig['headers']>>>) => [
+  ...(headers ?? []),
+  {
+    // Last entry wins for a given source+key.
+    source: '/:path*',
+    headers: [
+      { key: 'Critical-CH', value: '' },
+      { key: 'Accept-CH', value: '' },
+    ],
+  },
+  {
+    // The admin keeps the hint: its theme resolver reads it.
+    source: '/admin/:path*',
+    headers: [
+      { key: 'Critical-CH', value: 'Sec-CH-Prefers-Color-Scheme' },
+      { key: 'Accept-CH', value: 'Sec-CH-Prefers-Color-Scheme' },
+    ],
+  },
+];
+
+if (typeof config.headers === 'function') {
+  const originalHeaders = config.headers;
+  config.headers = async () => stripsClientHint(await originalHeaders());
+}
+
+export default config;
