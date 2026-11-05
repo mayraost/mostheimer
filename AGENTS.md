@@ -564,11 +564,12 @@ className="[text-shadow:0_0_10px_rgba(194,24,91,0.25)]"        // Light
 **Marken-Ausnahmen sind Absicht, nicht Schlamperei** (stehen als Lookahead/
 Lookbehind im Regex und sind in `tests/int/wording.int.spec.ts` festgenagelt):
 
-| Ausnahme                                             | Warum bleibt sie                                                                                                                               |
-| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `mosthi.consent.v1`, `mosthi:consent:open`           | localStorage-Key / DOM-Event — Umbenennen ohne Consent-Migration = alle gespeicherten Entscheidungen weg, Banner kommt für Wiederkehrer zurück |
-| `https://mosthi.de`, `https://mostheimer.de`, `www.` | Domain/Infrastruktur (Canonical-Host, Purge-Origins)                                                                                           |
-| `mail@mostheimer.de`                                 | echte Mailbox im Impressum                                                                                                                     |
+| Ausnahme                                             | Warum bleibt sie                                                                                                                                                                                          |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mosthi.consent.v1`                                  | **Legacy**-Storage-Key (nur noch Cleanup): live ist `mayraostheimer.consent.v1`; der alte Key wird nie geparst, nur beim ersten Read gelöscht (`LEGACY_CONSENT_STORAGE_KEYS`) — Literal muss also bleiben |
+| `mosthi:consent:open`                                | DOM-Event-Name (Footer-Trigger ↔ Banner) — Identifikator, keine Copy; Umbenennen wäre Event-Drift, kein Consent-Verlust                                                                                   |
+| `https://mosthi.de`, `https://mostheimer.de`, `www.` | Domain/Infrastruktur (Canonical-Host, Purge-Origins)                                                                                                                                                      |
+| `mail@mostheimer.de`                                 | echte Mailbox im Impressum                                                                                                                                                                                |
 
 ### `beforeValidate`-Hook (Editor-Feedback)
 

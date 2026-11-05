@@ -51,9 +51,11 @@ describe('findWordingViolations', () => {
   });
 
   it('exempts identifiers, hosts and the mailbox (no false positives)', () => {
-    // Consent persistence: renaming this key without a migration would silently
-    // drop stored decisions for returning visitors.
+    // `mosthi.consent.v1` is a LEGACY storage key (the live one is
+    // `mayraostheimer.consent.v1`); it survives only as a literal in the
+    // one-time cleanup list and must not be flagged there.
     expect(findWordingViolations('mosthi.consent.v1')).toEqual([]);
+    // DOM event name, not copy — linking the footer trigger to the banner.
     expect(findWordingViolations('mosthi:consent:open')).toEqual([]);
     // Live infrastructure, not a label.
     expect(findWordingViolations('https://mosthi.de')).toEqual([]);

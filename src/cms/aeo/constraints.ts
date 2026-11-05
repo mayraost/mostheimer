@@ -52,11 +52,18 @@ const HIERARCHY_OVERREACH: BannedWordingPattern[] = [
 /**
  * Retired brand label. Deliberately narrow:
  *
- * - `mosthi.consent.v1` (localStorage) and `mosthi:consent:open` (DOM event)
- *   are STORAGE/EVENT IDENTIFIERS, not user-visible labels. Renaming them
- *   without a consent migration would silently drop every stored decision
- *   (banner reappears for returning visitors). The negative lookahead keeps
- *   `mosthi.`/`mosthi:` identifiers exempt — see the tests that pin this.
+ * - `mosthi.consent.v1` is a **legacy** localStorage key only: the live key is
+ *   `mayraostheimer.consent.v1` (renamed 05.11.2026, deliberately without a
+ *   migration — see AGENTS.md). The old key is never parsed, only removed once
+ *   on read (`LEGACY_CONSENT_STORAGE_KEYS` in `src/lib/consent/consent.ts`),
+ *   so it must survive literal-quoted in that cleanup path without tripping
+ *   the guardrail. Exempted as an identifier regardless of its retired state.
+ * - `mosthi:consent:open` is a DOM event name — also an identifier, never
+ *   rendered. Renaming it would break the footer "cookie settings" trigger
+ *   (event producer/consumer drift), not consent persistence.
+ *
+ *   Neither is user-visible copy. The negative lookahead keeps `mosthi.`/
+ *   `mosthi:` identifiers exempt — see the tests that pin this.
  * - `https://mosthi.de` / `https://mostheimer.de` are the live DOMAIN. The
  *   domain is infrastructure (canonical host, purge origins), not a person or
  *   brand label. Any `URL`-prefixed occurrence is exempt.
