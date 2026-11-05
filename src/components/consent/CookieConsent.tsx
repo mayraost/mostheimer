@@ -11,7 +11,6 @@ import {
   initGtm,
   trackPageView,
   type ConsentChoice,
-  type StoredConsent,
 } from '@/lib/consent';
 
 /**
@@ -158,15 +157,22 @@ export function CookieConsent({ gtmId = '' }: CookieConsentProps) {
   const pathname = usePathname();
   const lang = pathname.split('/')[1];
   const [open, setOpen] = useState(false);
-  const [analytics, setAnalytics] = useState(false);
-  const [marketing, setMarketing] = useState(false);
-  // One-off storage read (localStorage is unavailable during SSR),
-  // deliberately a lazy initialiser rather than an effect-setState: React 19 /
-  // eslint react-hooks/set-state-in-effect forbids synchronous setState in the
-  // effect body. `mounted` separates hydration from first paint (no mismatch).
-  const [initialConsent, setStored] = useState<StoredConsent | undefined>(() =>
-    typeof window === 'undefined' ? undefined : (getStoredConsent() ?? undefined),
+  // One storage read for the initial toggle/decision state. `localStorage` is
+  // unavailable during SSR, hence the `typeof window` guard.
+  const [initialStored] = useState(() =>
+    typeof window === 'undefined' ? null : getStoredConsent(),
   );
+  // Toggle state mirrors the stored decision from the very first client render,
+  // so a reopen (footer link) never shows stale values and "Save selection"
+  // cannot silently change anything.
+  const [analytics, setAnalytics] = useState(initialStored?.analytics ?? false);
+  const [marketing, setMarketing] = useState(initialStored?.marketing ?? false);
+  // `undecided` is the ONLY trigger for the automatic banner: true while no
+  // stored decision exists, cleared by `decide()`. Previously `open` alone was
+  // combined with an `initialConsent === undefined` term, which stayed true
+  // forever on a first visit — so a click saved the decision but the banner
+  // never closed.
+  const [undecided, setUndecided] = useState(initialStored === null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const rejectRef = useRef<HTMLButtonElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
@@ -185,7 +191,6 @@ export function CookieConsent({ gtmId = '' }: CookieConsentProps) {
       const stored = getStoredConsent();
       setAnalytics(stored?.analytics ?? false);
       setMarketing(stored?.marketing ?? false);
-      setStored(undefined);
       setOpen(true);
     };
     window.addEventListener(CONSENT_OPEN_EVENT, handleOpen);
@@ -215,6 +220,10 @@ export function CookieConsent({ gtmId = '' }: CookieConsentProps) {
     applyConsent(choice);
     setAnalytics(choice.analytics);
     setMarketing(choice.marketing);
+    // Clearing `undecided` is what actually closes the banner: `open` alone
+    // cannot, because the auto-open term was still true. Both are set so a
+    // later reopen (footer link) keeps working.
+    setUndecided(false);
     setOpen(false);
     // Track the decision screen's page view — no tracking was allowed before,
     // in case the visitor landed directly here.
@@ -222,7 +231,12 @@ export function CookieConsent({ gtmId = '' }: CookieConsentProps) {
   }, []);
 
   const closeIfDecided = useCallback(() => {
-    if (getStoredConsent()) setOpen(false);
+    // Same rule as `decide`: the auto-open term must be cleared, otherwise the
+    // banner stays visible even though a decision exists.
+    if (getStoredConsent()) {
+      setUndecided(false);
+      setOpen(false);
+    }
   }, []);
 
   const onKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -252,7 +266,7 @@ export function CookieConsent({ gtmId = '' }: CookieConsentProps) {
     }
   }, []);
 
-  // Visibility: open automatically after hydration when no decision exists —
+  // Visibility: open automatically after hydration while no decision exists —
   // otherwise only on explicit open (footer link). `useSyncExternalStore`
   // returns `false` during SSR and `true` after hydration (own snapshot, no
   // effect-setState → no CLS: the dialog is `position: fixed`).
@@ -261,7 +275,7 @@ export function CookieConsent({ gtmId = '' }: CookieConsentProps) {
     () => true,
     () => false,
   );
-  const visible = mounted && (open || initialConsent === undefined);
+  const visible = mounted && (open || undecided);
   if (!visible) return null;
 
   // Per-field fallback instead of `t.cookies` as a whole: instances that are
