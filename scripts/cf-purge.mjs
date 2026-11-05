@@ -49,7 +49,23 @@
  * non-2xx — each logs one concise warning and exits 0. The app never fails to
  * start because of a purge. The token is never logged.
  *
- * Token permission: Zone → Cache Purge → Purge, scoped to the mosthi.de zone.
+ * MULTIPLE ZONES
+ *
+ * The content is served under several hosts and those hosts do NOT share one
+ * Cloudflare zone: `mosthi.de` and `mostheimer.de` are separate zones. Purging
+ * only one of them leaves the other serving pre-deploy HTML, which looks exactly
+ * like "the purge silently failed". So the purge runs once per configured zone,
+ * each with the hosts that zone actually serves.
+ *
+ *   CLOUDFLARE_PURGE_ZONES
+ *     Optional. Semicolon separated `zoneId:host1,host2` entries. When set it
+ *     replaces CLOUDFLARE_ZONE_ID / NEXT_PUBLIC_SERVER_URL entirely.
+ *   CLOUDFLARE_ZONE_ID + NEXT_PUBLIC_SERVER_URL
+ *     Fallback: one zone, hosts derived from NEXT_PUBLIC_SERVER_URL (the
+ *     canonical origin list the app already needs). CF_SITE_ORIGIN is the last
+ *     resort single host.
+ *
+ * Token permission: Zone → Cache Purge → Purge, for EVERY zone listed.
  */
 
 import { createHash } from 'node:crypto';
@@ -215,19 +231,63 @@ async function purge({ token, zoneId, body }) {
   return response.status;
 }
 
+/** Origins that actually serve the content (see "MULTIPLE ZONES" in the header). */
+function resolveOrigins() {
+  const configured = (process.env.NEXT_PUBLIC_SERVER_URL || '')
+    .split(';')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const origins = configured.length > 0 ? configured : [SITE_ORIGIN];
+  return [...new Set(origins.map((value) => value.replace(/\/+$/, '')))];
+}
+
+/**
+ * `[{ zoneId, origins }]` — one entry per Cloudflare zone.
+ *
+ * Cloudflare purges are zone-scoped and there is no host-based purge, so a host
+ * in a different zone silently keeps its stale objects. That is exactly how
+ * `mostheimer.de` served pre-deploy HTML while every purge reported success.
+ */
+function resolveZones() {
+  const explicit = (process.env.CLOUDFLARE_PURGE_ZONES || '').trim();
+  if (explicit) {
+    const entries = [];
+    for (const chunk of explicit
+      .split(';')
+      .map((value) => value.trim())
+      .filter(Boolean)) {
+      // Split on the FIRST colon only: the hosts that follow contain `https://`.
+      const separator = chunk.indexOf(':');
+      const zoneId = separator === -1 ? chunk : chunk.slice(0, separator);
+      const hosts = separator === -1 ? '' : chunk.slice(separator + 1);
+      if (!zoneId) continue;
+      const origins = hosts
+        .split(',')
+        .map((value) => value.trim().replace(/\/+$/, ''))
+        .filter(Boolean);
+      entries.push({ zoneId, origins: origins.length > 0 ? origins : resolveOrigins() });
+    }
+    if (entries.length > 0) return entries;
+  }
+
+  const zoneId = process.env.CLOUDFLARE_ZONE_ID ?? '';
+  if (!zoneId) return [];
+  return [{ zoneId, origins: resolveOrigins() }];
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
 
   const token = process.env.CLOUDFLARE_API_TOKEN ?? '';
-  const zoneId = process.env.CLOUDFLARE_ZONE_ID ?? '';
+  const zones = resolveZones();
   const release = resolveRelease(args);
 
   if (process.env.CLOUDFLARE_PURGE_ON_START === '0') {
     log('disabled via CLOUDFLARE_PURGE_ON_START=0');
     return;
   }
-  if (!token || !zoneId) {
-    log('no CLOUDFLARE_API_TOKEN / CLOUDFLARE_ZONE_ID configured — deploy purge skipped');
+  if (!token || zones.length === 0) {
+    log('no CLOUDFLARE_API_TOKEN / zone configuration — deploy purge skipped');
     return;
   }
   if (!release) {
@@ -256,38 +316,49 @@ async function main() {
   }
 
   // Operator escape hatch only (see header); never the default path.
-  let body;
-  let description;
+  let paths = null;
   if (args.everything) {
-    body = { purge_everything: true };
-    description = 'EVERYTHING (manual)';
+    // Nothing to collect: the body below flushes the whole zone.
   } else {
-    const paths = (await fetchContentPaths(process.env.PORT || '3000'))?.filter(isPurgeable);
+    paths = (await fetchContentPaths(process.env.PORT || '3000'))?.filter(isPurgeable) ?? null;
     if (!paths || paths.length === 0) {
       warn('could not read the content route list from /sitemap.xml — deploy purge skipped');
       return;
     }
-    body = { files: paths.map((path) => `${SITE_ORIGIN}${path}`) };
-    description = `${paths.length} content URLs (static assets excluded)`;
   }
 
-  try {
-    const status = await purge({ token, zoneId, body });
-    if (status < 200 || status >= 300) {
+  // One request per zone: a zone only evicts objects of hosts it serves, and
+  // the same URL exists in more than one zone here (see "MULTIPLE ZONES").
+  let failed = 0;
+  for (const zone of zones) {
+    const body = args.everything
+      ? { purge_everything: true }
+      : { files: zone.origins.flatMap((origin) => paths.map((path) => `${origin}${path}`)) };
+    const description = args.everything
+      ? 'EVERYTHING (manual)'
+      : `${paths.length} content URLs x ${zone.origins.length} host(s), static assets excluded`;
+    try {
+      const status = await purge({ token, zoneId: zone.zoneId, body });
+      if (status < 200 || status >= 300) {
+        failed += 1;
+        warn(
+          `purge failed for zone ${zone.zoneId.slice(0, 8)} (HTTP ${status}) — the edge keeps the previous release until the next successful purge`,
+        );
+        continue;
+      }
+      log(`purged ${description} in zone ${zone.zoneId.slice(0, 8)} (release ${release})`);
+    } catch (error) {
+      failed += 1;
+      // Message only: the request object carries the token.
+      const message = error instanceof Error ? `${error.name}: ${error.message}` : 'unknown error';
       warn(
-        `purge failed (HTTP ${status}) — the edge keeps the previous release until the next successful purge`,
+        `purge request failed for zone ${zone.zoneId.slice(0, 8)} (${message}) — the edge keeps the previous release until the next successful purge`,
       );
-      return;
     }
-    if (!args.everything) writeFileSync(marker, new Date().toISOString());
-    log(`purged ${description} (release ${release})`);
-  } catch (error) {
-    // Message only: the request object carries the token.
-    const message = error instanceof Error ? `${error.name}: ${error.message}` : 'unknown error';
-    warn(
-      `purge request failed (${message}) — the edge keeps the previous release until the next successful purge`,
-    );
   }
+
+  // Marker only when every zone succeeded, otherwise the next run retries.
+  if (!args.everything && failed === 0) writeFileSync(marker, new Date().toISOString());
 }
 
 // Always exit 0: a purge problem must never block container start.
