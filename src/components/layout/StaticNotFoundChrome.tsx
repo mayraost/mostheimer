@@ -44,7 +44,7 @@ const COPY = {
     switchHref: '/de',
     switchLang: 'de',
     claim: 'Web & Application Architect',
-    rights: '© Mostheimer · All rights reserved',
+    rights: '© Mayra Ostheimer · All rights reserved',
   },
   de: {
     nav: {
@@ -62,7 +62,7 @@ const COPY = {
     switchHref: '/en',
     switchLang: 'en',
     claim: 'Web & Application Architect',
-    rights: '© Mostheimer · Alle Rechte vorbehalten',
+    rights: '© Mayra Ostheimer · Alle Rechte vorbehalten',
   },
 } as const;
 
@@ -80,7 +80,7 @@ export function StaticHeader({ locale = 'en' }: { locale?: ChromeLocale }) {
               MO
             </span>
           </span>
-          <span className="text-lg font-bold tracking-tight text-foreground">mostheimer</span>
+          <span className="text-lg font-bold tracking-tight text-foreground">mayra ostheimer</span>
           <span className="mono-label text-primary">{'//'} dev</span>
         </Link>
         <nav aria-label={copy.navLabel}>
@@ -119,7 +119,7 @@ export function StaticFooter({ locale = 'en' }: { locale?: ChromeLocale }) {
     <footer className="mt-auto w-full border-t border-border bg-surface/40">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8 md:flex-row md:items-center md:justify-between md:px-8">
         <p className="mono-label text-muted-foreground">
-          Mostheimer <span className="text-primary">/</span> {copy.claim}
+          Mayra Ostheimer <span className="text-primary">/</span> {copy.claim}
         </p>
         <nav aria-label={copy.legalLabel}>
           <ul className="flex flex-wrap items-center gap-x-5 gap-y-2">

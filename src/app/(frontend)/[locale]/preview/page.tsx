@@ -9,7 +9,7 @@ import { PREVIEW_DEPTH } from '@/cms/preview/constants';
 import type { FrontendLocale } from '@/cms/cache/frontend/frontendCache';
 
 export const metadata: Metadata = {
-  title: 'Live Preview – Mostheimer',
+  title: 'Live Preview – Mayra Ostheimer',
   robots: {
     index: false,
     follow: false,

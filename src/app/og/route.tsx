@@ -20,7 +20,7 @@ import { OG_SIZE, OgCard, sanitizeOgTitle } from '@/components/og/ogCard';
  */
 export function GET(request: Request): ImageResponse {
   const searchParams = new URL(request.url).searchParams;
-  const title = sanitizeOgTitle(searchParams.get('t') ?? 'Mostheimer');
+  const title = sanitizeOgTitle(searchParams.get('t') ?? 'Mayra Ostheimer');
   const subtitle = sanitizeOgTitle(searchParams.get('s') ?? 'Personal website');
 
   return new ImageResponse(<OgCard title={title} subtitle={subtitle} />, {

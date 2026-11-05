@@ -29,13 +29,13 @@ export async function generateMetadata({
   const canonical = `${baseUrl}/${locale}/impressum`;
 
   return {
-    title: { absolute: `${title} - Mostheimer` },
+    title: { absolute: `${title} - Mayra Ostheimer` },
     description,
     openGraph: {
       title,
       description,
       type: 'website',
-      siteName: 'Mostheimer',
+      siteName: 'Mayra Ostheimer',
       url: canonical,
       locale: locale === 'de' ? 'de_DE' : 'en_US',
       images: [ogImageUrl(title, locale)],

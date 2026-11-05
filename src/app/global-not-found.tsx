@@ -34,7 +34,7 @@ import { StatusScreen } from '@/components/layout/StatusScreen';
  */
 
 export const metadata: Metadata = {
-  title: 'Mostheimer 404',
+  title: 'Mayra Ostheimer 404',
   description: 'The page you are looking for does not exist or has moved.',
   // Next also injects this automatically for 404 documents; kept explicit for
   // crawlers that read the static head before any runtime decoration.

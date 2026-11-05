@@ -138,7 +138,7 @@ export default async function Page({ params }: PageProps<'/[locale]/[[...slug]]'
     locale,
     page,
     derivePageDescription(page),
-    siteSettings.siteName || 'Mostheimer',
+    siteSettings.siteName || 'Mayra Ostheimer',
   );
 
   // Semantic <h1> guarantee: case-studies / tech-radar / career have no block
@@ -186,12 +186,12 @@ function buildPageMetadata(locale: FrontendLocale, slug: string, page: CmsPage):
   const deUrl = baseUrl + '/de' + (slug === 'home' ? '' : '/' + slug);
 
   return {
-    title: { absolute: page.title + ' - Mostheimer' },
+    title: { absolute: page.title + ' - Mayra Ostheimer' },
     ...(description ? { description } : {}),
     openGraph: {
       title: page.title,
       type: 'website',
-      siteName: 'Mostheimer',
+      siteName: 'Mayra Ostheimer',
       url: canonical,
       locale: locale === 'de' ? 'de_DE' : 'en_US',
       ...(description ? { description } : {}),

@@ -66,19 +66,21 @@ export function Header({
     <header className="sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur-xl">
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-3 px-4 md:px-8">
         {/*
-         * A11y: the visible text ("mostheimer" + "// dev") must be part of the
-         * accessible name. On mobile that text is hidden, so an sr-only text
-         * supplies the name instead of a contradictory aria-label.
+         * A11y: the visible text ("mayra ostheimer" + "// dev") must be part of
+         * the accessible name. On mobile that text is hidden, so an sr-only
+         * text supplies the name instead of a contradictory aria-label.
          */}
         <Link href={`/${locale}`} className="group flex items-center gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-[6px] border border-border bg-surface-raised text-primary transition-colors group-hover:border-primary/60 group-hover:text-primary-hover">
             <Logo className="h-5 w-5" />
           </span>
           <span className="hidden font-heading text-lg font-bold tracking-tight text-foreground sm:inline">
-            mostheimer
+            mayra ostheimer
           </span>
           <span className="mono-label hidden text-primary lg:inline">{'//'} dev</span>
-          <span className="sr-only">mostheimer — {locale === 'de' ? 'Startseite' : 'home'}</span>
+          <span className="sr-only">
+            mayra ostheimer — {locale === 'de' ? 'Startseite' : 'home'}
+          </span>
         </Link>
 
         <div className="flex items-center gap-2">

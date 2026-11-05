@@ -17,17 +17,13 @@ import { runPendingCloudflarePurges } from '@/cms/cache/frontend/purges';
 import { getCachedRouteRegistry } from '@/cms/cache/frontend/queries';
 
 import { getCommandItems } from '@/components/ui/commandItems';
+import { layoutMetadata } from './layoutMetadata';
 
-export const metadata: Metadata = {
-  title: 'Mostheimer — Web & Application Architect',
-  description:
-    'Mayra Ostheimer — Web & Application Architect und Senior-Level FullStack Engineer. Composable Architekturen, Next.js/Payload, Team- & Projektleitung für produktionsreife Systeme.',
-  metadataBase: new URL(envConfig.serverUrl),
-  // Base OG/Twitter defaults for every segment; per-page cards come from the
-  // /og route.
-  openGraph: { siteName: 'Mostheimer', type: 'website' },
-  twitter: { card: 'summary_large_image' },
-};
+/**
+ * Base metadata for every `[locale]` segment; the object itself lives in
+ * `layoutMetadata.ts` (kept import-light for the wording guardrail test).
+ */
+export const metadata: Metadata = layoutMetadata;
 
 // The shell renders `connection()`-guarded content inside a Suspense boundary
 // (skeleton streams first, real chrome follows), which Next's [block]

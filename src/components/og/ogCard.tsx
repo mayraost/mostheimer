@@ -38,7 +38,7 @@ const OG_TITLE_MAX_LENGTH = 200;
 export function ogImageUrl(title: string, locale: OgLocale): string {
   const params = new URLSearchParams({
     t: title.slice(0, OG_TITLE_MAX_LENGTH),
-    s: 'Mostheimer',
+    s: 'Mayra Ostheimer',
     loc: locale,
   });
   return `/og?${params.toString()}`;
@@ -85,7 +85,7 @@ export function OgCard({ title, subtitle }: OgCardProps) {
             color: OG_BRAND.muted,
           }}
         >
-          Mostheimer
+          Mayra Ostheimer
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column' }}>

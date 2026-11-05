@@ -1,5 +1,6 @@
 import type { GlobalConfig } from 'payload';
 import { revalidateNotFoundCache } from '../cache/frontend/frontendCache';
+import { wordingBeforeValidate } from '../wording/beforeValidateWordingCheck';
 
 export const NotFound: GlobalConfig = {
   slug: 'not-found',
@@ -7,6 +8,7 @@ export const NotFound: GlobalConfig = {
     read: () => true,
   },
   hooks: {
+    beforeValidate: [wordingBeforeValidate],
     afterChange: [() => revalidateNotFoundCache()],
   },
   fields: [

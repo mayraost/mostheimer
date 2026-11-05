@@ -1,5 +1,6 @@
 import type { GlobalConfig } from 'payload';
 import { revalidateSiteSettingsCache } from '../cache/frontend/frontendCache';
+import { wordingBeforeValidate } from '../wording/beforeValidateWordingCheck';
 
 /**
  * Global settings (branding, default OG image). The layout shell reads this via
@@ -17,6 +18,7 @@ export const SiteSettings: GlobalConfig = {
     read: () => true,
   },
   hooks: {
+    beforeValidate: [wordingBeforeValidate],
     afterChange: [
       () => {
         // Layout-level entry (site settings + navigation share one cache
@@ -29,7 +31,7 @@ export const SiteSettings: GlobalConfig = {
     {
       name: 'siteName',
       type: 'text',
-      defaultValue: 'Mostheimer',
+      defaultValue: 'Mayra Ostheimer',
       required: true,
       localized: true,
     },

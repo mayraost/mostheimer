@@ -1,5 +1,6 @@
 import { GlobalConfig } from 'payload';
 import { revalidateTranslationsCache } from '../cache/frontend/frontendCache';
+import { wordingBeforeValidate } from '../wording/beforeValidateWordingCheck';
 
 export const Translations: GlobalConfig = {
   slug: 'translations',
@@ -10,6 +11,7 @@ export const Translations: GlobalConfig = {
     read: () => true,
   },
   hooks: {
+    beforeValidate: [wordingBeforeValidate],
     afterChange: [() => revalidateTranslationsCache()],
   },
   fields: [

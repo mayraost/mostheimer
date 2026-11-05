@@ -40,7 +40,7 @@ export function jsonLdLanguageTag(locale: FrontendLocale): 'de-DE' | 'en-US' {
  * - `seeks`/`makesOffer`/"available for work": that badge is marketing copy,
  *   not a verified availability status.
  */
-const PERSON: JsonLdObject = {
+export const PERSON: JsonLdObject = {
   '@type': 'Person',
   '@id': `${BASE_URL}/#person`,
   name: 'Mayra Ostheimer',

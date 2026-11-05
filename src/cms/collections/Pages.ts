@@ -5,6 +5,7 @@ import {
   revalidatePagePathCache,
   revalidatePreviousPagePathCache,
 } from '../cache/frontend/frontendCache';
+import { wordingBeforeValidate } from '../wording/beforeValidateWordingCheck';
 
 export const Pages: CollectionConfig = {
   slug: 'pages',
@@ -35,6 +36,9 @@ export const Pages: CollectionConfig = {
   // path still passes draft:false and stays published-only.
   versions: { drafts: true },
   hooks: {
+    // Wording guardrail: banned hierarchy/brand terms fail the save with a
+    // readable message instead of shipping (see cms/aeo/constraints.ts).
+    beforeValidate: [wordingBeforeValidate],
     // OSR: publish/update/delete flush the route cache precisely and blocking
     // (see cache/frontend/revalidate.ts — the 'max' SWR window left pages stale
     // on prod). A slug rename also flushes the old path, which must serve 404

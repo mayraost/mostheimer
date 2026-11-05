@@ -11,7 +11,7 @@
 
 const BASE = 'https://mostheimer.de';
 
-export const LLMS_TXT = `# Mostheimer
+export const LLMS_TXT = `# Mayra Ostheimer
 
 > Personal website of Mayra Ostheimer — Senior Fullstack Developer — published in
 > German (\`/de\`) and English (\`/en\`). Seven content pages plus the legal pages,

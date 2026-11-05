@@ -77,7 +77,7 @@ export default function GlobalError({
               ) : null}
             </div>
           </div>
-          <footer>Mostheimer · Web &amp; Application Architect</footer>
+          <footer>Mayra Ostheimer · Web &amp; Application Architect</footer>
         </main>
       </body>
     </html>
