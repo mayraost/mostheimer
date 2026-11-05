@@ -70,7 +70,7 @@ export function HeroBlock({ block }: { block: HeroBlockData }) {
             </span>
           </div>
 
-          <h1 className="mb-6 flex justify-start font-heading text-[clamp(2rem,5.2vw,4.25rem)] font-bold leading-[1.04] tracking-[-0.035em] text-foreground">
+          <h1 className="mb-6 font-heading text-[clamp(2rem,5.2vw,4.25rem)] font-bold leading-[1.04] tracking-[-0.035em] text-foreground">
             <TypingHeading text={block.heading} />
           </h1>
 
