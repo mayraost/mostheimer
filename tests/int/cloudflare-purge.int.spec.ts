@@ -59,6 +59,55 @@ describe('edge purge routes', () => {
   });
 });
 
+/**
+ * INVARIANT: static assets are immutable and content-addressed, so they are
+ * never purged — wasting the Free-plan budget and, worse, discarding the warm
+ * CSS/JS the edge needs to keep an origin outage *styled*. These tests exist so
+ * a future mapping cannot silently reintroduce asset purges.
+ */
+describe('static assets are never purged', () => {
+  it('drops /_next/static paths from the URL list', () => {
+    const urls = toPurgeUrls(['/de', '/_next/static/chunks/a.css', '/_next/static/chunks/b.js']);
+    expect(urls.every((url) => !url.includes('/_next/static'))).toBe(true);
+    expect(urls).toContain('https://mosthi.de/de');
+  });
+
+  it('reports nothing-to-purge instead of calling the API for asset-only input', async () => {
+    const env = process.env;
+    process.env = {
+      ...env,
+      CLOUDFLARE_API_TOKEN: 'test-token',
+      CLOUDFLARE_ZONE_ID: 'a'.repeat(32),
+    };
+    const fetchSpy = vi.fn();
+    setCloudflareFetchForTests(fetchSpy);
+    try {
+      await expect(
+        purgeCloudflareCache({ type: 'urls', paths: ['/_next/static/chunks/a.css'] }),
+      ).resolves.toEqual({ status: 'skipped', reason: 'nothing-to-purge' });
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      process.env = env;
+      setCloudflareFetchForTests(null);
+    }
+  });
+
+  it('never maps a tag onto an asset path', () => {
+    registerPageSlugs(['home', 'imprint']);
+    for (const tag of [
+      CACHE_TAGS.ALL,
+      CACHE_TAGS.pages,
+      CACHE_TAGS.sitemap,
+      CACHE_TAGS.pageByPath('imprint'),
+      CACHE_TAGS.siteSettings,
+    ]) {
+      for (const path of edgePurgePathsForTag(tag)) {
+        expect(path.startsWith('/_next/static/')).toBe(false);
+      }
+    }
+  });
+});
+
 describe('cloudflare purge client', () => {
   const env = process.env;
 
@@ -81,7 +130,7 @@ describe('cloudflare purge client', () => {
     delete process.env.CLOUDFLARE_API_TOKEN;
     const fetchSpy = vi.fn();
     setCloudflareFetchForTests(fetchSpy);
-    await expect(purgeCloudflareCache({ type: 'everything' })).resolves.toEqual({
+    await expect(purgeCloudflareCache({ type: 'urls', paths: ['/de'] })).resolves.toEqual({
       status: 'skipped',
       reason: 'not-configured',
     });
@@ -106,7 +155,7 @@ describe('cloudflare purge client', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const { purgeCloudflareNow } = await import('@/cms/cache/frontend/cloudflare');
 
-    await expect(purgeCloudflareNow({ type: 'everything' }, 'test')).resolves.toEqual({
+    await expect(purgeCloudflareNow({ type: 'urls', paths: ['/de'] }, 'test')).resolves.toEqual({
       status: 'failed',
       reason: 'rate limited (429)',
     });
@@ -117,8 +166,8 @@ describe('cloudflare purge client', () => {
   it('opens the circuit after a failure instead of hammering the API', async () => {
     const fetchSpy = vi.fn().mockRejectedValue(new Error('boom'));
     setCloudflareFetchForTests(fetchSpy);
-    expect((await purgeCloudflareCache({ type: 'everything' })).status).toBe('failed');
-    expect(await purgeCloudflareCache({ type: 'everything' })).toEqual({
+    expect((await purgeCloudflareCache({ type: 'urls', paths: ['/de'] })).status).toBe('failed');
+    expect(await purgeCloudflareCache({ type: 'urls', paths: ['/de'] })).toEqual({
       status: 'skipped',
       reason: 'circuit-open',
     });
