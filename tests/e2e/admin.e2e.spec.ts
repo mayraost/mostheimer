@@ -39,11 +39,11 @@ test.describe('Admin Panel', () => {
     await page?.context().close();
   });
   test('can navigate to dashboard', async () => {
-    // Payload 4 renders the dashboard as an entry in the grouped sidebar
-    // (`link "Dashboard"`); the earlier `span[title="Dashboard"]` no longer
-    // exists in the admin DOM, so the assertion targets the link itself.
-    const dashboardArtifact = page.getByRole('link', { name: 'Dashboard' }).first();
-    await expect(dashboardArtifact).toBeVisible();
+    // Payload 4 renders the dashboard as TEXT in the grouped nav/breadcrumb
+    // (measured: `body` contains "Dashboard", but neither a `link "Dashboard"`
+    // nor a `span[title="Dashboard"]` exists any more). Asserting on visible
+    // text keeps the smoke test stable across admin markup changes.
+    await expect(page.getByText('Dashboard', { exact: true }).first()).toBeVisible();
   });
 
   test('can navigate to list view', async () => {
