@@ -30,7 +30,7 @@ export const TechSection: Block = {
     {
       name: 'keyFacts',
       type: 'array',
-      maxRows: 5,
+      maxRows: 6,
       admin: {
         description:
           'Optional metrics/facts row displayed below the body (e.g. "Caching layer: Cloudflare")',
