@@ -898,6 +898,26 @@ Vor jedem Commit wird diese Datei auf Aktualität geprüft und bei Bedarf ergän
   3. Höhen-Reservierung des `p.mb-8` analog zur H1 (feste `min-height` in `em` auf Basis der erwarteten Zeilenanzahl je Breakpoint).
      Merke: CLS-Diagnose auf dieser Site **immer** pro Element via `PerformanceObserver` (`type: 'layout-shift'`, `entry.sources[].node`) machen — Lighthouse-Gesamtwerte schwanken hier zwischen 0.3 und 0.58, ohne dass sich die Substanz ändert.
 
+- **[Perf/CLS] Ursache war die H1 (Typing-Animation ohne SSR-Text), NICHT die Subheadline — behoben 05.11.2026** (`fix/hero-cls`, Branch-PR). Die obige Bewertung „Subheadline-Font-Swap" war **falsch**; per `PerformanceObserver` über 5 Viewports × 2 Locales gemessen:
+
+  | Was                         | Vorher                                                | Nachher                  |
+  | --------------------------- | ----------------------------------------------------- | ------------------------ |
+  | Quell-Knoten des Shifts     | `p.mb-8`, `dl`-Metrikzeile, CTA-Row, `mt-8`-Stack-Row | —                        |
+  | Shift-Zeitpunkt             | 156–277 ms                                            | —                        |
+  | CLS `/de` 768 / 1280 / 1920 | 0.0313 / 0.0236 / 0.0107                              | 0.0013 / 0.0032 / 0.0012 |
+  | CLS `/de` + `/en` 375 / 390 | **0.000** (schon vorher, Umlaufdominanz)              | 0.0012–0.0029            |
+  | Hero-`p`-Höhe vor/nach Swap | **konstant 104 px / 88 px** (kein Muster!)            | unverändert              |
+
+  Widerlegung der Font-These: die Subheadline-Höhe ändert sich über den Font-Swap **nie** (Live-Sampling jedes Frame: 88 px bleibt 88 px). `next/font`s `Space Grotesk Fallback` ist zwar ~20 % schmaler (1180 vs. 1418 px), `system-ui` dagegen ~5 % breiter (1459 px) — beide ergeben bei 672 px Box 3 Zeilen. Erst bei 375–390 px kippt `system-ui` auf 4 (balancierte Wrapper-Box), deshalb dort 0 Shift.
+
+  Echte Ursache: das `<h1>` war im **Server-HTML LEER** (`min-height: 1em`), die Typing-Animation tippte es erst nach Hydration — live getraced: `h1` 69 px (1 Zeile) bei 128 px, dann 138 px (2 Zeilen) bei ~199 ms. Genau dieser Sprung schob Metrik-/CTA-/Stack-Row.
+
+  Fix (`src/components/TypingHeading.tsx`): der **Server rendert den Text jetzt sichtbar** (erste Paint = finale Geometrie). Nach dem Mount übernimmt ein Overlay, dessen Box-Höhe auf die SSR-Höhe gelockt ist (`overflow: hidden`); die Animation startet erst, wenn die **700-Face** geladen ist (`document.fonts.check('<weight> 1em "Space Grotesk")`, 1.5 s Safety-Timeout) — dadurch kein Swap mitten in der Animation. `useSyncExternalStore` (Server-Snapshot `false`) markiert „client-only" ohne `setState` im Effect (ESLint `react-hooks/set-state-in-effect`).
+
+  Verworfen mit Messung: (a) kalibrierte Fallback-Faces (`size-adjust`-Sweep 104–112 %, Arial/system-ui/Palatino) — kein einziger Treffer möglich, weil **kein** Fallback den Vorteil konsistent hält und halb getippte Wörter (`Mayra Osthei|mer`) an willkürlichen Stellen brechen; (b) `display: 'optional'` — hätte den echten (H1-)Shift gar nicht adressiert.
+
+  **Rest-CLS (vorbestehend, nicht Teil des Fixes):** bei schnellem Laden schiebt `footer.mt-auto` einmal von `y=749` auf `y≈2004` (konstante Höhe 151 px, DocHeight 900 → 2154, bei ~160 ms). Das ist ein Layout-Shift im Lighthouse-Sinne (Element bewegt sich relativ zur Viewport-Ursprungsfläche), trat auf `origin/main` identisch auf und ist intermittierend (≈1 von 5 Laden). Nicht angefasst — separater Fix (Footer-`min-height` bzw. `visibility` bis Hydration) wäre nötig.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 ## This is NOT the Next.js you know
