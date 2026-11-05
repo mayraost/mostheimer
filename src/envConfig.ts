@@ -17,11 +17,12 @@ import { z } from 'zod';
  *   `NEXT_PUBLIC_*` because the browser reads the ID at build time.
  * - `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ZONE_ID`: optional, server-only. Used
  *   for edge-cache purges after CMS changes and after a deploy. Unset → purge
- *   is a no-op (local dev, build phase). Never `NEXT_PUBLIC_`.
+ *   is a no-op (local dev, build phase), except that the documented content
+ *   zone is the default target. Never `NEXT_PUBLIC_`.
  * - `CLOUDFLARE_PURGE_ZONES`: optional, server-only. Semicolon separated
- *   `zoneId:host1,host2` entries for the multi-zone site (`mosthi.de` and
- *   `mostheimer.de` are separate zones, and a purge only evicts objects of the
- *   zone it is sent to). When set it replaces `CLOUDFLARE_ZONE_ID`. Shared with
+ *   `zoneId:host1,host2` entries. Only the `mostheimer.de` content zone is
+ *   purged by default (`mosthi.de` hosts only redirect, so purging their zone
+ *   evicts nothing). When set it replaces `CLOUDFLARE_ZONE_ID`. Shared with
  *   `scripts/cf-purge.mjs` — identical syntax. Never `NEXT_PUBLIC_`.
  * - `CLOUDFLARE_PURGE_ON_START`: optional kill switch for the deploy-time
  *   purge ("0" disables it, anything else/empty = on).
@@ -47,9 +48,9 @@ const envSchema = z.object({
     .regex(/^$|^GTM-[A-Z0-9]+$/, 'NEXT_PUBLIC_GTM_ID must be empty or look like GTM-XXXXXXX'),
   /**
    * Cloudflare edge-cache purge credentials (server-only, never NEXT_PUBLIC_).
-   * Both optional: without them every purge is a silent no-op (local dev,
-   * build phase). Token permissions: Zone → Cache Purge → Purge, scoped to the
-   * mosthi.de zone. See AGENTS.md § "Cloudflare Edge-Cache".
+   * Optional: without a token every purge is a silent no-op (local dev, build
+   * phase). Token permissions: Zone → Cache Purge → Purge, scoped to the
+   * mostheimer.de content zone. See AGENTS.md § "Cloudflare Edge-Cache".
    */
   cloudflareApiToken: z.string(),
   cloudflareZoneId: z
@@ -69,7 +70,11 @@ export type EnvConfig = z.infer<typeof envSchema>;
 
 /**
  * Shape check for `CLOUDFLARE_PURGE_ZONES`:
- * `zoneId:https://host1,https://host2;zoneId2:https://host3`.
+ * `zoneId:https://host1,https://host2[;zoneId2:https://host3]`.
+ *
+ * Default (and expected) configuration is a SINGLE zone — the content zone
+ * `mostheimer.de` with its two hosts. Multiple entries stay valid for a future
+ * second content zone.
  *
  * Every entry needs a 32-char zone id and at least one absolute `https://`
  * host. Hosts are NOT optional here (unlike the lenient parser in
@@ -154,8 +159,8 @@ function resolveEnvConfig(): EnvConfig {
   if (cloudflarePurgeZonesValue.trim() && !isValidPurgeZones(cloudflarePurgeZonesValue)) {
     console.warn(
       '[envConfig] CLOUDFLARE_PURGE_ZONES is malformed (expected ' +
-        '`zoneId:https://host1,https://host2;zoneId2:https://host3`) — edge-cache ' +
-        'purges fall back to CLOUDFLARE_ZONE_ID only, which leaves hosts in other zones stale.',
+        '`zoneId:https://host1,https://host2`) — edge-cache purges fall back to the ' +
+        'content zone (mostheimer.de); purge hosts end up their hosts, not the configured ones.',
     );
   }
   const cloudflarePurgeOnStartValue = process.env.CLOUDFLARE_PURGE_ON_START !== '0';

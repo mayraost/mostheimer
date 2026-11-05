@@ -49,23 +49,28 @@
  * non-2xx — each logs one concise warning and exits 0. The app never fails to
  * start because of a purge. The token is never logged.
  *
- * MULTIPLE ZONES
+ * MULTIPLE ZONES → ONE CONTENT ZONE
  *
- * The content is served under several hosts and those hosts do NOT share one
- * Cloudflare zone: `mosthi.de` and `mostheimer.de` are separate zones. Purging
- * only one of them leaves the other serving pre-deploy HTML, which looks exactly
- * like "the purge silently failed". So the purge runs once per configured zone,
- * each with the hosts that zone actually serves.
+ * Cloudflare purges are ZONE-scoped and there is no host-based purge. The site
+ * is reachable under hosts of two separate zones (`mosthi.de` and
+ * `mostheimer.de`), but only the `mostheimer.de` zone holds cached content:
+ * `mosthi.de`/`www.mosthi.de` answer 301 to `https://mostheimer.de` (Traefik
+ * redirect, see AGENTS.md § "Domain-Konsolidierung"), and redirect responses are
+ * not stored as content objects. Purging that zone evicts nothing while spending
+ * one of the five Free-plan purge requests per minute that CMS edits need.
+ *
+ * So the purge runs for the content zone ONLY, with the two hosts it serves.
+ * The mapping is shared with src/cms/cache/frontend/cloudflare.ts — a URL is
+ * never sent to a zone that does not own its host.
  *
  *   CLOUDFLARE_PURGE_ZONES
  *     Optional. Semicolon separated `zoneId:host1,host2` entries. When set it
  *     replaces CLOUDFLARE_ZONE_ID / NEXT_PUBLIC_SERVER_URL entirely.
- *   CLOUDFLARE_ZONE_ID + NEXT_PUBLIC_SERVER_URL
- *     Fallback: one zone, hosts derived from NEXT_PUBLIC_SERVER_URL (the
- *     canonical origin list the app already needs). CF_SITE_ORIGIN is the last
- *     resort single host.
+ *   CLOUDFLARE_ZONE_ID
+ *     Fallback zone id; default = the `mostheimer.de` content zone. Hosts stay
+ *     the two content hosts (legacy redirect hosts are never purged).
  *
- * Token permission: Zone → Cache Purge → Purge, for EVERY zone listed.
+ * Token permission: Zone → Cache Purge → Purge for the content zone.
  */
 
 import { createHash } from 'node:crypto';
@@ -73,6 +78,7 @@ import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
+import { pathToFileURL } from 'node:url';
 
 const API_BASE = 'https://api.cloudflare.com/client/v4';
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -81,7 +87,11 @@ const WAIT_TIMEOUT_MS = 180_000;
 const WAIT_INTERVAL_MS = 2_000;
 const RELEASE_FILE = process.env.CF_RELEASE_FILE || '/app/.cf-release';
 /** The site's own host; the sitemap needs no auth and lists every live route. */
-const SITE_ORIGIN = process.env.CF_SITE_ORIGIN || 'https://mosthi.de';
+const SITE_ORIGIN = process.env.CF_SITE_ORIGIN || 'https://mostheimer.de';
+/** Documented `mostheimer.de` zone id — the only zone that caches content. */
+const DEFAULT_CONTENT_ZONE_ID = '97b8bfd76c5ddbe777f5f185631859bc';
+/** Hosts that serve content (both in the `mostheimer.de` zone). */
+const CONTENT_ORIGINS = ['https://mostheimer.de', 'https://www.mostheimer.de'];
 
 /** Parse `--flag [value]` pairs; unknown flags are ignored on purpose. */
 function parseArgs(argv) {
@@ -231,25 +241,40 @@ async function purge({ token, zoneId, body }) {
   return response.status;
 }
 
-/** Origins that actually serve the content (see "MULTIPLE ZONES" in the header). */
-function resolveOrigins() {
-  const configured = (process.env.NEXT_PUBLIC_SERVER_URL || '')
+/**
+ * Content hosts for purges: `mostheimer.de` + `www.mostheimer.de`.
+ *
+ * The legacy `mosthi.de` hosts (`www.` included) only redirect, so they are
+ * filtered out even when a stale `NEXT_PUBLIC_SERVER_URL` still lists them —
+ * their zone holds no cached content to evict.
+ */
+function resolveOrigins(env = process.env) {
+  const isLegacyRedirectHost = (value) => {
+    try {
+      const host = new URL(value).hostname.toLowerCase();
+      return host === 'mosthi.de' || host.endsWith('.mosthi.de');
+    } catch {
+      return false;
+    }
+  };
+  const configured = (env.NEXT_PUBLIC_SERVER_URL || '')
     .split(';')
-    .map((value) => value.trim())
-    .filter(Boolean);
-  const origins = configured.length > 0 ? configured : [SITE_ORIGIN];
-  return [...new Set(origins.map((value) => value.replace(/\/+$/, '')))];
+    .map((value) => value.trim().replace(/\/+$/, ''))
+    .filter((value) => value.length > 0 && !isLegacyRedirectHost(value));
+  return [...new Set([...CONTENT_ORIGINS, ...configured])];
 }
 
 /**
- * `[{ zoneId, origins }]` — one entry per Cloudflare zone.
+ * `[{ zoneId, origins }]` — the content zone (and only it) by default.
  *
- * Cloudflare purges are zone-scoped and there is no host-based purge, so a host
- * in a different zone silently keeps its stale objects. That is exactly how
- * `mostheimer.de` served pre-deploy HTML while every purge reported success.
+ * Pure: takes the env it reads as a parameter so the policy is unit-testable
+ * (`tests/int/cf-purge-script.int.spec.ts`). Cloudflare purges are zone-scoped
+ * and there is no host-based purge, so a URL must never be handed to a zone that
+ * does not own its host: the API answers `success: true` and evicts nothing
+ * while spending purge budget (see header).
  */
-function resolveZones() {
-  const explicit = (process.env.CLOUDFLARE_PURGE_ZONES || '').trim();
+function resolveZones(env = process.env) {
+  const explicit = (env.CLOUDFLARE_PURGE_ZONES || '').trim();
   if (explicit) {
     const entries = [];
     for (const chunk of explicit
@@ -265,15 +290,17 @@ function resolveZones() {
         .split(',')
         .map((value) => value.trim().replace(/\/+$/, ''))
         .filter(Boolean);
-      entries.push({ zoneId, origins: origins.length > 0 ? origins : resolveOrigins() });
+      entries.push({ zoneId, origins: origins.length > 0 ? origins : resolveOrigins(env) });
     }
     if (entries.length > 0) return entries;
   }
 
-  const zoneId = process.env.CLOUDFLARE_ZONE_ID ?? '';
-  if (!zoneId) return [];
-  return [{ zoneId, origins: resolveOrigins() }];
+  const zoneId = (env.CLOUDFLARE_ZONE_ID || '').trim() || DEFAULT_CONTENT_ZONE_ID;
+  return [{ zoneId, origins: resolveOrigins(env) }];
 }
+
+// Exported for the policy test (tests/int/cf-purge-script.int.spec.ts).
+export { CONTENT_ORIGINS, DEFAULT_CONTENT_ZONE_ID, resolveOrigins, resolveZones };
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
@@ -361,9 +388,19 @@ async function main() {
   if (!args.everything && failed === 0) writeFileSync(marker, new Date().toISOString());
 }
 
+/**
+ * True when this file is the process entry point. Guards the `main()` call so a
+ * test can import the policy resolvers without running a purge or exiting.
+ */
+function isDirectRun() {
+  return process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
+}
+
 // Always exit 0: a purge problem must never block container start.
-main()
-  .catch((error) => {
-    warn(`unexpected error (${error instanceof Error ? error.message : 'unknown'})`);
-  })
-  .finally(() => process.exit(0));
+if (isDirectRun()) {
+  main()
+    .catch((error) => {
+      warn(`unexpected error (${error instanceof Error ? error.message : 'unknown'})`);
+    })
+    .finally(() => process.exit(0));
+}

@@ -568,7 +568,7 @@ Lookbehind im Regex und sind in `tests/int/wording.int.spec.ts` festgenagelt):
 | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `mosthi.consent.v1`                                  | **Legacy**-Storage-Key (nur noch Cleanup): live ist `mayraostheimer.consent.v1`; der alte Key wird nie geparst, nur beim ersten Read gelöscht (`LEGACY_CONSENT_STORAGE_KEYS`) — Literal muss also bleiben |
 | `mosthi:consent:open`                                | DOM-Event-Name (Footer-Trigger ↔ Banner) — Identifikator, keine Copy; Umbenennen wäre Event-Drift, kein Consent-Verlust                                                                                   |
-| `https://mosthi.de`, `https://mostheimer.de`, `www.` | Domain/Infrastruktur (Canonical-Host, Purge-Origins)                                                                                                                                                      |
+| `https://mosthi.de`, `https://mostheimer.de`, `www.` | Domain/Infrastruktur (Canonical-Host, Purge-Origins der Content-Zone)                                                                                                                                     |
 | `mail@mostheimer.de`                                 | echte Mailbox im Impressum                                                                                                                                                                                |
 
 ### `beforeValidate`-Hook (Editor-Feedback)
@@ -886,10 +886,13 @@ kaputter Token CMS-Saves nicht mit hängenden Requests ausbremst.
 | `cms:sitemap`      | `/sitemap.xml`                                                                                                                |
 | `cms:global:*`     | alle öffentlichen Routen (Layout rendert die Globals)                                                                         |
 
-Hosts der URL-Purges: `https://mosthi.de`, `https://mostheimer.de`,
+Hosts der URL-Purges: **nur** `https://mostheimer.de` **und**
 `https://www.mostheimer.de` (die Purge-API braucht den **exakten** Host; es
-gibt kein Vary-artiges Purging). `NEXT_PUBLIC_SERVER_URL` kann weitere,
-`;`-getrennte Hosts ergänzen.
+gibt kein Vary-artiges Purging). Die Legacy-Hosts `mosthi.de`/`www.mosthi.de`
+werden **nicht** gepurgt — sie antworten nur mit 301 (siehe
+„Domain-Konsolidierung"). `NEXT_PUBLIC_SERVER_URL` kann weitere,
+`;`-getrennte Content-Hosts ergänzen; Legacy-Redirect-Hosts werden dabei
+herausgefiltert.
 
 **Warum URL-Purge, nicht Cache-Tags:** Tag-Purge braucht einen `Cache-Tag`-
 Response-Header auf genau der gecachten Antwort; die App kann ihn nicht setzen
@@ -911,40 +914,43 @@ herausnehmen oder hinter `Suspense` verschieben.
 
 ### Env & Token-Rechte
 
-| Variable                    | Zweck                                                                      | Fehlt sie                         |
-| --------------------------- | -------------------------------------------------------------------------- | --------------------------------- |
-| `CLOUDFLARE_API_TOKEN`      | Purge-API                                                                  | Purge = No-op (lokal/Build inert) |
-| `CLOUDFLARE_PURGE_ZONES`    | **Kanonisch:** `zoneId:host1,host2;zoneId2:host3` je Zone (siehe unten)    | Fallback auf `CLOUDFLARE_ZONE_ID` |
-| `CLOUDFLARE_ZONE_ID`        | Zone `fc81dba86a79cddf0b956eed4a25a965` (`mosthi.de`) — Legacy-Single-Zone | Purge = No-op                     |
-| `CLOUDFLARE_PURGE_ON_START` | `0` = Deploy-Purge aus                                                     | Default: an                       |
+| Variable                    | Zweck                                                                                       | Fehlt sie                                         |
+| --------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| `CLOUDFLARE_API_TOKEN`      | Purge-API                                                                                   | Purge = No-op (lokal/Build inert)                 |
+| `CLOUDFLARE_PURGE_ZONES`    | **Kanonisch:** `zoneId:host1,host2` je Zone; Default = nur die Content-Zone `mostheimer.de` | Fallback auf `CLOUDFLARE_ZONE_ID` + Content-Hosts |
+| `CLOUDFLARE_ZONE_ID`        | Zone-Id der Content-Zone (Default `97b8bfd76c5ddbe777f5f185631859bc`, `mostheimer.de`)      | Default-Zone greift                               |
+| `CLOUDFLARE_PURGE_ON_START` | `0` = Deploy-Purge aus                                                                      | Default: an                                       |
 
 **Beide server-only, NIE `NEXT_PUBLIC_`.** Token-Rechte: **Zone → Cache Purge
-→ Purge für JEDE gelistete Zone** (`mosthi.de` **und** `mostheimer.de`) —
-nichts anderes. In Coolify als App-Env mit `is_buildtime: false` setzen (Secrets
-gehören nicht in den Build-ARG-Layer).
+→ Purge für die Content-Zone** (`mostheimer.de`) — nichts anderes nötig. In
+Coolify als App-Env mit `is_buildtime: false` setzen (Secrets gehören nicht in
+den Build-ARG-Layer).
 
-### Zwei Zonen, nicht eine (Stand 05.11.2026, verifiziert)
+### Eine Zone ist genug: nur `mostheimer.de` wird gepurgt (Stand 05.11.2026)
 
-`mosthi.de` und `mostheimer.de` liegen in **getrennten Cloudflare-Zonen**:
+`mosthi.de` und `mostheimer.de` liegen in **getrennten Cloudflare-Zonen**, aber
+nur eine davon hält Content-Cache:
 
-| Zone                               | Hosts                                                |
-| ---------------------------------- | ---------------------------------------------------- |
-| `97b8bfd76c5ddbe777f5f185631859bc` | `https://mostheimer.de`, `https://www.mostheimer.de` |
-| `fc81dba86a79cddf0b956eed4a25a965` | `https://mosthi.de`                                  |
+| Zone                               | Hosts                                                | Wird gepurgt?                                    |
+| ---------------------------------- | ---------------------------------------------------- | ------------------------------------------------ |
+| `97b8bfd76c5ddbe777f5f185631859bc` | `https://mostheimer.de`, `https://www.mostheimer.de` | **ja** (beide Hosts)                             |
+| `fc81dba86a79cddf0b956eed4a25a965` | `https://mosthi.de`                                  | **nein** — 301 auf `mostheimer.de`, kein Content |
 
-Cloudflare-Purges sind **zonen-scoped**; es gibt keinen host-basierten Purge.
-Eine URL aus Zone B an `/zones/<A>/purge_cache` liefert **`success: true` und
-evictet nichts** — der Host in Zone B serviert dann weiter den Stand vor dem
-Deploy/Edit, während jeder Purge Erfolg meldet. Genau so lieferte
-`mostheimer.de` veraltetes HTML.
+**Warum die Legacy-Zone raus ist:** `mosthi.de`/`www.mosthi.de` beantworten jede
+Anfrage mit **301** auf `https://mostheimer.de` (Traefik, siehe
+„Domain-Konsolidierung"). Redirect-Antworten werden nicht als Content-Objekte
+am Edge gehalten, es gibt dort also nichts zu evicten — jeder Purge dorthin ist
+reine Budget-Verbrennung (Free-Plan: 5 Purge-Requests/min account-weit).
 
-Daraus folgen drei Regeln:
+Cloudflare-Purges bleiben **zonen-scoped**; es gibt keinen host-basierten Purge.
+Eine URL aus Zone B an `/zones/<A>/purge_cache` liefert weiterhin
+**`success: true` und evictet nichts**. Deshalb gilt:
 
-1. **Ein Purge-Request pro Zone**, nie einer für alles und nie einer pro Host.
-   `CLOUDFLARE_PURGE_ZONES` (identische Syntax in `scripts/cf-purge.mjs` **und**
-   `src/cms/cache/frontend/cloudflare.ts`) mappt Zone → Hosts, damit Deploy-Purge
-   und Hook-Purge nicht auseinanderlaufen können. Eine URL wird nur an die Zone
-   geschickt, die ihren Host besitzt.
+1. **Ein Purge-Request pro Zone**, nie einer pro Host. Eine URL geht nur an die
+   Zone, die ihren Host besitzt; URLs mit fremdem Host werden **verworfen**
+   (`purgeUrlsByZone` in `src/cms/cache/frontend/cloudflare.ts`, identische
+   Policy in `scripts/cf-purge.mjs`). Beide fallen ohne Config auf dieselbe
+   eine Content-Zone mit denselben zwei Hosts zurück.
 2. **Teilerfolg = Fehler.** Scheitert eine Zone, meldet `sendPurge` `failed`
    (mit Zone-Id im Reason) und öffnet den Circuit Breaker — sonst bleibt die
    kaputte Zone unsichtbar stale.
@@ -952,10 +958,14 @@ Daraus folgen drei Regeln:
    `cf-cache-status`/`Age` **am Zielhost** nachmessen (Cache-Buster gegen den
    Origin vergleichen). Die API bestätigt auch wirkungslose Requests.
 
+Sollte eine weitere Zone je wieder Content halten (z. B. ein neuer Alias-Host
+ohne Redirect), wird sie **explizit** in `CLOUDFLARE_PURGE_ZONES` eingetragen —
+nie implizit über einen Host-Default.
+
 Token-Permission-Test ohne Secret-Output (Zone-Ids sind nicht geheim, Token nie
 drucken): im App-Container `node` gegen `POST /client/v4/zones/<id>/purge_cache`
-mit genau einer harmlosen URL je Zone; erwartet werden **200 + `success: true`
-für beide** Zonen. Ein 401/403 zeigt die fehlende Zone-Permission an.
+mit genau einer harmlosen URL der Content-Zone; erwartet wird **200 +
+`success: true`**. Ein 401/403 zeigt die fehlende Zone-Permission an.
 
 ### Deploy-Purge (eine Purge pro Release, nie pro Restart)
 
@@ -965,7 +975,9 @@ für beide** Zonen. Ein 401/403 zeigt die fehlende Zone-Permission an.
   `node scripts/cf-purge.mjs --wait-for-release`.
 - `scripts/cf-purge.mjs`: wartet, bis `/api/health` der **neuen** Version
   antwortet (sonst würde der Edge den alten Origin wieder cachen), purgt dann
-  `purge_everything` und schreibt `/tmp/.cf-purge-<hash>.done`. Ein Restart
+  die Content-URLs (Sitemap-abgeleitet, `/_next/static` gefiltert) in der
+  Content-Zone und schreibt `/tmp/.cf-purge-<hash>.done` (bzw.
+  `CF_STATE_DIR`). Ein Restart
   desselben Images/Restarts sieht die Markierung → **skip** (kein Purge-Storm
   bei Crash-Loop/Restart-Policy). Fail-soft überall: kein Token, Netzfehler,
   non-2xx, Kill-Switch → eine Warnung, `exit 0`, App startet immer.
@@ -1053,14 +1065,17 @@ http.request.uri.path ne "/" and ends_with(http.request.uri.path, "/")
 ### Prüfen (Live)
 
 ```bash
-curl -sI https://mosthi.de/de      | grep -iE '^(cache-control|cf-cache-status|age)'   # MISS → HIT
-curl -sI https://mosthi.de/admin   | grep -iE '^(cache-control|cf-cache-status)'       # DYNAMIC/BYPASS, no-store
-curl -sI https://scobio2026.mosthi.de/ | grep -i cf-cache-status                       # DYNAMIC (nie gecacht)
+curl -sI https://mostheimer.de/de      | grep -iE '^(cache-control|cf-cache-status|age)'   # MISS → HIT
+curl -sI https://mostheimer.de/admin   | grep -iE '^(cache-control|cf-cache-status)'       # DYNAMIC/BYPASS, no-store
+curl -sI https://mosthi.de/de          | grep -iE '^(http|location)'                        # 301 → mostheimer.de (kein Cache-Objekt)
+curl -sI https://scobio2026.mosthi.de/ | grep -i cf-cache-status                            # DYNAMIC (nie gecacht)
 ```
 
 Statuscode-Legende: `BYPASS`/`DYNAMIC` bei Nicht-Content = korrekt (nicht
 cachebar). `HIT` auf `/de` mit `Age: 0` direkt nach einer Änderung + `Age` > 0
-≥ 1 s später = Purge lief.
+≥ 1 s später = Purge lief. Ein Purge ist nur am **Content-Host**
+(`mostheimer.de`/`www.mostheimer.de`) prüfbar — `mosthi.de` liefert einen 301
+ohne `cf-cache-status`.
 
 ### INVARIANTE: statische Assets werden NIE gepurgt (Stand 05.11.2026)
 
@@ -1093,8 +1108,9 @@ Umsetzung (drei Schichten, damit es strukturell nicht wiederkommt):
 
 **Deploy-Purge (URL-Liste statt `purge_everything`):** `scripts/cf-purge.mjs`
 liest `/sitemap.xml` (unauth, kann nicht driften), baut daraus
-`{ files: [...] }` für die Content-URLs (+ `/`, `/sitemap.xml`) und schickt
-**einen** Request. `/_next/static` wird per `isPurgeable` gefiltert.
+`{ files: [...] }` für die Content-URLs (+ `/`, `/sitemap.xml`) beider
+Content-Hosts und schickt **einen** Request an die Content-Zone.
+`/_next/static` wird per `isPurgeable` gefiltert.
 
 **Tag-Purge ist hier NICHT nutzbar (gemessen, nicht vermutet):** eine
 Cache-Response-Rule _kann_ `Cache-Tag: mosthi-html` setzen (Header erscheint in
@@ -1360,6 +1376,8 @@ Vor jedem Commit wird diese Datei auf Aktualität geprüft und bei Bedarf ergän
 - **[Consent/State]** Banner blieb nach Klick auf „Nur notwendige"/„Alle akzeptieren" offen, obwohl die Entscheidung korrekt in `mosthi.consent.v1` landete: `visible = mounted && (open || initialConsent === undefined)`. Der `initialConsent`-Anteil war für Erstbesucher DAUERHAFT `true` (nie nachbelegt), damit konnte `setOpen(false)` den Banner nie schließen — und bei unveränderten Toggles bailt React sogar gänzlich ohne Re-Render aus. Fix: explizites `undecided`-Boolean als EINZIGER Auto-Open-Trigger, das `decide()` (und `closeIfDecided`) auf `false` setzt; Toggle-/Speicher-Init kommt aus EINEM `getStoredConsent()`-Read im Lazy-Initializer. Merke: „automatisch offen" nie als Ableitung aus einem State formulieren, den der Schließ-Pfad nicht selbst mutiert — es braucht ein Flag, das der Aktions-Handler explizit löscht. Repro-Beleg: genau 2 Render-States (`mounted:false/true`) vor+`open:false` nach Klick, Banner trotzdem sichtbar. (05.11.2026, Bugfix.)
 - **[Dev/Client]** `next dev` (Turbopack) in diesem Setup hydratisiert KEINE Client-Komponenten (Header-Suche inert, Banner erscheint nicht, HMR-Websocket `ERR_INVALID_HTTP_RESPONSE`, keine Console-Errors). Consent-/Client-Verhalten daher IMMER gegen den Produktions-Standalone-Build prüfen: `npm run build`, `cp -r public .next/standalone/ && cp -r .next/static .next/standalone/.next/`, dann `node .next/standalone/server.js` (nicht `next start` — warnt bei `output: 'standalone'`). Playwright-Browser: `chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox'] })`, weil die lokal installierte Playwright-Revision nicht zur Projekt-Version passt. CLS immer als **Delta** messen (mit vs. ohne Banner via vorbelegtem `mosthi.consent.v1`): Hero-Typing-Animation trägt ~0.021 vorbestehend bei, der Consent-Banner exakt 0. (05.11.2026, GTM-Verifikation.)
 - **[Cache/Statics] „Unstyled Seite" = Cloudflare-Catch-all setzte `no-store` auf `/_next/static`** (05.11.2026, Prod-Bug). Symptom: HTML kam aus dem Edge-Cache (`HIT`), CSS/JS fehlten beim Besucher → Seite mit Inhalt, aber ohne Styles. Header-Beweis: der **Origin** lieferte korrekt `public, max-age=31536000, immutable` (geprüft via `ssh coolify "curl -sI http://127.0.0.1:3300/_next/static/…"`), durch Cloudflare kam dieselbe URL als `public, max-age=31536000, immutable, no-store` mit `cf-cache-status: BYPASS`. Ursache: die Catch-all-Response-Regel `no-store` (`20ea9da823…`) hatte die Expression `not (<content paths>)` — `/_next/static` ist **kein** Content-Pfad, also **matchte** die Catch-all-Regel die Assets und hängte `no-store` an. `no-store` gewinnt gegen `immutable` → Cloudflare cacht nie. `next.config.ts` war unschuldig (`headers()` setzt nie `Cache-Control` für Assets; Next-Doku: „cannot be overridden"). Fix: eigene `_next/static`-Regel **vor** der Content-Regel **plus** `_next/static` aus der Catch-all-Expression ausnehmen (zweiter Auswertungs-Pass!). Merke: „Catch-all `not (content)`" ist **kein** Catch-all für „nicht cachebar", sondern für „alles, was ich nicht bedacht habe" — jeder neue cachebare Pfad (`/_next/static`, `/fonts`, `/media`) muss dort ausgenommen werden, sonst stiller `BYPASS`.
+- **[Cloudflare/Zone-Scope] Zwei Zonen existierten, aber nur EINE hält Content-Cache — die zweite zu purgen war reine Budget-Verbrennung** (Politik-Wechsel 05.11.2026). Cloudflare-Purges sind **zonen-scoped**, es gibt keinen host-basierten Purge; eine URL aus Zone B an `/zones/<A>/purge_cache` liefert **`success: true` und evictet nichts**. Das war ursprünglich als Grund fürs Purging BEIDER Zonen dokumentiert (`mosthi.de` + `mostheimer.de`), ist aber nach der Domain-Konsolidierung falsch herum: `mosthi.de`/`www.mosthi.de` beantworten nur noch **301** auf `https://mostheimer.de` (Traefik-Custom-File), und Redirect-Antworten liegen nicht als Content-Objekte im Edge-Cache. Ein Purge dort evictet also nichts und kostet einen der 5 Free-Plan-Requests/min. **Neue Politik:** gepurgt wird ausschließlich Zone `97b8bfd76c5ddbe777f5f185631859bc` (`mostheimer.de`) mit **beiden** Hosts `https://mostheimer.de` + `https://www.mostheimer.de`; Legacy-Hosts werden aus jeder Purge-Liste gefiltert (`resolveOrigins`/`contentOrigins`, Host-Filter in `purgeUrlsByZone`). `CLOUDFLARE_PURGE_ZONES` ist optional; ohne Wert greift genau EINE Zone (Default-Id, überschreibbar via `CLOUDFLARE_ZONE_ID`) — **nie** eine zweite implizit. Die generelle Lehre bleibt: Zonen-Scope ist real, `success: true` beweist nichts, und eine Zone, die nur redirectet, gehört nicht in die Purge-Liste.
+
 - **[Cloudflare] `purge_everything` ist für einzelne Content-Objekte ebenfalls KEIN garantierter Flush** (05.11.2026, gemessen): zwei `purge_everything` (Operator-Skript `cf-purge.mjs --everything` im Container + MCP `POST /zones/{zone}/purge_cache`) plus ein URL-Purge lieferten alle `success: true`, während `/de` und `/en` weiter `cf-cache-status: HIT` mit **monoton wachsendem `Age`** (3536 → 3643 s) und der alten `last-modified` blieben. Gegenbeweis gleicher Zeitpunkt: `/de/impressum` wurde nach dem Purge mit `Age` 374 neu gecacht, und `/de?cb=<rand>` (Cache-Buster) liefert den aktuellen Stand vom Origin. Diese beiden Edge-Objekte altern also aus, statt zu purgen. Konsequenz: „API sagt success" ist bei **jedem** Purge-Typ kein Wirksamkeitsbeweis — immer `cf-cache-status`/`Age` nachmessen; bei hartnäckig bleibenden Objekten mit Cache-Buster gegen den Origin vergleichen, um Origin- von Edge-Problemen zu trennen.
 
 - **[Cloudflare] Purge-by-Tag ist in diesem Setup ein stiller No-op** (05.11.2026, gemessen): Header-Transform-Rule setzt `Cache-Tag: mosthi-html` (Header ist in der Antwort sichtbar), `POST /purge_cache {"tags":[…]}` ⇒ `success: true`, aber das Objekt bleibt `HIT` mit monoton steigendem `Age` (445 → 449 → 453 s). Purge-by-tag ist damit **kein** Weg zur strukturellen Asset-Ausnahme; URL-Purge + Filter (`isPurgeablePath`) ist die funktionierende Variante. „API gibt 200" ist **kein** Beweis, dass ein Purge gewirkt hat — immer `cf-cache-status`/`Age` nachmessen.

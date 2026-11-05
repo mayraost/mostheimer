@@ -39,22 +39,32 @@
  * PER ZONE. On 429 the affected objects stay stale until the next successful
  * purge (or s-maxage, 7 days); that failure is logged.
  *
- * WHY ONE REQUEST PER ZONE (not per host, not one zone for everything)
+ * ONE ZONE BY DEFAULT: THE CONTENT ZONE (`mostheimer.de`)
  *
- * The hosts are served from TWO separate Cloudflare zones: `mosthi.de` and
- * `mostheimer.de`. Cloudflare purges are zone-scoped and there is no host-based
- * purge — a `mostheimer.de` URL sent to the `mosthi.de` zone returns
- * `success: true` and evicts nothing. That is exactly how the canonical host
- * kept serving pre-CMS-edit HTML while every purge reported success. The
- * zone → hosts mapping comes from `CLOUDFLARE_PURGE_ZONES` (same syntax as
+ * Cloudflare purges are zone-scoped and there is no host-based purge. The site
+ * is *reachable* under hosts of two separate zones — `mosthi.de`
+ * (`fc81dba8…`) and `mostheimer.de` (`97b8bfd7…`) — but only the
+ * `mostheimer.de` zone owns cached content: `mosthi.de`/`www.mosthi.de` answer
+ * with a **301** to `https://mostheimer.de` (Traefik, see AGENTS.md §
+ * "Domain-Konsolidierung"), and redirect responses are not stored as content
+ * objects. Purging that zone therefore evicts nothing while consuming the
+ * account-wide Free-plan budget (5 purge requests/min) that CMS edits need.
+ *
+ * So the default zone set is exactly ONE zone with its two content hosts
+ * (`https://mostheimer.de`, `https://www.mostheimer.de`). The zone → hosts
+ * mapping comes from `CLOUDFLARE_PURGE_ZONES` (same syntax as
  * `scripts/cf-purge.mjs`), so the deploy purge and this hook purge cannot
- * disagree.
+ * disagree; both fall back to the same single content zone.
+ *
+ * A URL is only ever sent to the zone that owns its host: the mapping is
+ * filtered by host (`purgeUrlsByZone`), never the other way round.
  *
  * TOKEN PERMISSION
  *
- * `Zone → Cache Purge → Purge` for EVERY zone listed. A token limited to one
- * zone fails with HTTP 401/403 on the other, which is reported as a failure
- * (partial success counts as failure, see `sendPurge`).
+ * `Zone → Cache Purge → Purge` for the content zone (`mostheimer.de`). A zone
+ * in `CLOUDFLARE_PURGE_ZONES` that the token cannot purge fails with HTTP
+ * 401/403, which is reported as a failure (partial success counts as failure,
+ * see `sendPurge`).
  *
  * INERT OUTSIDE CLOUDFLARE
  *
@@ -79,7 +89,7 @@ const CIRCUIT_OPEN_MS = 2 * 60_000;
  * single API call — `cms:all` resolves to the full set of content routes.
  *
  * `type: 'urls'` carries site-relative paths; `toPurgeUrls` expands them across
- * every public host.
+ * the content hosts (`mostheimer.de`, `www.mostheimer.de`).
  */
 export type CloudflarePurgeTarget = { type: 'urls'; paths: readonly string[] };
 
@@ -115,10 +125,10 @@ export function resetCloudflareCircuitForTests(): void {
  *
  * Cloudflare purges are ZONE-scoped and there is no host-based purge: handing a
  * URL of another zone to `/zones/<id>/purge_cache` returns `success: true` and
- * evicts nothing. The site is served under hosts that live in two SEPARATE
- * zones (`mosthi.de` and `mostheimer.de`), so purging one zone and passing the
- * other zone's URLs leaves the canonical host serving pre-CMS-edit HTML while
- * every purge reports success — indistinguishable from "the hook did not run".
+ * evicts nothing. Only the content zone is purged by default — see the module
+ * header ("ONE ZONE BY DEFAULT"). Purging a foreign zone is not merely useless,
+ * it is indistinguishable from "the hook did not run" while it burns the
+ * Free-plan purge budget.
  */
 type PurgeZone = { zoneId: string; origins: string[] };
 
@@ -135,16 +145,19 @@ function credential(): { token: string; zones: PurgeZone[] } | null {
 }
 
 /**
- * `CLOUDFLARE_PURGE_ZONES` — the multi-zone configuration shared with
+ * `CLOUDFLARE_PURGE_ZONES` — the zone configuration shared with
  * `scripts/cf-purge.mjs` (same syntax, so the deploy purge and the CMS-hook
  * purge can never disagree):
  *
- *   `zoneId:https://host1,https://host2;zoneId2:https://host3`
+ *   `zoneId:https://host1,https://host2[;zoneId2:https://host3]`
  *
  * When set it replaces `CLOUDFLARE_ZONE_ID` + host derivation entirely.
- * Entries without hosts fall back to `origins()`, and without the variable the
- * legacy single-zone behaviour applies (one zone, every public host) — that is
- * correct only while all hosts share one zone.
+ * Entries without hosts fall back to the default content hosts.
+ *
+ * Without it, the default is a SINGLE zone: `CLOUDFLARE_ZONE_ID` when set
+ * (documented default = the `mostheimer.de` content zone), with exactly the two
+ * hosts that serve content from it. There is deliberately no second, implicit
+ * zone: the legacy `mosthi.de` hosts only redirect and are not purged.
  */
 function resolveZones(): PurgeZone[] {
   const explicit = (process.env.CLOUDFLARE_PURGE_ZONES ?? '').trim();
@@ -163,14 +176,16 @@ function resolveZones(): PurgeZone[] {
         .split(',')
         .map((host) => host.trim().replace(/\/+$/, ''))
         .filter(Boolean);
-      zones.push({ zoneId, origins: configuredHosts.length > 0 ? configuredHosts : origins() });
+      zones.push({
+        zoneId,
+        origins: configuredHosts.length > 0 ? configuredHosts : contentOrigins(),
+      });
     }
     if (zones.length > 0) return zones;
   }
 
-  const zoneId = (process.env.CLOUDFLARE_ZONE_ID ?? '').trim();
-  if (!zoneId) return [];
-  return [{ zoneId, origins: origins() }];
+  const zoneId = (process.env.CLOUDFLARE_ZONE_ID ?? '').trim() || DEFAULT_CONTENT_ZONE_ID;
+  return [{ zoneId, origins: contentOrigins() }];
 }
 
 function isBuildPhase(): boolean {
@@ -178,40 +193,79 @@ function isBuildPhase(): boolean {
 }
 
 /**
- * `NEXT_PUBLIC_SERVER_URL` may list several production hosts separated by `;`
- * (`https://mosthi.de; https://mostheimer.de; …`): the purge API needs the
- * exact host an object was cached under and there is no Vary-like purge, so
- * every host is listed. Default = all three hosts the zone serves the site on.
+ * The hosts the content is actually *served* from: `mostheimer.de` (canonical)
+ * and `www.mostheimer.de`. Both live in the `mostheimer.de` zone and both must
+ * be purged — the purge API needs the exact host an object was cached under and
+ * there is no Vary-like purge.
+ *
+ * The legacy hosts (`mosthi.de`, `www.mosthi.de`) are intentionally absent: they
+ * answer 301 to `https://mostheimer.de`, and a redirect response is not a
+ * cached content object. Purging their zone buys nothing and costs one of the
+ * five Free-plan purge requests per minute.
  */
-const DEFAULT_PURGE_ORIGINS = 'https://mosthi.de; https://mostheimer.de; https://www.mostheimer.de';
+const CONTENT_ORIGINS: readonly string[] = ['https://mostheimer.de', 'https://www.mostheimer.de'];
 
-function origins(): string[] {
-  const raw = process.env.NEXT_PUBLIC_SERVER_URL || DEFAULT_PURGE_ORIGINS;
+/** Documented `mostheimer.de` zone id — the ONLY zone the site caches content in. */
+const DEFAULT_CONTENT_ZONE_ID = '97b8bfd76c5ddbe777f5f185631859bc';
+
+/**
+ * Content hosts for purges. `NEXT_PUBLIC_SERVER_URL` may list additional
+ * production hosts (`;`-separated); the two content hosts are always present, so
+ * a single-host value (metadata base) cannot silently skip the `www` host.
+ * Entries that do not belong to the legacy redirect hosts are appended.
+ */
+function contentOrigins(): string[] {
+  const raw = process.env.NEXT_PUBLIC_SERVER_URL ?? '';
   const configured = raw
     .split(';')
     .map((entry) => entry.trim().replace(/\/+$/, ''))
-    .filter(Boolean);
-  // Always include the site's own hosts: a single-host NEXT_PUBLIC_SERVER_URL
-  // (metadata base) must not silently skip the other two cached hosts.
-  const defaults = DEFAULT_PURGE_ORIGINS.split(';').map((entry) => entry.trim());
-  return [...new Set([...configured, ...defaults])];
+    .filter((entry) => entry.length > 0 && !isLegacyRedirectHost(entry));
+  return [...new Set([...CONTENT_ORIGINS, ...configured])];
 }
 
 /**
- * Absolute purge URLs for host-relative paths, across every public host.
+ * Hosts that only redirect to the canonical host (`301`), i.e. hosts whose zone
+ * holds no cached content. Used to keep them out of every purge list.
+ */
+function isLegacyRedirectHost(origin: string): boolean {
+  try {
+    const host = new URL(origin).hostname.toLowerCase();
+    return host === 'mosthi.de' || host.endsWith('.mosthi.de');
+  } catch {
+    return false;
+  }
+}
+
+/** Host (lowercase, no port) of an absolute URL, or `''` when unparsable. */
+function originHost(url: string): string {
+  try {
+    return new URL(url).hostname.toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+/** True when `url` belongs to `origin`'s host — never send it to a foreign zone. */
+function urlBelongsToOrigin(url: string, origin: string): boolean {
+  const urlHost = originHost(url);
+  return urlHost !== '' && urlHost === originHost(origin);
+}
+
+/**
+ * Absolute purge URLs for host-relative paths, across the content hosts.
  *
  * Static assets are filtered out here as the last line of defence, so no caller
  * — present or future — can hand a `/_next/static/**` URL to the purge API.
  *
- * This is the diagnostic/URL view (every host, no zone split). The actual API
- * call groups these by zone — see `purgeUrlsByZone`.
+ * This is the diagnostic/URL view (content hosts, no zone split). The actual
+ * API call groups these by zone — see `purgeUrlsByZone`.
  */
 export function toPurgeUrls(paths: readonly string[]): string[] {
   const urls = new Set<string>();
   for (const path of paths) {
     const normalized = path.startsWith('/') ? path : `/${path}`;
     if (!isPurgeablePath(normalized)) continue;
-    for (const origin of origins()) {
+    for (const origin of contentOrigins()) {
       urls.add(`${origin}${normalized}`);
     }
   }
@@ -221,7 +275,12 @@ export function toPurgeUrls(paths: readonly string[]): string[] {
 /**
  * `[{ zoneId, files }]` — one group per zone, each containing ONLY the URLs of
  * hosts that zone serves. A URL is never sent to a zone that does not own it:
- * Cloudflare would answer `success: true` and evict nothing (see `PurgeZone`).
+ * Cloudflare would answer `success: true` and evict nothing (see `PurgeZone`)
+ * while still spending one request of the account-wide Free-plan budget.
+ *
+ * The host filter runs in BOTH directions: a zone only receives URLs built from
+ * its own origins, and a URL is dropped entirely when no zone owns its host
+ * (e.g. a legacy `mosthi.de` origin from a stale configuration).
  */
 function purgeUrlsByZone(
   paths: readonly string[],
@@ -235,7 +294,11 @@ function purgeUrlsByZone(
   for (const zone of zones) {
     const files = new Set<string>();
     for (const path of purgeable) {
-      for (const origin of zone.origins) files.add(`${origin}${path}`);
+      for (const origin of zone.origins) {
+        const url = `${origin}${path}`;
+        if (!urlBelongsToOrigin(url, origin)) continue;
+        files.add(url);
+      }
     }
     if (files.size > 0) groups.push({ zoneId: zone.zoneId, files: [...files] });
   }

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CACHE_TAGS } from '@/cms/cache/frontend/constants';
 import {
   purgeCloudflareCache,
@@ -51,11 +51,20 @@ describe('edge purge routes', () => {
     ]);
   });
 
-  it('tests every production host (the purge API needs the exact host)', () => {
-    const urls = toPurgeUrls(['/de']);
-    expect(urls).toContain('https://mosthi.de/de');
-    expect(urls).toContain('https://mostheimer.de/de');
-    expect(urls).toContain('https://www.mostheimer.de/de');
+  it('tests the content hosts (the purge API needs the exact host)', () => {
+    const saved = process.env.NEXT_PUBLIC_SERVER_URL;
+    delete process.env.NEXT_PUBLIC_SERVER_URL;
+    try {
+      const urls = toPurgeUrls(['/de']);
+      // Both hosts the site is actually served from — `www` included.
+      expect(urls).toContain('https://mostheimer.de/de');
+      expect(urls).toContain('https://www.mostheimer.de/de');
+      // Legacy hosts only answer 301 to the canonical host: nothing to evict.
+      expect(urls.some((url) => new URL(url).hostname.endsWith('mosthi.de'))).toBe(false);
+    } finally {
+      if (saved === undefined) delete process.env.NEXT_PUBLIC_SERVER_URL;
+      else process.env.NEXT_PUBLIC_SERVER_URL = saved;
+    }
   });
 });
 
@@ -69,7 +78,7 @@ describe('static assets are never purged', () => {
   it('drops /_next/static paths from the URL list', () => {
     const urls = toPurgeUrls(['/de', '/_next/static/chunks/a.css', '/_next/static/chunks/b.js']);
     expect(urls.every((url) => !url.includes('/_next/static'))).toBe(true);
-    expect(urls).toContain('https://mosthi.de/de');
+    expect(urls).toContain('https://mostheimer.de/de');
   });
 
   it('reports nothing-to-purge instead of calling the API for asset-only input', async () => {
@@ -117,6 +126,8 @@ describe('cloudflare purge client', () => {
       CLOUDFLARE_API_TOKEN: 'test-token',
       CLOUDFLARE_ZONE_ID: 'a'.repeat(32),
     };
+    delete process.env.CLOUDFLARE_PURGE_ZONES;
+    delete process.env.NEXT_PUBLIC_SERVER_URL;
     resetCloudflareCircuitForTests();
   });
 
@@ -141,22 +152,62 @@ describe('cloudflare purge client', () => {
     const fetchSpy = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
     setCloudflareFetchForTests(fetchSpy);
     const result = await purgeCloudflareCache({ type: 'urls', paths: ['/de'] });
-    expect(result).toEqual({ status: 'purged', urls: 3, zones: 1 });
+    expect(result).toEqual({ status: 'purged', urls: 2, zones: 1 });
 
     const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
     expect(url).toBe(`https://api.cloudflare.com/client/v4/zones/${'a'.repeat(32)}/purge_cache`);
     expect(init.headers).toMatchObject({ Authorization: 'Bearer test-token' });
     const body = JSON.parse(String(init.body)) as { files: string[] };
-    expect(body.files).toContain('https://mosthi.de/de');
+    expect(body.files).toEqual(['https://mostheimer.de/de', 'https://www.mostheimer.de/de']);
   });
 
   /**
-   * THE multi-zone invariant: Cloudflare purges are zone-scoped, so a URL must
-   * only ever be sent to the zone that owns its host. Sending
-   * `mostheimer.de/de` to the `mosthi.de` zone returns `success: true` and
-   * evicts nothing — the canonical host then serves pre-CMS-edit HTML forever.
+   * POLICY: only the `mostheimer.de` content zone is purged. Its two hosts are
+   * both served (canonical + `www`) and both must be evicted; the legacy
+   * `mosthi.de` hosts only redirect, so their zone is never contacted.
    */
-  it('splits one flush into one request per zone and never crosses hosts', async () => {
+  it('purges both content hosts and never the legacy redirect hosts by default', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    setCloudflareFetchForTests(fetchSpy);
+
+    const result = await purgeCloudflareCache({ type: 'urls', paths: ['/de', '/en/imprint'] });
+    expect(result).toEqual({ status: 'purged', urls: 4, zones: 1 });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain(`/zones/${'a'.repeat(32)}/purge_cache`);
+    const files = (JSON.parse(String(init.body)) as { files: string[] }).files;
+    expect(files).toContain('https://mostheimer.de/de');
+    expect(files).toContain('https://www.mostheimer.de/de');
+    expect(files).toContain('https://mostheimer.de/en/imprint');
+    expect(files).toContain('https://www.mostheimer.de/en/imprint');
+    // No legacy host anywhere, and no static asset.
+    for (const file of files) {
+      expect(new URL(file).hostname.endsWith('mosthi.de')).toBe(false);
+      expect(file.includes('/_next/static')).toBe(false);
+    }
+  });
+
+  it('drops asset paths even when they are mixed into a content flush', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    setCloudflareFetchForTests(fetchSpy);
+
+    await purgeCloudflareCache({
+      type: 'urls',
+      paths: ['/de', '/_next/static/chunks/a.js', '/_next/static/chunks/b.css'],
+    });
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const files = (JSON.parse(String(init.body)) as { files: string[] }).files;
+    expect(files.every((file) => !file.includes('/_next/static'))).toBe(true);
+    expect(files).toHaveLength(2);
+  });
+
+  /**
+   * A configuration that still lists a foreign zone must not leak URLs into it:
+   * the mapping stays zone → own hosts, and a legacy redirect host is never
+   * purged (its zone holds no cached content).
+   */
+  it('splits one flush into one request per configured zone and never crosses hosts', async () => {
     const zoneMostheimer = '1'.repeat(32);
     const zoneMosthi = '2'.repeat(32);
     process.env.CLOUDFLARE_PURGE_ZONES =
@@ -191,7 +242,7 @@ describe('cloudflare purge client', () => {
   });
 
   it('treats a partial zone failure as a failure so the stale zone is visible', async () => {
-    process.env.CLOUDFLARE_PURGE_ZONES = `${'1'.repeat(32)}:https://mostheimer.de;${'2'.repeat(32)}:https://mosthi.de`;
+    process.env.CLOUDFLARE_PURGE_ZONES = `${'1'.repeat(32)}:https://mostheimer.de;${'2'.repeat(32)}:https://www.mostheimer.de`;
     delete process.env.CLOUDFLARE_ZONE_ID;
 
     const fetchSpy = vi
@@ -232,5 +283,63 @@ describe('cloudflare purge client', () => {
       reason: 'circuit-open',
     });
     expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * Deploy purge (`scripts/cf-purge.mjs`) — the process-external twin of the hook
+ * purger. It reads the same `CLOUDFLARE_PURGE_ZONES` syntax, so the zone policy
+ * is asserted here against the script's own exported resolver: content zone
+ * only, both content hosts, legacy redirect hosts never.
+ */
+describe('deploy purge script (cf-purge.mjs)', () => {
+  type Zones = { zoneId: string; origins: string[] }[];
+  let resolveZones: (env: Record<string, string | undefined>) => Zones;
+  let CONTENT_ORIGINS: string[];
+
+  beforeAll(async () => {
+    const purgeScript = (await import('../../scripts/cf-purge.mjs')) as unknown as {
+      resolveZones: (env: Record<string, string | undefined>) => Zones;
+      CONTENT_ORIGINS: string[];
+    };
+    resolveZones = purgeScript.resolveZones;
+    CONTENT_ORIGINS = purgeScript.CONTENT_ORIGINS;
+  });
+
+  it('defaults to the single content zone with both content hosts', () => {
+    const zones = resolveZones({});
+    expect(zones).toHaveLength(1);
+    expect(zones[0].zoneId).toBe('97b8bfd76c5ddbe777f5f185631859bc');
+    expect(zones[0].origins).toEqual(['https://mostheimer.de', 'https://www.mostheimer.de']);
+  });
+
+  it('honours CLOUDFLARE_ZONE_ID but keeps the content hosts', () => {
+    const zones = resolveZones({ CLOUDFLARE_ZONE_ID: 'c'.repeat(32) });
+    expect(zones).toEqual([
+      { zoneId: 'c'.repeat(32), origins: ['https://mostheimer.de', 'https://www.mostheimer.de'] },
+    ]);
+  });
+
+  it('never includes a legacy redirect host, even from a stale SERVER_URL', () => {
+    const zones = resolveZones({
+      NEXT_PUBLIC_SERVER_URL: 'https://mosthi.de; https://www.mosthi.de; https://mostheimer.de',
+    });
+    expect(CONTENT_ORIGINS).toEqual(['https://mostheimer.de', 'https://www.mostheimer.de']);
+    const allOrigins = zones.flatMap((zone) => zone.origins);
+    expect(allOrigins.some((origin) => new URL(origin).hostname.endsWith('mosthi.de'))).toBe(false);
+    expect(allOrigins).toContain('https://www.mostheimer.de');
+  });
+
+  it('parses an explicit single-zone mapping', () => {
+    const zones = resolveZones({
+      CLOUDFLARE_PURGE_ZONES:
+        '97b8bfd76c5ddbe777f5f185631859bc:https://mostheimer.de,https://www.mostheimer.de',
+    });
+    expect(zones).toEqual([
+      {
+        zoneId: '97b8bfd76c5ddbe777f5f185631859bc',
+        origins: ['https://mostheimer.de', 'https://www.mostheimer.de'],
+      },
+    ]);
   });
 });
