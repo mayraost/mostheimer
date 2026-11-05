@@ -78,9 +78,9 @@ export function TypingHeading({ text }: { text: string }) {
     () => false,
   );
   const [progress, setProgress] = useState(0);
-  const [boxHeight, setBoxHeight] = useState<number | null>(null);
   const [overlay, setOverlay] = useState<HTMLSpanElement | null>(null);
   const staticRef = useRef<HTMLSpanElement | null>(null);
+  const overlayBoxRef = useRef<HTMLSpanElement | null>(null);
   const fontReady = useHeadingFontReady(overlay);
 
   const animationsOn = currentAnimations !== 'off';
@@ -88,15 +88,20 @@ export function TypingHeading({ text }: { text: string }) {
 
   // Lock the box to the height the server-rendered text occupied BEFORE the
   // overlay replaces it, so swapping in the animation is geometry-neutral.
+  // The height is applied via the DOM in the same layout pass that measures,
+  // not through state: a `setState` renders one frame late, which painted the
+  // overlay at its unclamped height first (measured live: h1 485 px → 346 px).
   useLayoutEffect(() => {
     if (!mounted || !animationsOn) return;
     const element = staticRef.current;
-    if (!element) return;
+    const box = overlayBoxRef.current;
+    if (!element || !box) return;
 
     const measure = () => {
       const next = element.getBoundingClientRect().height;
-      if (next > 0)
-        setBoxHeight((current) => (current === null || next > current ? next : current));
+      if (next <= 0) return;
+      const current = parseFloat(box.style.height) || 0;
+      if (next > current) box.style.height = `${next}px`;
     };
     measure();
     if (typeof ResizeObserver === 'undefined') return;
@@ -134,9 +139,18 @@ export function TypingHeading({ text }: { text: string }) {
 
       {showTyping && (
         <span
+          ref={(node) => {
+            overlayBoxRef.current = node;
+            // Synchronous, pre-paint clamp: a ref callback runs while React
+            // attaches the DOM node, before the browser paints the overlay, so
+            // the box never appears at its unclamped height.
+            if (node && staticRef.current) {
+              const h = staticRef.current.getBoundingClientRect().height;
+              if (h > 0) node.style.height = `${h}px`;
+            }
+          }}
           aria-hidden="true"
           className="block w-full overflow-hidden"
-          style={boxHeight !== null ? { height: `${boxHeight}px` } : undefined}
         >
           <span ref={setOverlay} className="block w-full">
             {text.slice(0, progress)}
