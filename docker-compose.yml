@@ -32,6 +32,11 @@ services:
       - '${APP_PORT:-3300}:3000'
     volumes:
       - media-data:/app/public/media
+      # Deploy-purge marker (scripts/cf-purge.mjs). MUST persist across
+      # container recreation: a Coolify restart creates a fresh container, so a
+      # /tmp marker would be gone and every restart would purge again
+      # (Free plan: 5 purges/min — a crash loop exhausts the bucket).
+      - cf-state:/app/.cf-state
 
 networks:
   coolify-postgres-net:
@@ -39,3 +44,4 @@ networks:
 
 volumes:
   media-data:
+  cf-state:

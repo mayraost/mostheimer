@@ -45,6 +45,9 @@ RUN chmod +x /app/scripts/entrypoint.sh \
   && chown nextjs:nodejs /app/.cf-release
 # Prepare only the media dir for the volume mount (no recursive chown).
 RUN mkdir -p /app/public/media && chown nextjs:nodejs /app/public/media
+# Deploy-purge marker dir (mounted as the `cf-state` volume). Owned by the app
+# user so the purge can write it; it must survive container recreation.
+RUN mkdir -p /app/.cf-state && chown nextjs:nodejs /app/.cf-state
 # '/app' itself stays owned by root (COPY --chown only recolours the copied
 # contents). Next writes the 'use cache' store to /app/.next/cache at runtime;
 # without a writable target all cache writes fail silently and revalidateTag
