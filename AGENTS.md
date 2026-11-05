@@ -918,6 +918,10 @@ Vor jedem Commit wird diese Datei auf Aktualität geprüft und bei Bedarf ergän
 
   **Rest-CLS (vorbestehend, nicht Teil des Fixes):** bei schnellem Laden schiebt `footer.mt-auto` einmal von `y=749` auf `y≈2004` (konstante Höhe 151 px, DocHeight 900 → 2154, bei ~160 ms). Das ist ein Layout-Shift im Lighthouse-Sinne (Element bewegt sich relativ zur Viewport-Ursprungsfläche), trat auf `origin/main` identisch auf und ist intermittierend (≈1 von 5 Laden). Nicht angefasst — separater Fix (Footer-`min-height` bzw. `visibility` bis Hydration) wäre nötig.
 
+  **Zweiter Mess-Fallstrick (wichtig für Nachmessen):** der Rest-CLS nach dem Fix ist **100 % der Typing-Caret** (`span.ml-1.inline-block`, fixe 22×53 px, wandert zeilenweise mit). Gemessen bei 1280: Gesamt 0.0074, davon **non-caret 0.0000**. Ohne Aufteilung nach `entry.sources[].node` sieht das aus wie ein Rest-Shift der Subheadline, ist aber reine Cursor-Position. Für die Akzeptanz zählt der Non-Caret-Anteil.
+
+  **Kaum-Fehler beim Einbau (06.11.2026, live aufgefallen):** die Box-Höhe per `setState` + `useLayoutEffect` zu setzen ist EINEN Frame zu spät — React painted das Overlay erst ungeklemmt (`h1` 485 px) und schrumpfte dann auf 346 px (CLS 0.048 live, obwohl lokal 0.000). Bei kurzem lokalem Copy fiel das nicht auf, weil beide Höhen zufällig gleich waren. Richtig: Clamp **synchron im Ref-Callback** (`node.style.height = staticRef.height`) — der läuft beim DOM-Attach, vor dem Paint. Merke: Geometrie-Reservierung nie über State, wenn das Element im selben Commit schon sichtbar ist.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 ## This is NOT the Next.js you know
