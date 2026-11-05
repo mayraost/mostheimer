@@ -12,6 +12,9 @@ import { z } from 'zod';
  * - `NEXT_PUBLIC_SERVER_URL`: if set, it must be a valid URL; invalid values
  *   fail soft to the default (metadata field, not a secret — production should
  *   not crash over a cosmetic metadata value).
+ * - `NEXT_PUBLIC_GTM_ID`: optional (GTM-XXXXXXX). Without an ID no container
+ *   loads; the consent layer and banner keep working.
+ *   `NEXT_PUBLIC_*` because the browser reads the ID at build time.
  *
  * Warnings and errors never print env values, so no secret leaks into the logs.
  */
@@ -28,6 +31,10 @@ const envSchema = z.object({
       'DATABASE_URL must start with postgresql:// or postgres://',
     ),
   serverUrl: z.string().url(),
+  /** GTM-Container-ID; leer = kein Google Tag Manager (kein Fail-Fast). */
+  gtmId: z
+    .string()
+    .regex(/^$|^GTM-[A-Z0-9]+$/, 'NEXT_PUBLIC_GTM_ID must be empty or look like GTM-XXXXXXX'),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
@@ -47,6 +54,19 @@ function resolveEnvConfig(): EnvConfig {
   const payloadSecret = envSchema.shape.payloadSecret.safeParse(rawPayloadSecret);
   const dbUrl = envSchema.shape.dbUrl.safeParse(rawDbUrl);
   const serverUrl = envSchema.shape.serverUrl.safeParse(rawServerUrl);
+
+  // gtmId: optional; malformed values fall back to '' (no container, no crash).
+  const rawGtmId = process.env.NEXT_PUBLIC_GTM_ID ?? '';
+  const gtmId = envSchema.shape.gtmId.safeParse(rawGtmId);
+  let gtmIdValue = '';
+  if (gtmId.success) {
+    gtmIdValue = gtmId.data;
+  } else {
+    console.warn(
+      '[envConfig] NEXT_PUBLIC_GTM_ID does not match GTM-XXXXXXX — Google Tag ' +
+        'Manager stays disabled. Fix the value to enable the container.',
+    );
+  }
 
   // serverUrl: fail soft to the default (metadata field, not a secret).
   let serverUrlValue = DEFAULT_SERVER_URL;
@@ -77,7 +97,12 @@ function resolveEnvConfig(): EnvConfig {
 
   // DATABASE_URL: required outside the build phase.
   if (dbUrl.success) {
-    return { payloadSecret: payloadSecretValue, dbUrl: dbUrl.data, serverUrl: serverUrlValue };
+    return {
+      payloadSecret: payloadSecretValue,
+      dbUrl: dbUrl.data,
+      serverUrl: serverUrlValue,
+      gtmId: gtmIdValue,
+    };
   }
 
   if (isProductionBuildPhase) {
@@ -87,7 +112,12 @@ function resolveEnvConfig(): EnvConfig {
       '[envConfig] DATABASE_URL during build phase invalid or missing — continuing ' +
         'without DB connection (the build container never connects to the database).',
     );
-    return { payloadSecret: payloadSecretValue, dbUrl: '', serverUrl: serverUrlValue };
+    return {
+      payloadSecret: payloadSecretValue,
+      dbUrl: '',
+      serverUrl: serverUrlValue,
+      gtmId: gtmIdValue,
+    };
   }
 
   if (rawDbUrl === '') {

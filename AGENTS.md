@@ -30,11 +30,60 @@ npm run generate:types # Payload CMS TypeScript-Typen generieren
 
 ## Umgebungsvariablen
 
-| Variable         | Beschreibung                                                                                                       | Standard |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------ | -------- |
-| `PAYLOAD_SECRET` | Geheimschlüssel für Payload CMS (Fallback 'ABC' nur lokal – in Coolify zwingend setzen)                            | `''`     |
-| `APP_PORT`       | Published Host-Port (Compose)                                                                                      | `3300`   |
-| `DATABASE_URL`   | Zentrale geteilte Postgres-Instanz (kein Default mehr – Projekte ohne `DATABASE_URL` scheitern bewusst am Connect) | –        |
+| Variable             | Beschreibung                                                                                                                                       | Standard |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `PAYLOAD_SECRET`     | Geheimschlüssel für Payload CMS (Fallback 'ABC' nur lokal – in Coolify zwingend setzen)                                                            | `''`     |
+| `APP_PORT`           | Published Host-Port (Compose)                                                                                                                      | `3300`   |
+| `DATABASE_URL`       | Zentrale geteilte Postgres-Instanz (kein Default mehr – Projekte ohne `DATABASE_URL` scheitern bewusst am Connect)                                 | –        |
+| `NEXT_PUBLIC_GTM_ID` | Google-Tag-Manager-Container-ID (`GTM-XXXXXXX`). Leer = kein Container; Banner/Consent Mode laufen trotzdem. **Build-Time-Variable** (siehe unten) | `''`     |
+
+### `NEXT_PUBLIC_GTM_ID` — Build-Time-Falle (Gegenteil der Secret-Härtung)
+
+`NEXT_PUBLIC_*`-Variablen inlined Next.js **zur Build-Zeit** in das JS-Bundle
+(kein Runtime-Read im Browser). Deshalb gilt für `NEXT_PUBLIC_GTM_ID` genau
+das umgekehrte Coolify-Flag wie für die Secrets:
+
+| Env                  | Coolify `is_buildtime` | Grund                                                                                                                                |
+| -------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `PAYLOAD_SECRET`     | **`false`**            | Secret darf NICHT im Build-ARG-Layer landen (`docker history`)                                                                       |
+| `DATABASE_URL`       | **`false`**            | dito (enthält Passwort)                                                                                                              |
+| `NEXT_PUBLIC_GTM_ID` | **`true`**             | unbedenklich öffentlich, MUSS aber beim Build vorhanden sein — mit `false` bleibt die ID leer und das Image lädt nie einen Container |
+
+Merke: eine Änderung von `NEXT_PUBLIC_GTM_ID` in Coolify wirkt **erst nach
+einem Rebuild** (Deployment neu auslösen), nicht durch einen Container-Restart.
+
+## Cookie-Consent & Google Tag Manager (Stand 05.11.2026)
+
+- **Consent Mode v2 als `<head>`-Bootstrap:** `ConsentBootstrapScript`
+  (`src/lib/consent/ConsentBootstrapScript.tsx`) ist eine Server-Komponente im
+  `<head>` des `[locale]`-Layouts, VOR jedem Container-Script. Es pusht
+  `gtag('consent','default', …)` mit `ad_storage`/`ad_user_data`/
+  `ad_personalization`/`analytics_storage` = `denied`, `functionality_storage`/
+  `security_storage` = `granted`, `wait_for_update: 500` und schiebt bei
+  wiederkehrenden Besuchern sofort ein `consent`/`update` aus `localStorage`
+  nach. Reihenfolgekritisch: ein Tag, der vor `default` feuert, wertet als
+  `granted`. Der Container lädt erst nach `load` oder erster Interaktion
+  (`src/lib/consent/gtm.ts`) — nie im kritischen Pfad.
+- **Storage-Key:** `mosthi.consent.v1` (`{ analytics, marketing, decidedAt, version: 1 }`),
+  ausschließlich browser-lokal, kein Server-Roundtrip. Parsing ist defensiv:
+  kaputtes/fremdes Shape = „nicht entschieden" → Banner erscheint wieder.
+  Inline-Bootstrap und Client nutzen dieselbe Funktion (`parseStoredConsent.toString()`),
+  damit kein Drift entsteht.
+- **Banner** (`src/components/consent/CookieConsent.tsx`): drei gleich
+  gewichtete Aktionen (alle akzeptieren / nur notwendige / Auswahl speichern),
+  echte `<input type="checkbox">`, `role="dialog"` + `aria-modal`, Focus-Trap,
+  Focus-Restore, Esc fokussiert „Nur notwendige" und schließt NICHT (kein
+  stilles Consent). `position: fixed` + Mount via `useSyncExternalStore` →
+  kein CLS. Texte kommen aus dem Translations-Global (`cookies`-Gruppe), nur
+  mit Fallback, nie als primäre Quelle.
+- **Wiederöffnen:** Footer-Link „Cookie-Einstellungen"
+  (`ConsentSettingsLink` → `window.dispatchEvent(new Event(CONSENT_OPEN_EVENT))`)
+  spiegelt den gespeicherten Zustand in die Toggles.
+- **CSP:** `script-src`/`frame-src` erlauben `https://www.googletagmanager.com`;
+  `connect-src` (`*.google-analytics.com`, `analytics.google.com`) ist Pflicht —
+  ohne sie greift `default-src 'self'` und GTM-Beacons werden geblockt.
+  `object-src`/`base-uri`/`form-action`/`frame-ancestors` bleiben unverändert
+  strikt.
 
 ## Projektstruktur
 
@@ -653,6 +702,8 @@ Vor jedem Commit wird diese Datei auf Aktualität geprüft und bei Bedarf ergän
 - **[Cache/OSR] „Globals revalidieren, Pages nicht" (04.11.2026, Root-Cause verifiziert):** Next 16 markiert Invalidierungen als In-Doubt-Timestamp (`revalidatedAt`); ein Cache-Entry ist nur stale, wenn `entry.timestamp <= revalidatedAt` (`node_modules/next/dist/server/lib/incremental-cache/file-system-cache.js`). `revalidateTag(tag, 'max')` (= 1-Jahr-Stale-Fenster) liefert bei Treffer weiter den ALTEN Entry und revalidiert nur im Hintergrund — im langlaufenden Container ohne neuen Route-Request kommt nie frische Daten. Zusätzlich cacht der Layout-Entry SiteSettings+Navigation zusammen (`cms:global:*`), deshalb fiel ein Globals-Flush spürbar aus dem Cache. **Fix:** `safeRevalidate(tag, label, 'blocking')` → `revalidateTag(tag, { expire: 0 })` (Read-your-own-writes); `revalidatePagePathCache` invalidiert zusätzlich das Domain-Tag `cms:pages`. Merke: für CMS-Content NIE `'max'` verwenden.
 - **[Next-16/Headers]** Security-Header auf `next.config.ts` (HSTS/nosniff/Referrer/Permissions-Policy, scobio2026-Muster — non-CSP-Teil): `X-Frame-Options: DENY` NICHT nutzen bei Payload-Live-Preview (Admin embeddet `/preview` Route als iframe; gleiche Origin) → SAMEORIGIN.
 - **[CSP]** Nonce-CSP in `proxy.ts` verboten (Next-Docs: Nonce erzwingt all pages dynamic → zerstört cacheComponents/ISR). Enforce-CSP folgt Nonce-freiem Docs-Muster: `script-src 'self' 'unsafe-inline'` (`unsafe-eval` nur dev), `style-src 'self' 'unsafe-inline'`; verschärfte Report-Only-Header (script/style-src strict) für späteren unsafe-inline-Abbau. Nonce/Hash-Alternative wäre `experimental` SRI (statisch-kompatibel).
+- **[Consent/CSP]** Inline-`<head>`-Bootstrap (`dangerouslySetInnerHTML`) braucht unter der Nonce-freien CSP `script-src 'self' 'unsafe-inline'` — vorhanden. Ohne `connect-src` blockiert `default-src 'self'` JEDEN GTM-Beacon (fetch/sendBeacon an `google-analytics.com`), obwohl `script-src` das Container-Script erlaubt; beides zusammen testen, nicht nur das Script-Load. (05.11.2026, GTM-Feature.)
+- **[Consent/Migration]** Feldgruppe in einer localized-Global-Definition (`Translations.cookies`) ohne Migration = `translations`-Global 500 in Prod, sobald die Definition auf `main` ist (Payload selektiert alle konfigurierten Felder). Neue Globals-Felder immer im selben Merge wie die Spalten-Migration ausliefern; rein additive `ADD COLUMN IF NOT EXISTS … DEFAULT … NOT NULL` füllt Bestandszeilen ohne Backfill. (05.11.2026, PR #57.)
 - **[Coolify/Build-ARGs]** Coolify injiziert ALLE App-Envs als Build-ARGs (unabhängig von Compose-Refs) → Secrets landen in `docker history`-Layer. Fix: Coolify-Env-Flag `is_buildtime: false` (REST PATCH envs) + Compose-`$SECRET`-Referenzen entfernen. Nach jedem Deploy: `docker history <image> | grep -iE 'SECRET|DATABASE'` (presence-only, nie Werte drucken).
 - **[Secure-Cookie]** `cookies: { secure: true }` + Safari: Secure-Cookie wird auf `http://localhost` NICHT gesetzt → Dev-Login in Safari bricht (Chrome/FF ok, localhost gilt dort als secure context). Hinweis-Only.
 - **[CORP]** Media wird auch via `/api/media/file/:file*`-Endpoint ausgeliefert → CORP-Header doppelt setzen (beide Paths in `next.config.ts` `headers()`).

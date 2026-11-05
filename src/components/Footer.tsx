@@ -1,7 +1,11 @@
 import Link from 'next/link';
+import { ConsentSettingsLink } from '@/components/consent/ConsentSettingsLink';
+import type { Translation } from '@/payload-types';
 
 export function Footer({
+  locale,
   navLinks,
+  cookieSettingsLabel,
 }: {
   locale: string;
   navLinks?: {
@@ -9,7 +13,15 @@ export function Footer({
     link: string;
     id?: string | null;
   }[];
+  /** Footer-Link-Label aus dem Translations-Global (DE/EN, CMS-editierbar). */
+  cookieSettingsLabel?: Translation['cookies'];
 }) {
+  // Fallback nur fuer Instanzen, deren Translations-Global noch keinen
+  // `cookies`-Block hat (z. B. ungeseedete Dev-DB) — nie hart im Markup.
+  const settingsLabel =
+    cookieSettingsLabel?.settingsLink ??
+    (locale === 'de' ? 'Cookie-Einstellungen' : 'Cookie settings');
+
   return (
     <footer className="mt-auto w-full border-t border-border bg-surface/40">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8 md:flex-row md:items-center md:justify-between md:px-8">
@@ -41,6 +53,11 @@ export function Footer({
                   </Link>
                 </li>
               ))}
+              <li>
+                {/* Client-Komponente (der Footer ist eine Server-Komponente):
+                    oeffnet den Consent-Dialog ueber `CONSENT_OPEN_EVENT`. */}
+                <ConsentSettingsLink label={settingsLabel} />
+              </li>
             </ul>
           </nav>
         )}

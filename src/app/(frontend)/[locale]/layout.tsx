@@ -18,6 +18,8 @@ import {
 import type { FrontendLocale } from '@/cms/cache/frontend/frontendCache';
 import { envConfig } from '@/envConfig';
 import { MaintenanceScreen, MaintenanceBadge } from '@/components/MaintenanceScreen';
+import { CookieConsent } from '@/components/consent/CookieConsent';
+import { ConsentBootstrapScript } from '@/lib/consent/ConsentBootstrapScript';
 import { getCommandItems } from '@/components/ui/commandItems';
 import { getPayload } from 'payload';
 import configPromise from '@payload-config';
@@ -102,6 +104,9 @@ export default async function RootLayout({ children, params }: LayoutProps<'/[lo
     <html lang={locale} className="dark">
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
+        {/* Consent Mode v2: Default-Signale MÜSSEN vor jedem GTM-Script
+            evaluiert werden — daher hier im Head, vor allen Container-Scripts. */}
+        <ConsentBootstrapScript />
       </head>
       <body className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} font-body antialiased`}>
         <SkipLink locale={locale} />
@@ -219,7 +224,11 @@ async function LayoutShell({
               <main id="main-content" tabIndex={-1} className="flex-1 px-4 md:px-8">
                 {children}
               </main>
-              <Footer locale={locale} navLinks={navigation.footerLinks ?? []} />
+              <Footer
+                locale={locale}
+                navLinks={navigation.footerLinks ?? []}
+                cookieSettingsLabel={translations.cookies}
+              />
             </div>
           </SettingsProvider>
         </TranslationsProvider>
@@ -239,7 +248,12 @@ async function LayoutShell({
           <main id="main-content" tabIndex={-1} className="flex-1 px-4 md:px-8">
             {children}
           </main>
-          <Footer locale={locale} navLinks={navigation.footerLinks ?? []} />
+          <Footer
+            locale={locale}
+            navLinks={navigation.footerLinks ?? []}
+            cookieSettingsLabel={translations.cookies}
+          />
+          <CookieConsent gtmId={envConfig.gtmId} />
         </div>
       </SettingsProvider>
     </TranslationsProvider>
