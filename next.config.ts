@@ -18,11 +18,47 @@ import type { NextConfig } from 'next';
  */
 const isDev = process.env.NODE_ENV === 'development';
 
+/**
+ * Google-Tag-Manager-/Analytics-Origins (Consent Mode v2):
+ *
+ * - `https://www.googletagmanager.com`: Container-Bootstrap `gtm.js`
+ *   (script-src) und Preview-/noscript-iframes (frame-src).
+ * - `*.google-analytics.com`, `analytics.google.com`: GA4-Beacons, die GTM
+ *   per fetch/sendBeacon absetzt. Ohne `connect-src` greift
+ *   `default-src 'self'` und jeder Mess-Request waere geblockt.
+ * - `www.googletagmanager.com` + `google-analytics.com` in img-src: Pixel-
+ *   Fallback (`_ga`-Collect-Fallbacks, Bild-Beacons).
+ * - `stats.g.doubleclick.net` / `www.google.com`: Conversion- und
+ *   Remarketing-Pixel, falls im Container spaeter Ads-Tags aktiviert
+ *   werden. Ob sie feuern, entscheidet ausschliesslich Consent Mode
+ *   (`ad_storage`/`ad_user_data`/`ad_personalization` default denied).
+ *
+ * Bewusst NICHT erweitert: object-src, base-uri, form-action,
+ * frame-ancestors — dort braucht Google nichts.
+ */
+const GOOGLE_SCRIPT_SRC = 'https://www.googletagmanager.com';
+const GOOGLE_CONNECT_SRC = [
+  'https://www.googletagmanager.com',
+  'https://www.google-analytics.com',
+  'https://region1.google-analytics.com',
+  'https://analytics.google.com',
+].join(' ');
+const GOOGLE_IMG_SRC = [
+  'https://www.googletagmanager.com',
+  'https://www.google-analytics.com',
+  'https://region1.google-analytics.com',
+  'https://www.google.com',
+  'https://stats.g.doubleclick.net',
+].join(' ');
+
 const CSP_ENFORCE = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
+  `script-src 'self' 'unsafe-inline' ${GOOGLE_SCRIPT_SRC}${isDev ? " 'unsafe-eval'" : ''}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
+  `img-src 'self' data: blob: ${GOOGLE_IMG_SRC}`,
+  `connect-src 'self' ${GOOGLE_CONNECT_SRC}`,
+  `frame-src ${GOOGLE_SCRIPT_SRC}`,
+  "font-src 'self'",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -31,8 +67,16 @@ const CSP_ENFORCE = [
 ].join('; ');
 
 // Only lists the stricter directives, so reports show what would have to change
-// if 'unsafe-inline' were dropped. No report-to endpoint on purpose.
-const CSP_REPORT_ONLY = ["script-src 'self'", "style-src 'self'"].join('; ');
+// if 'unsafe-inline' were dropped. The Google origins stay allowed here too,
+// otherwise the probe would report GTM noise instead of the real
+// unsafe-inline target. No report-to endpoint on purpose.
+const CSP_REPORT_ONLY = [
+  "script-src 'self'",
+  `connect-src 'self' ${GOOGLE_CONNECT_SRC}`,
+  `img-src 'self' data: blob: ${GOOGLE_IMG_SRC}`,
+  `frame-src ${GOOGLE_SCRIPT_SRC}`,
+  "style-src 'self'",
+].join('; ');
 
 // Deny everything the app does not use.
 const PERMISSIONS_POLICY = [
