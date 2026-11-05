@@ -18,6 +18,11 @@ import { z } from 'zod';
  * - `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ZONE_ID`: optional, server-only. Used
  *   for edge-cache purges after CMS changes and after a deploy. Unset → purge
  *   is a no-op (local dev, build phase). Never `NEXT_PUBLIC_`.
+ * - `CLOUDFLARE_PURGE_ZONES`: optional, server-only. Semicolon separated
+ *   `zoneId:host1,host2` entries for the multi-zone site (`mosthi.de` and
+ *   `mostheimer.de` are separate zones, and a purge only evicts objects of the
+ *   zone it is sent to). When set it replaces `CLOUDFLARE_ZONE_ID`. Shared with
+ *   `scripts/cf-purge.mjs` — identical syntax. Never `NEXT_PUBLIC_`.
  * - `CLOUDFLARE_PURGE_ON_START`: optional kill switch for the deploy-time
  *   purge ("0" disables it, anything else/empty = on).
  *
@@ -50,11 +55,46 @@ const envSchema = z.object({
   cloudflareZoneId: z
     .string()
     .regex(/^$|^[0-9a-f]{32}$/, 'CLOUDFLARE_ZONE_ID must be a 32-char zone id'),
+  /**
+   * `CLOUDFLARE_PURGE_ZONES` — `zoneId:host1,host2;zoneId2:host3`. Only the
+   * SHAPE is checked, and a malformed value warns instead of throwing: a bad
+   * purge config must degrade to "purge skipped", never break a page render.
+   */
+  cloudflarePurgeZones: z.string(),
   /** Kill switch for the deploy-time purge (default on when credentials exist). */
   cloudflarePurgeOnStart: z.boolean(),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
+
+/**
+ * Shape check for `CLOUDFLARE_PURGE_ZONES`:
+ * `zoneId:https://host1,https://host2;zoneId2:https://host3`.
+ *
+ * Every entry needs a 32-char zone id and at least one absolute `https://`
+ * host. Hosts are NOT optional here (unlike the lenient parser in
+ * `cloudflare.ts`): a zone without hosts would be a silent no-purge for that
+ * zone, which is the exact failure this configuration exists to prevent.
+ */
+function isValidPurgeZones(value: string): boolean {
+  const entries = value
+    .split(';')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  if (entries.length === 0) return false;
+  return entries.every((entry) => {
+    const separator = entry.indexOf(':');
+    if (separator === -1) return false;
+    const zoneId = entry.slice(0, separator).trim();
+    if (!/^[0-9a-f]{32}$/.test(zoneId)) return false;
+    const hosts = entry
+      .slice(separator + 1)
+      .split(',')
+      .map((host) => host.trim())
+      .filter(Boolean);
+    return hosts.length > 0 && hosts.every((host) => /^https:\/\/[a-z0-9.-]+$/i.test(host));
+  });
+}
 
 /**
  * envConfig is evaluated at module import, before any DB is reachable, so the
@@ -110,6 +150,14 @@ function resolveEnvConfig(): EnvConfig {
     );
   }
   const cloudflareApiTokenValue = process.env.CLOUDFLARE_API_TOKEN ?? '';
+  const cloudflarePurgeZonesValue = process.env.CLOUDFLARE_PURGE_ZONES ?? '';
+  if (cloudflarePurgeZonesValue.trim() && !isValidPurgeZones(cloudflarePurgeZonesValue)) {
+    console.warn(
+      '[envConfig] CLOUDFLARE_PURGE_ZONES is malformed (expected ' +
+        '`zoneId:https://host1,https://host2;zoneId2:https://host3`) — edge-cache ' +
+        'purges fall back to CLOUDFLARE_ZONE_ID only, which leaves hosts in other zones stale.',
+    );
+  }
   const cloudflarePurgeOnStartValue = process.env.CLOUDFLARE_PURGE_ON_START !== '0';
 
   // payloadSecret: required at runtime in production, dev fallback otherwise.
@@ -137,6 +185,7 @@ function resolveEnvConfig(): EnvConfig {
       gtmId: gtmIdValue,
       cloudflareApiToken: cloudflareApiTokenValue,
       cloudflareZoneId: cloudflareZoneIdValue,
+      cloudflarePurgeZones: cloudflarePurgeZonesValue,
       cloudflarePurgeOnStart: cloudflarePurgeOnStartValue,
     };
   }
@@ -155,6 +204,7 @@ function resolveEnvConfig(): EnvConfig {
       gtmId: gtmIdValue,
       cloudflareApiToken: cloudflareApiTokenValue,
       cloudflareZoneId: cloudflareZoneIdValue,
+      cloudflarePurgeZones: cloudflarePurgeZonesValue,
       cloudflarePurgeOnStart: cloudflarePurgeOnStartValue,
     };
   }

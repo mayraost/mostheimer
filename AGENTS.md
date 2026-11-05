@@ -911,16 +911,51 @@ herausnehmen oder hinter `Suspense` verschieben.
 
 ### Env & Token-Rechte
 
-| Variable                    | Zweck                                   | Fehlt sie                         |
-| --------------------------- | --------------------------------------- | --------------------------------- |
-| `CLOUDFLARE_API_TOKEN`      | Purge-API                               | Purge = No-op (lokal/Build inert) |
-| `CLOUDFLARE_ZONE_ID`        | Zone `fc81dba86a79cddf0b956eed4a25a965` | Purge = No-op                     |
-| `CLOUDFLARE_PURGE_ON_START` | `0` = Deploy-Purge aus                  | Default: an                       |
+| Variable                    | Zweck                                                                      | Fehlt sie                         |
+| --------------------------- | -------------------------------------------------------------------------- | --------------------------------- |
+| `CLOUDFLARE_API_TOKEN`      | Purge-API                                                                  | Purge = No-op (lokal/Build inert) |
+| `CLOUDFLARE_PURGE_ZONES`    | **Kanonisch:** `zoneId:host1,host2;zoneId2:host3` je Zone (siehe unten)    | Fallback auf `CLOUDFLARE_ZONE_ID` |
+| `CLOUDFLARE_ZONE_ID`        | Zone `fc81dba86a79cddf0b956eed4a25a965` (`mosthi.de`) — Legacy-Single-Zone | Purge = No-op                     |
+| `CLOUDFLARE_PURGE_ON_START` | `0` = Deploy-Purge aus                                                     | Default: an                       |
 
 **Beide server-only, NIE `NEXT_PUBLIC_`.** Token-Rechte: **Zone → Cache Purge
-→ Purge**, beschränkt auf die Zone `mosthi.de` — nichts anderes. In Coolify als
-App-Env mit `is_buildtime: false` setzen (Secrets gehören nicht in den
-Build-ARG-Layer).
+→ Purge für JEDE gelistete Zone** (`mosthi.de` **und** `mostheimer.de`) —
+nichts anderes. In Coolify als App-Env mit `is_buildtime: false` setzen (Secrets
+gehören nicht in den Build-ARG-Layer).
+
+### Zwei Zonen, nicht eine (Stand 05.11.2026, verifiziert)
+
+`mosthi.de` und `mostheimer.de` liegen in **getrennten Cloudflare-Zonen**:
+
+| Zone                               | Hosts                                                |
+| ---------------------------------- | ---------------------------------------------------- |
+| `97b8bfd76c5ddbe777f5f185631859bc` | `https://mostheimer.de`, `https://www.mostheimer.de` |
+| `fc81dba86a79cddf0b956eed4a25a965` | `https://mosthi.de`                                  |
+
+Cloudflare-Purges sind **zonen-scoped**; es gibt keinen host-basierten Purge.
+Eine URL aus Zone B an `/zones/<A>/purge_cache` liefert **`success: true` und
+evictet nichts** — der Host in Zone B serviert dann weiter den Stand vor dem
+Deploy/Edit, während jeder Purge Erfolg meldet. Genau so lieferte
+`mostheimer.de` veraltetes HTML.
+
+Daraus folgen drei Regeln:
+
+1. **Ein Purge-Request pro Zone**, nie einer für alles und nie einer pro Host.
+   `CLOUDFLARE_PURGE_ZONES` (identische Syntax in `scripts/cf-purge.mjs` **und**
+   `src/cms/cache/frontend/cloudflare.ts`) mappt Zone → Hosts, damit Deploy-Purge
+   und Hook-Purge nicht auseinanderlaufen können. Eine URL wird nur an die Zone
+   geschickt, die ihren Host besitzt.
+2. **Teilerfolg = Fehler.** Scheitert eine Zone, meldet `sendPurge` `failed`
+   (mit Zone-Id im Reason) und öffnet den Circuit Breaker — sonst bleibt die
+   kaputte Zone unsichtbar stale.
+3. **`success: true` ist kein Wirksamkeitsbeweis.** Nach jedem Purge-Umbau
+   `cf-cache-status`/`Age` **am Zielhost** nachmessen (Cache-Buster gegen den
+   Origin vergleichen). Die API bestätigt auch wirkungslose Requests.
+
+Token-Permission-Test ohne Secret-Output (Zone-Ids sind nicht geheim, Token nie
+drucken): im App-Container `node` gegen `POST /client/v4/zones/<id>/purge_cache`
+mit genau einer harmlosen URL je Zone; erwartet werden **200 + `success: true`
+für beide** Zonen. Ein 401/403 zeigt die fehlende Zone-Permission an.
 
 ### Deploy-Purge (eine Purge pro Release, nie pro Restart)
 
@@ -1242,6 +1277,13 @@ Vor jedem Commit wird diese Datei auf Aktualität geprüft und bei Bedarf ergän
 
 - **[TS 6/Upgrade]** TypeScript 6.0.3 (01.11.2026, exakt gepinnt, letzte JS-Compiler-Serie vor TS 7 — TS 7 native hat keine JS-API, typescript-eslint-Peer `>=4.8.4 <6.1.0` zwingt zu <6.1): tsconfig braucht `types: ["node"]` (TS 6 defaultet `types: []` → sonst `process.env`-Typing weg) und `baseUrl` ist deprecated/entfernt — `paths` funktionieren ohne (Entries relativ zur tsconfig); Projekt nutzte baseUrl nur als paths-Präfix, kein Code-Change nötig. Verify-Kette (tsc/lint/generate:types/build/vitest) lief ohne weitere Anpassungen durch.
 - **[TS/TS7-Hybrid]** Natives TS 7 (Go-Compiler, keine JS-API) parallel als Alias-DevDep `"@typescript/native": "npm:typescript@7.0.2"` (EXAKT pinnen, kein `^` — dist-tag latest wandert; `@typescript/native` existiert nicht auf npm, `npx @typescript/native` → E404). TS 6.0.3 bleibt kanonisch (typescript-eslint-Peer <6.1, Payload-CLI/tsx/next build laden `require('typescript')`). Fallstricke: (1) `.bin/tsc` bei zwei Packages mit `bin: tsc` wird von npm **lautlos last-wins** verlinkt — im Projekt resolved `npx tsc` dadurch jetzt auf TS 7.0.2 (nicht TS 6!), deshalb Skript **Direkt-Pfad-Pflicht**: `node node_modules/@typescript/native/bin/tsc --noEmit`; Kanonisch tsc-Aufrufe nur via explizitem `node node_modules/typescript/bin/tsc`. (2) Next 16 `useTypeScriptCli` resolvet das echte `typescript`-Package (unberührt → Build-Autorität bleibt TS 6). (3) TS7-Advisory `npm run typecheck`: 0 exit, ~1.0 s vs. TS6-TSC 3.1 s (ohne npm-Overhead). (4) Keine Shim-Variante (`typescript: npm:@typescript/typescript6`) — kein `bin.tsc`, bricht Next-CLI-Discovery. Upgrade-Pfad zu echtem TS 7 erst wenn typescript-eslint #10940/#12803 (TS7-API) und vercel/next.js #97334 (Shim-Aliase) released sind.
+
+- **[Payload/Secret-Rotation] `PAYLOAD_SECRET` NIEMALS naiv per Coolify-PATCH tauschen — zerstört die API-Keys (MCP!)** (05.11.2026, verifiziert gegen die installierte Payload-Version + Docs). Das Secret ist **nicht** nur ein JWT-Signaturschlüssel: es **verschlüsselt die `api_key`-Felder at rest und bildet den `api_key_index`** (HMAC), über den API-Keys nachgeschlagen werden. Ein reiner Env-Swap macht damit **jeden** API-Key unlesbar → der Payload-MCP (`Authorization: users API-Key …`) authentifiziert nicht mehr, bis re-keyed ist. Stand der Messung: genau ein User (`agent@mosthi.de`) hat einen aktiven Key (`api_key`/`api_key_index` gesetzt), die anderen zwei nicht. Passwort-Logins bleiben unberührt (per-User-Salt, kein Secret). Korrekter Ablauf (alle Bausteine sind in `payload@4.0.0-beta.6` vorhanden, `payload/dist/auth/rotateSecret.d.ts`):
+  1. Neues Secret erzeugen, als aktives `secret` setzen **und** das alte in `previousSecrets: [...]` (`buildConfig`) aufnehmen — beides als Env (`PAYLOAD_SECRET` neu, `OLD_PAYLOAD_SECRET` alt), `is_buildtime: false`.
+  2. Deployen; in diesem Fenster verifizieren alte JWTs weiter, neue Daten werden unter dem neuen Secret geschrieben.
+  3. `rotateSecret({ payload, oldSecret, dryRun: true })` → dann ohne `dryRun` laufen lassen: re-keyed `apiKey`/`apiKeyIndex` idempotent und fail-closed (Zeile, die zu keinem Secret passt, bricht ab, ohne zu schreiben).
+  4. Erst **nach** erfolgreichem Re-Key `previousSecrets` leeren und erneut deployen.
+     Merke: Die Rotation invalidert **alle** Admin-Sessions per Design (Re-Login nötig) — das ist erwartet, nicht ein Fehler. Ein Deploy ist nur nötig, weil `previousSecrets` Config ist; ohne Schritt 1+2 gibt es kein Zero-Downtime-Fenster.
 
 - **[Payload/Upload]** `media`-Collection erlauben nur explizite image-mimeTypes (`image/png`, `image/jpeg`, `image/webp`, `image/avif`) — SVG ausgeschlossen (XSS via Upload-Storage), kein Wildcard `image/*`. User-Auth-Cookies via `cookies: { secure: true, sameSite: 'Strict' }` in der Users-Collection-Config gehärtet (Live-Preview-iframe ist same-origin → Strict ok).
 - **[Sicherheit]** ~~Seed-Routen (`/api/seed-home`, `/api/seed-globals`)~~ — **entfernt am 05.11.2026.** Die Routen (samt `src/app/api/_seedGuard.ts` und `ALLOW_SEED`) sind gelöscht; **Content wird ausschließlich via Payload-MCP gesetzt** (Verbot + Ausnahmen siehe Abschnitt „Payload-MCP"). Nicht wieder einführen. Die generelle Regel bleibt: externe API-Routen nie ohne Auth-Gate + Prod-Gate, Error-Responses nie mit Stack/Debug-Details (nur serverseitiges `console.error`).

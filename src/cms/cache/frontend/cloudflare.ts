@@ -35,9 +35,26 @@
  * and is exact here because the route set is tiny and known (2 locales × page
  * slugs). Verified for this zone: **Free plan** — URL purge is available,
  * rate-limited to 5 purge requests/min per account (token bucket 25, max 100
- * URLs per request), so each flush collects its paths and sends ONE request. On
- * 429 the affected objects stay stale until the next successful purge (or
- * s-maxage, 7 days); that failure is logged.
+ * URLs per request), so each flush collects its paths and sends ONE request
+ * PER ZONE. On 429 the affected objects stay stale until the next successful
+ * purge (or s-maxage, 7 days); that failure is logged.
+ *
+ * WHY ONE REQUEST PER ZONE (not per host, not one zone for everything)
+ *
+ * The hosts are served from TWO separate Cloudflare zones: `mosthi.de` and
+ * `mostheimer.de`. Cloudflare purges are zone-scoped and there is no host-based
+ * purge — a `mostheimer.de` URL sent to the `mosthi.de` zone returns
+ * `success: true` and evicts nothing. That is exactly how the canonical host
+ * kept serving pre-CMS-edit HTML while every purge reported success. The
+ * zone → hosts mapping comes from `CLOUDFLARE_PURGE_ZONES` (same syntax as
+ * `scripts/cf-purge.mjs`), so the deploy purge and this hook purge cannot
+ * disagree.
+ *
+ * TOKEN PERMISSION
+ *
+ * `Zone → Cache Purge → Purge` for EVERY zone listed. A token limited to one
+ * zone fails with HTTP 401/403 on the other, which is reported as a failure
+ * (partial success counts as failure, see `sendPurge`).
  *
  * INERT OUTSIDE CLOUDFLARE
  *
@@ -72,7 +89,7 @@ export type CloudflarePurgeResult =
       status: 'skipped';
       reason: 'build-phase' | 'not-configured' | 'circuit-open' | 'nothing-to-purge';
     }
-  | { status: 'purged'; urls: number }
+  | { status: 'purged'; urls: number; zones: number }
   | { status: 'failed'; reason: string };
 
 let circuitOpenUntil = 0;
@@ -94,15 +111,66 @@ export function resetCloudflareCircuitForTests(): void {
 }
 
 /**
+ * A Cloudflare zone and the hosts whose cached objects it owns.
+ *
+ * Cloudflare purges are ZONE-scoped and there is no host-based purge: handing a
+ * URL of another zone to `/zones/<id>/purge_cache` returns `success: true` and
+ * evicts nothing. The site is served under hosts that live in two SEPARATE
+ * zones (`mosthi.de` and `mostheimer.de`), so purging one zone and passing the
+ * other zone's URLs leaves the canonical host serving pre-CMS-edit HTML while
+ * every purge reports success — indistinguishable from "the hook did not run".
+ */
+type PurgeZone = { zoneId: string; origins: string[] };
+
+/**
  * Read at call time (not from `envConfig` at import): keeps this module usable
  * from the plain-Node deploy script (`scripts/cf-purge.mjs`) and avoids turning
  * a missing credential into an import-time failure.
  */
-function credential(): { token: string; zoneId: string } | null {
+function credential(): { token: string; zones: PurgeZone[] } | null {
   const token = process.env.CLOUDFLARE_API_TOKEN ?? '';
-  const zoneId = process.env.CLOUDFLARE_ZONE_ID ?? '';
-  if (!token || !zoneId) return null;
-  return { token, zoneId };
+  const zones = resolveZones();
+  if (!token || zones.length === 0) return null;
+  return { token, zones };
+}
+
+/**
+ * `CLOUDFLARE_PURGE_ZONES` — the multi-zone configuration shared with
+ * `scripts/cf-purge.mjs` (same syntax, so the deploy purge and the CMS-hook
+ * purge can never disagree):
+ *
+ *   `zoneId:https://host1,https://host2;zoneId2:https://host3`
+ *
+ * When set it replaces `CLOUDFLARE_ZONE_ID` + host derivation entirely.
+ * Entries without hosts fall back to `origins()`, and without the variable the
+ * legacy single-zone behaviour applies (one zone, every public host) — that is
+ * correct only while all hosts share one zone.
+ */
+function resolveZones(): PurgeZone[] {
+  const explicit = (process.env.CLOUDFLARE_PURGE_ZONES ?? '').trim();
+  if (explicit) {
+    const zones: PurgeZone[] = [];
+    for (const chunk of explicit
+      .split(';')
+      .map((entry) => entry.trim())
+      .filter(Boolean)) {
+      // Split on the FIRST colon only: the hosts that follow contain `https://`.
+      const separator = chunk.indexOf(':');
+      const zoneId = (separator === -1 ? chunk : chunk.slice(0, separator)).trim();
+      const hosts = separator === -1 ? '' : chunk.slice(separator + 1);
+      if (!zoneId) continue;
+      const configuredHosts = hosts
+        .split(',')
+        .map((host) => host.trim().replace(/\/+$/, ''))
+        .filter(Boolean);
+      zones.push({ zoneId, origins: configuredHosts.length > 0 ? configuredHosts : origins() });
+    }
+    if (zones.length > 0) return zones;
+  }
+
+  const zoneId = (process.env.CLOUDFLARE_ZONE_ID ?? '').trim();
+  if (!zoneId) return [];
+  return [{ zoneId, origins: origins() }];
 }
 
 function isBuildPhase(): boolean {
@@ -134,6 +202,9 @@ function origins(): string[] {
  *
  * Static assets are filtered out here as the last line of defence, so no caller
  * — present or future — can hand a `/_next/static/**` URL to the purge API.
+ *
+ * This is the diagnostic/URL view (every host, no zone split). The actual API
+ * call groups these by zone — see `purgeUrlsByZone`.
  */
 export function toPurgeUrls(paths: readonly string[]): string[] {
   const urls = new Set<string>();
@@ -147,41 +218,84 @@ export function toPurgeUrls(paths: readonly string[]): string[] {
   return [...urls];
 }
 
+/**
+ * `[{ zoneId, files }]` — one group per zone, each containing ONLY the URLs of
+ * hosts that zone serves. A URL is never sent to a zone that does not own it:
+ * Cloudflare would answer `success: true` and evict nothing (see `PurgeZone`).
+ */
+function purgeUrlsByZone(
+  paths: readonly string[],
+  zones: readonly PurgeZone[],
+): { zoneId: string; files: string[] }[] {
+  const purgeable = paths
+    .map((path) => (path.startsWith('/') ? path : `/${path}`))
+    .filter(isPurgeablePath);
+
+  const groups: { zoneId: string; files: string[] }[] = [];
+  for (const zone of zones) {
+    const files = new Set<string>();
+    for (const path of purgeable) {
+      for (const origin of zone.origins) files.add(`${origin}${path}`);
+    }
+    if (files.size > 0) groups.push({ zoneId: zone.zoneId, files: [...files] });
+  }
+  return groups;
+}
+
 async function sendPurge(
   target: CloudflarePurgeTarget,
-  { token, zoneId }: { token: string; zoneId: string },
+  { token, zones }: { token: string; zones: PurgeZone[] },
 ): Promise<CloudflarePurgeResult> {
-  const files = toPurgeUrls(target.paths);
-  if (files.length === 0) return { status: 'skipped', reason: 'nothing-to-purge' };
-  const body: Record<string, unknown> = { files: files.slice(0, MAX_URLS_PER_REQUEST) };
+  const groups = purgeUrlsByZone(target.paths, zones);
+  if (groups.length === 0) return { status: 'skipped', reason: 'nothing-to-purge' };
 
-  try {
-    const response = await fetchImpl(`${CLOUDFLARE_API_BASE}/zones/${zoneId}/purge_cache`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-      cache: 'no-store',
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
+  // One request per zone. The Free-plan bucket is per ACCOUNT (5/min), so two
+  // zones cost two requests of that bucket — never one request per URL.
+  const failures: string[] = [];
+  let urls = 0;
+  let purgedZones = 0;
 
-    if (response.ok) return { status: 'purged', urls: files.length };
+  for (const group of groups) {
+    const body: Record<string, unknown> = { files: group.files.slice(0, MAX_URLS_PER_REQUEST) };
+    try {
+      const response = await fetchImpl(`${CLOUDFLARE_API_BASE}/zones/${group.zoneId}/purge_cache`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+        cache: 'no-store',
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
 
-    circuitOpenUntil = Date.now() + CIRCUIT_OPEN_MS;
-    return {
-      status: 'failed',
-      reason: response.status === 429 ? 'rate limited (429)' : `HTTP ${response.status}`,
-    };
-  } catch (error) {
-    circuitOpenUntil = Date.now() + CIRCUIT_OPEN_MS;
-    // Name + message only: the request object carries the token.
-    return {
-      status: 'failed',
-      reason: error instanceof Error ? `${error.name}: ${error.message}` : 'unknown error',
-    };
+      if (response.ok) {
+        purgedZones += 1;
+        urls += group.files.length;
+        continue;
+      }
+      failures.push(
+        response.status === 429
+          ? 'rate limited (429)'
+          : `zone ${group.zoneId}: HTTP ${response.status}`,
+      );
+    } catch (error) {
+      // Name + message only: the request object carries the token.
+      failures.push(
+        error instanceof Error
+          ? `zone ${group.zoneId}: ${error.name}: ${error.message}`
+          : `zone ${group.zoneId}: unknown error`,
+      );
+    }
   }
+
+  // Partial success is a failure: the zone that failed keeps serving stale
+  // content, and the caller must see that (and the circuit must open).
+  if (failures.length > 0) {
+    circuitOpenUntil = Date.now() + CIRCUIT_OPEN_MS;
+    return { status: 'failed', reason: failures.join('; ') };
+  }
+  return { status: 'purged', urls, zones: purgedZones };
 }
 
 /**
@@ -191,12 +305,13 @@ export async function purgeCloudflareCache(
   target: CloudflarePurgeTarget,
 ): Promise<CloudflarePurgeResult> {
   if (isBuildPhase()) return { status: 'skipped', reason: 'build-phase' };
-  if (!credential()) return { status: 'skipped', reason: 'not-configured' };
+  const credentials = credential();
+  if (!credentials) return { status: 'skipped', reason: 'not-configured' };
   if (target.type === 'urls' && target.paths.length === 0) {
     return { status: 'skipped', reason: 'nothing-to-purge' };
   }
   if (Date.now() < circuitOpenUntil) return { status: 'skipped', reason: 'circuit-open' };
-  return sendPurge(target, credential() as { token: string; zoneId: string });
+  return sendPurge(target, credentials);
 }
 
 /**

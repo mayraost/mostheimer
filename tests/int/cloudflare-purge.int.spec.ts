@@ -141,13 +141,73 @@ describe('cloudflare purge client', () => {
     const fetchSpy = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
     setCloudflareFetchForTests(fetchSpy);
     const result = await purgeCloudflareCache({ type: 'urls', paths: ['/de'] });
-    expect(result.status).toBe('purged');
+    expect(result).toEqual({ status: 'purged', urls: 3, zones: 1 });
 
     const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
     expect(url).toBe(`https://api.cloudflare.com/client/v4/zones/${'a'.repeat(32)}/purge_cache`);
     expect(init.headers).toMatchObject({ Authorization: 'Bearer test-token' });
     const body = JSON.parse(String(init.body)) as { files: string[] };
     expect(body.files).toContain('https://mosthi.de/de');
+  });
+
+  /**
+   * THE multi-zone invariant: Cloudflare purges are zone-scoped, so a URL must
+   * only ever be sent to the zone that owns its host. Sending
+   * `mostheimer.de/de` to the `mosthi.de` zone returns `success: true` and
+   * evicts nothing — the canonical host then serves pre-CMS-edit HTML forever.
+   */
+  it('splits one flush into one request per zone and never crosses hosts', async () => {
+    const zoneMostheimer = '1'.repeat(32);
+    const zoneMosthi = '2'.repeat(32);
+    process.env.CLOUDFLARE_PURGE_ZONES =
+      `${zoneMostheimer}:https://mostheimer.de,https://www.mostheimer.de;` +
+      `${zoneMosthi}:https://mosthi.de`;
+    delete process.env.CLOUDFLARE_ZONE_ID;
+
+    const fetchSpy = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    setCloudflareFetchForTests(fetchSpy);
+
+    const result = await purgeCloudflareCache({ type: 'urls', paths: ['/de'] });
+    expect(result).toEqual({ status: 'purged', urls: 3, zones: 2 });
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+
+    const sent = fetchSpy.mock.calls.map(([url, init]) => ({
+      url: String(url),
+      files: (JSON.parse(String((init as RequestInit).body)) as { files: string[] }).files,
+    }));
+
+    const mostheimer = sent.find((call) => call.url.includes(zoneMostheimer));
+    const mosthi = sent.find((call) => call.url.includes(zoneMosthi));
+    expect(mostheimer?.files).toEqual(['https://mostheimer.de/de', 'https://www.mostheimer.de/de']);
+    expect(mosthi?.files).toEqual(['https://mosthi.de/de']);
+
+    // Neither zone receives a URL belonging to the other zone.
+    for (const call of sent) {
+      const ownsMosthiHost = !call.url.includes(zoneMostheimer);
+      for (const file of call.files) {
+        expect(file.includes('mostheimer.de')).toBe(!ownsMosthiHost);
+      }
+    }
+  });
+
+  it('treats a partial zone failure as a failure so the stale zone is visible', async () => {
+    process.env.CLOUDFLARE_PURGE_ZONES = `${'1'.repeat(32)}:https://mostheimer.de;${'2'.repeat(32)}:https://mosthi.de`;
+    delete process.env.CLOUDFLARE_ZONE_ID;
+
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }))
+      .mockResolvedValueOnce(new Response('{}', { status: 403 }));
+    setCloudflareFetchForTests(fetchSpy);
+
+    const result = await purgeCloudflareCache({ type: 'urls', paths: ['/de'] });
+    expect(result.status).toBe('failed');
+    expect(result.status === 'failed' ? result.reason : '').toContain('403');
+    // The failing zone opens the circuit — no hammering on every CMS save.
+    expect(await purgeCloudflareCache({ type: 'urls', paths: ['/de'] })).toEqual({
+      status: 'skipped',
+      reason: 'circuit-open',
+    });
   });
 
   it('never throws on an API error and logs without the token', async () => {
