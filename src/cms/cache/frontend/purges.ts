@@ -68,21 +68,15 @@ export async function runPendingCloudflarePurges(): Promise<PurgeRunSummary> {
   if (purges.length === 0) return { pending: 0, urls: 0, status: 'idle' };
 
   const labels = purges.map((purge) => purge.label).join(', ');
-  // An 'everything' purge supersedes URL purges — one API call keeps the
-  // Free-plan purge bucket (5/min) intact.
-  const everything = purges.some((purge) => purge.target.type === 'everything');
+  // Merge every queued flush into ONE URL purge — the Free-plan bucket allows
+  // 5 requests/min, so a cascade of hooks must not fan out. Static assets are
+  // filtered in `toPurgeUrls` (never purged, see routes.ts).
   const paths = new Set<string>();
   for (const purge of purges) {
-    if (purge.target.type === 'urls') {
-      for (const path of purge.target.paths) paths.add(path);
-    }
+    for (const path of purge.target.paths) paths.add(path);
   }
 
-  const target: CloudflarePurgeTarget = everything
-    ? { type: 'everything' }
-    : { type: 'urls', paths: [...paths] };
-
-  const result = await purgeCloudflareNow(target, labels);
+  const result = await purgeCloudflareNow({ type: 'urls', paths: [...paths] }, labels);
   return {
     pending: purges.length,
     urls: toPurgeUrls([...paths]).length,

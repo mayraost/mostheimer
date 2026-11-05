@@ -14,19 +14,30 @@
  *   logged loudly (a stale window is the consequence) and never rethrown; the
  *   token never appears in a log line.
  *
+ * INVARIANT: static assets are never purged
+ *
+ * `/_next/static/**` is immutable and content-addressed by build. Purging HTML
+ * is cheap and correct; purging assets is wasteful (Free-plan budget, 5/min)
+ * and destroys outage resilience — with the origin down, the warm edge copies
+ * of the CSS/JS are what keep the site styled. Every purge path therefore goes
+ * through `isPurgeablePath` (./routes.ts) and `toPurgeUrls` filters there, and
+ * `purge_everything` is not reachable from application code at all.
+ *
  * WHY URL PURGE, NOT CACHE TAGS
  *
- * Tag purge needs a `Cache-Tag` response header on the cached response. The app
- * cannot emit one: `headers()` in next.config.ts does not apply to HTML
- * responses (verified in dev: HTML keeps Next's own `no-store`; the public
- * Cache-Control comes from a Cloudflare Cache Response Rule, which cannot add
- * Cache-Tag). URL purge needs nothing from the origin and is exact here because
- * the route set is tiny and known (2 locales × page slugs). Verified for this
- * zone: **Free plan** — URL purge is available, rate-limited to 5 purge
- * requests/min per account (token bucket 25, max 100 URLs per request), so each
- * flush collects its paths and sends ONE request. On 429 the affected objects
- * stay stale until the next successful purge (or s-maxage, 7 days); that
- * failure is logged.
+ * Tag purge needs a `Cache-Tag` response header attached to the cached object.
+ * Measured on this zone (05.11.2026): a Cache Response Rule *can* add a
+ * `Cache-Tag` header (it is visible in the response), and the purge API accepts
+ * `{ tags: [...] }` with `success: true`, but purging by that tag is a silent
+ * no-op — the object kept `cf-cache-status: HIT` with a monotonically growing
+ * `Age` (445 → 449 → 453 s). The transform runs after the cache key is
+ * computed, so tags are not indexed. URL purge needs nothing from the origin
+ * and is exact here because the route set is tiny and known (2 locales × page
+ * slugs). Verified for this zone: **Free plan** — URL purge is available,
+ * rate-limited to 5 purge requests/min per account (token bucket 25, max 100
+ * URLs per request), so each flush collects its paths and sends ONE request. On
+ * 429 the affected objects stay stale until the next successful purge (or
+ * s-maxage, 7 days); that failure is logged.
  *
  * INERT OUTSIDE CLOUDFLARE
  *
@@ -35,6 +46,8 @@
  * every CMS save with a hanging request.
  */
 
+import { isPurgeablePath } from './routes';
+
 const CLOUDFLARE_API_BASE = 'https://api.cloudflare.com/client/v4';
 const REQUEST_TIMEOUT_MS = 5000;
 /** Cloudflare accepts up to 100 URLs per single-file purge request. */
@@ -42,8 +55,16 @@ const MAX_URLS_PER_REQUEST = 100;
 /** After a failed API call, skip purges for this long (Free bucket refills per minute). */
 const CIRCUIT_OPEN_MS = 2 * 60_000;
 
-export type CloudflarePurgeTarget =
-  { type: 'everything' } | { type: 'urls'; paths: readonly string[] };
+/**
+ * Purge targets. Deliberately there is NO `everything` variant in the public
+ * type: `purge_everything` would also wipe `/_next/static/**`, which must never
+ * be purged (see `isPurgeablePath` in ./routes.ts). A broad flush is still a
+ * single API call — `cms:all` resolves to the full set of content routes.
+ *
+ * `type: 'urls'` carries site-relative paths; `toPurgeUrls` expands them across
+ * every public host.
+ */
+export type CloudflarePurgeTarget = { type: 'urls'; paths: readonly string[] };
 
 /** Outcome of a purge attempt — logged by the caller, never contains the token. */
 export type CloudflarePurgeResult =
@@ -108,12 +129,19 @@ function origins(): string[] {
   return [...new Set([...configured, ...defaults])];
 }
 
-/** Absolute purge URLs for host-relative paths, across every public host. */
+/**
+ * Absolute purge URLs for host-relative paths, across every public host.
+ *
+ * Static assets are filtered out here as the last line of defence, so no caller
+ * — present or future — can hand a `/_next/static/**` URL to the purge API.
+ */
 export function toPurgeUrls(paths: readonly string[]): string[] {
   const urls = new Set<string>();
   for (const path of paths) {
+    const normalized = path.startsWith('/') ? path : `/${path}`;
+    if (!isPurgeablePath(normalized)) continue;
     for (const origin of origins()) {
-      urls.add(`${origin}${path.startsWith('/') ? path : `/${path}`}`);
+      urls.add(`${origin}${normalized}`);
     }
   }
   return [...urls];
@@ -123,11 +151,9 @@ async function sendPurge(
   target: CloudflarePurgeTarget,
   { token, zoneId }: { token: string; zoneId: string },
 ): Promise<CloudflarePurgeResult> {
-  const files = target.type === 'urls' ? toPurgeUrls(target.paths) : [];
-  const body: Record<string, unknown> =
-    target.type === 'everything'
-      ? { purge_everything: true }
-      : { files: files.slice(0, MAX_URLS_PER_REQUEST) };
+  const files = toPurgeUrls(target.paths);
+  if (files.length === 0) return { status: 'skipped', reason: 'nothing-to-purge' };
+  const body: Record<string, unknown> = { files: files.slice(0, MAX_URLS_PER_REQUEST) };
 
   try {
     const response = await fetchImpl(`${CLOUDFLARE_API_BASE}/zones/${zoneId}/purge_cache`, {

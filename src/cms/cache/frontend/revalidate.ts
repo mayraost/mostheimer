@@ -25,11 +25,15 @@ import { normalizeSlug } from './utils';
  *
  * | Tag                       | Purged edge objects                                   |
  * | ------------------------- | ----------------------------------------------------- |
- * | `cms:all`                 | purge everything (all hosts)                          |
+ * | `cms:all`                 | every public content route + `/sitemap.xml`           |
  * | `cms:pages`               | every public content route, both locales              |
  * | `cms:pages:<slug>`        | `/en/<slug>` + `/de/<slug>` (`home` → `/en`, `/de`)   |
  * | `cms:sitemap`             | `/sitemap.xml`                                        |
  * | `cms:global:*`            | every public content route (layout-level global)      |
+ *
+ * `/_next/static/**` is never part of any mapping — static assets are immutable
+ * and content-addressed, and they must survive both CMS edits and deploys so an
+ * origin outage is still served styled from the edge. See `isPurgeablePath`.
  *
  * The slug → routes part needs the page list (it is the only place that knows
  * every slug). `registerPageSlugs` is fed by the cached page queries, so the
@@ -89,15 +93,14 @@ export function edgePurgePathsForTag(
 }
 
 /**
- * Edge counterpart of a tag flush. `cms:all` maps to a full purge; everything
- * else to the exact routes above. No-op when Cloudflare is not configured.
+ * Edge counterpart of a tag flush: always the exact content routes above, one
+ * queued request per flush. `cms:all` is the same list plus `/sitemap.xml`
+ * rather than `purge_everything`, which would also drop the immutable static
+ * assets. No-op when Cloudflare is not configured or nothing is purgeable.
  */
 function purgeEdgeForTag(tag: string, label: string): void {
-  if (tag === CACHE_TAGS.ALL) {
-    enqueueCloudflarePurge({ type: 'everything' }, label);
-    return;
-  }
   const paths = edgePurgePathsForTag(tag);
+  if (tag === CACHE_TAGS.ALL) paths.push('/sitemap.xml');
   if (paths.length > 0) {
     enqueueCloudflarePurge({ type: 'urls', paths }, label);
   }

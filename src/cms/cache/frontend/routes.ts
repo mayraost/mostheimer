@@ -25,6 +25,30 @@ export function pagePath(locale: FrontendLocale, slug: string): string {
 }
 
 /**
+ * INVARIANT — static assets are never purged.
+ *
+ * `/_next/static/**` is served `public, max-age=31536000, immutable` and is
+ * content-addressed by build. Purging it is (a) wasteful against the Free-plan
+ * purge budget (5/min), (b) wrong, because a CMS edit cannot change a chunk, and
+ * (c) dangerous: during an origin outage those warm edge objects are exactly
+ * what keeps the site *styled*. The user-visible failure that motivated this
+ * rule was an unstyled page because the CSS was not in the edge cache.
+ *
+ * `isPurgeablePath` is the single choke point every purge path goes through, so
+ * a future mapping cannot reintroduce asset purges. The manual escape hatch for
+ * a genuinely changed-file-under-same-name incident is documented in
+ * `scripts/cf-purge.mjs` (`--everything`, operator only).
+ */
+export function isStaticAssetPath(pathname: string): boolean {
+  return pathname.startsWith('/_next/static/');
+}
+
+/** True when an edge purge may target this path. */
+export function isPurgeablePath(pathname: string): boolean {
+  return !isStaticAssetPath(pathname);
+}
+
+/**
  * True for the admin panel, the REST/API surface and anything else that must
  * never be reachable from the public content cache.
  */
