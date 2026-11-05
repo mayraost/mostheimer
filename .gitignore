@@ -69,3 +69,4 @@ payload.db
 # local agent scratch (never commit)
 /.visual-test/
 /.playwright-mcp/
+/.tmp-agent/

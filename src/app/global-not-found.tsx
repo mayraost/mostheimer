@@ -44,7 +44,7 @@ export const metadata: Metadata = {
 export default function GlobalNotFound() {
   return (
     <html lang="en" className="dark">
-      {/* eslint-disable-next-line @next/next/no-head-element */}
+      {}
       <head>
         {/* Same pre-hydration theme bootstrap as DocumentShell: default dark,
             stored preference wins, no flash. */}

@@ -15,8 +15,7 @@ import { CookieConsent } from '@/components/consent/CookieConsent';
 import { ReleaseGuard } from '@/components/ReleaseGuard';
 import { runPendingCloudflarePurges } from '@/cms/cache/frontend/purges';
 import { getCachedRouteRegistry } from '@/cms/cache/frontend/queries';
-import { ConsentBootstrapScript } from '@/lib/consent/ConsentBootstrapScript';
-import { getCachedSiteSettings } from '@/cms/cache/frontend/frontendCache';
+
 import { getCommandItems } from '@/components/ui/commandItems';
 
 export const metadata: Metadata = {
@@ -109,7 +108,7 @@ async function LayoutShell({
   //
   // No await may run inside this component BEFORE a notFound() throw from a
   // child page: the first await flushes the stream (status 200).
-  const [siteSettings, translations, navigation] = await Promise.all([
+  const [translations, navigation] = await Promise.all([
     getCachedTranslations(locale),
     getCachedNavigation(locale),
   ]);
