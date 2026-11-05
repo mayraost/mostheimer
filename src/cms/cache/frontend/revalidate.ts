@@ -140,8 +140,8 @@ export function safeRevalidate(
 /**
  * Flushes a single page route by slug ('home' or 'a/b'). Both locales are hit
  * (the tag has no locale prefix). `cms:pages` is invalidated too because the
- * NotFoundGate lookup and the sitemap list hang off the collection tag: a new
- * slug must resolve immediately, a deleted one must 404 immediately.
+ * sitemap list (and the edge purge route registry) hang off the collection
+ * tag: a new slug must resolve immediately, a deleted one must 404 immediately.
  */
 export function revalidatePagePathCache(slug: string | null | undefined): void {
   if (!slug) return;

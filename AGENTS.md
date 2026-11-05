@@ -661,6 +661,76 @@ payload migrate:create ...`-Kommando falls generiert) + `npx payload migrate`.
   (Payload fragt interaktiv, Server hängt); deshalb DB-Fresh-Reset vor
   Prod-Verifikation und dauerhaft `DATABASE_TYPE` aus dem Projekt entfernt.
 
+## 404-Handling: Proxy entscheidet den Status, Route rendert (Stand 05.11.2026)
+
+**Verantwortlichkeiten strikt getrennt — nicht wieder vermischen:**
+
+| Ebene                                | Aufgabe                                                                                                                                                                                    |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/proxy.ts`                       | Locale-Redirect, `x-pathname`-Header, **HTTP-Status 404** für unbekannte Slugs via `NextResponse.next({ status: 404 })`. **Kein** Rewrite, **kein** Redirect, **kein** Rendering-Eingriff. |
+| `[locale]/[[...slug]]/page.tsx`      | wirft `notFound()` bei fehlendem Slug — bleibt der Auslöser, rendert normal weiter.                                                                                                        |
+| `[locale]/[[...slug]]/not-found.tsx` | **fängt** das `notFound()` und rendert die lokalisierte 404-UI (CMS-Global `not-found`, de/en).                                                                                            |
+| `src/proxy-slug-cache.ts`            | In-Memory-Set der published Slugs (`slug`-Spalte only), Single-Flight, TTL + Freshness-Probe, Fail-open.                                                                                   |
+
+**Warum der Status im Proxy gesetzt wird:** mit `cacheComponents` streamt die
+`[locale]`-Shell; sobald ein Suspense-Fallback rendert, ist der Status auf 200
+fixiert (Next-Docs `file-conventions/loading.md` § "Status codes": „For a 404,
+you can check the slug in Proxy, then rewrite it to a not-found route or return
+a 404 response. Keep Proxy checks fast, and avoid fetching full content
+there."). `notFound()` in `generateMetadata` hilft **nicht** — die Shell streamt
+vorher (live gemessen: 200).
+
+**Warum `NextResponse.next({ status: 404 })` und nicht `rewrite`:**
+`NextResponse.rewrite(url, { status: 404 })` verliert den Status auf dem
+Node-Server (`resolve-routes.js` behandelt `x-middleware-rewrite` als
+307-Pfad) — gemessen: Antwort kam als `307 → /en/404`. `next({ status: 404 })`
+liefert `HTTP/1.1 404` **und** rendert die Route normal.
+
+**Warum der NotFoundGate im Layout ENTFERNT bleibt:** er war ein
+Blocking-Render mit `headers()` + `getCachedPageBySlug()` pro Request — teurer
+als ein Set-Lookup im Proxy, und er zwang `ensureStatic` auf `'shell'`. Der
+Proxy erledigt dasselbe, bevor überhaupt gerendert wird. **`grep -rn
+"NotFoundGate" src/` muss leer sein.**
+
+**Warum `[locale]/not-found.tsx` ALLEIN nicht reicht:** `notFound()` wird von
+der `HTTPAccessFallbackBoundary` **seines eigenen Segments** gefangen
+(`node_modules/next/dist/client/components/http-access-fallback/error-boundary.js`
+rendert `props.notFound` für Fehler aus `children`). Die Page liegt in
+`[locale]/[[...slug]]`, also braucht **dieses** Segment seine eigene
+`not-found.tsx`; sonst rendert die globale EN-Variante (live gemessen).
+
+## Proxy-Slug-Cache (`src/proxy-slug-cache.ts`)
+
+Eigene Cache-Schicht, weil der Proxy **keinen** Next-Cache hat: `'use cache'`
+wirft dort („static generation store missing") und `unstable_cache` ist ein
+stiller No-op — jeder Request würde Postgres treffen (gemessen). Der Proxy läuft
+in der **Node.js-Runtime** (`functions-config-manifest.json` →
+`"runtime": "nodejs"`), Payload/Postgres sind dort direkt nutzbar.
+
+| Parameter           | Env                            | Default   | Bedeutung                                              |
+| ------------------- | ------------------------------ | --------- | ------------------------------------------------------ |
+| Kill-Switch         | `PROXY_SLUG_CACHE=0`           | an        | aus = jeder Check geht direkt in die DB                |
+| Hintergrund-Refresh | `PROXY_SLUG_CACHE_REFRESH`     | `300`     | s; danach Freshness-Probe (count + newest `updatedAt`) |
+| Max. Lebensdauer    | `PROXY_SLUG_CACHE_MAX_AGE`     | `2592000` | s (30 d) — Ausfall-Resistenz, danach Fail-open         |
+| Negativ-TTL         | `PROXY_SLUG_CACHE_MISSING_TTL` | `60`      | s; **muss kurz bleiben** (siehe unten)                 |
+
+- **Eine** Query für die ganze Slug-Liste (`depth: 0`, `select: { slug: true }`,
+  `pagination: false`), danach reine Set-Lookups; Positive **und** Negative
+  werden gemerkt (Crawler auf kaputte URLs treffen die DB nicht).
+- **Single-Flight:** parallele Misses teilen ein In-Flight-Promise.
+- **Fail-open:** DB nicht erreichbar → `'unknown'` → Request läuft normal durch,
+  **nie** 404 auf Verdacht (verifiziert mit kaputter `DATABASE_URL`: `/de`,
+  `/de/leadership` bleiben 200; `/de/dehj` dann ebenfalls 200 statt 404).
+- **Re-Evaluierung einer Negativ-Antwort erzwingt die Freshness-Probe**
+  (`currentSlugs({ probe: true })`). Ohne das blieb eine frisch publizierte
+  Seite dauerhaft 404: der Negativ-Eintrag lief ab, wurde aber gegen den noch
+  < 5 min alten Snapshot erneut als „missing" bestätigt (Bug, gefunden und
+  behoben 05.11.2026). Nach dem Fix: publish → spätestens nach `MISSING_TTL`
+  (60 s) HTTP 200 (gemessen).
+- **Gemessen** (Standalone, je 50 Requests auf `/de/leadership`): gecacht
+  p50 **9,5 ms** / p95 **12,9 ms**; mit `PROXY_SLUG_CACHE=0` p50 **13,5 ms** /
+  p95 **16,9 ms**.
+
 ## Cloudflare Edge-Cache (Stand 05.11.2026)
 
 Der Edge (Cloudflare, Zone `mosthi.de` `fc81dba86a79cddf0b956eed4a25a965`)
@@ -679,11 +749,52 @@ exakt dieselben Werte schreiben. Beide Stellen MÜSSEN synchron bleiben
 
 ### TTL- und Purge-Vertrag
 
-| Pfad                                                                       | Cache-Control (Edge, sichtbar beim Besucher)                                               | TTL      | Was purgt                                                |
-| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | -------- | -------------------------------------------------------- |
-| `/`, `/de…`, `/en…` (public Seiten, anonym)                                | `public, max-age=0, s-maxage=604800, stale-while-revalidate=604800, stale-if-error=604800` | 7 d Edge | Hooks (Tag-Flush, synchron) + Deploy-Purge + Admin-Flush |
-| `/admin*`, `/api/*`, `/_next/*`, `*preview*`, `*settings*`, `/og`, `/mcp*` | `no-store`                                                                                 | keine    | n/a — nie gecacht                                        |
-| andere Hosts in der Zone (`*.mosthi.de` → andere Projekte)                 | `no-store`, `DYNAMIC`/`BYPASS`                                                             | keine    | n/a — nie gecacht                                        |
+| Pfad                                                                       | Cache-Control (Edge, sichtbar beim Besucher)                                                  | TTL           | Was purgt                                                |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------- | -------------------------------------------------------- |
+| `/`, `/de…`, `/en…` (public Seiten, anonym) — **auch 404**                 | `public, max-age=0, s-maxage=2592000, stale-while-revalidate=2592000, stale-if-error=2592000` | **30 d** Edge | Hooks (Tag-Flush, synchron) + Deploy-Purge + Admin-Flush |
+| `/admin*`, `/api/*`, `/_next/*`, `*preview*`, `*settings*`, `/og`, `/mcp*` | `no-store`                                                                                    | keine         | n/a — nie gecacht                                        |
+| andere Hosts in der Zone (`*.mosthi.de` → andere Projekte)                 | `no-store`, `DYNAMIC`/`BYPASS`                                                                | keine         | n/a — nie gecacht                                        |
+
+### Cache-Lebensdauern — eine Kette, drei Stellen (Stand 05.11.2026)
+
+| Ebene            | Ort                                                     | Refresh (Hintergrund)          | Max. Lebensdauer / Stale                                                                  |
+| ---------------- | ------------------------------------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------- |
+| Next Data Cache  | `cacheLife` in `src/cms/cache/frontend/queries.ts`      | `revalidate: 300`              | `stale`/`expire: 2592000` (30 d)                                                          |
+| Proxy-Slug-Cache | `src/proxy-slug-cache.ts`                               | `PROXY_SLUG_CACHE_REFRESH=300` | `PROXY_SLUG_CACHE_MAX_AGE=2592000`; **negativ** nur 60 s (`PROXY_SLUG_CACHE_MISSING_TTL`) |
+| Cloudflare Edge  | Cache-Rule (Status-Code-TTL 404 = 30 d) + Response-Rule | —                              | 30 d `s-maxage` / `stale-*`                                                               |
+
+**Korrektheit kommt NICHT aus der TTL, sondern aus dem Purge:** jede
+CMS-Änderung läuft `safeRevalidate(..., 'blocking')` → `revalidateTag({expire:0})`
+**plus** `enqueueCloudflarePurge(urls)`. Die langen Fristen sind reine
+**Ausfall-Resistenz** (Origin-Container weg → Edge/Proxy liefern weiter).
+Konsequenz, die man kennen muss: feuert ein Hook nicht (z. B. direkter
+DB-Write, Skript), bleibt altes HTML bis zu 5 min stehen bzw. im Edge bis zum
+nächsten Purge.
+
+### 404-Antworten werden am Edge gecacht (Stand 05.11.2026)
+
+404-Dokumente sind **Content-URLs**, keine Assets: sie dürfen (und sollen)
+lange am Edge liegen, damit ein Crawler auf eine kaputte URL nicht bei jedem
+Treffer durch den Tunnel zum einzigen Origin geht.
+
+- **Origin** (`next.config.ts`): `PUBLIC_CACHE_CONTROL` = 30 d — gilt für 200
+  **und** 404 (gleicher Pfad-Header, kein Status-Match nötig; Next-`headers()`
+  kann nicht auf Response-Status matchen).
+- **Edge** (`http_request_cache_settings`): `edge_ttl.mode: respect_origin` +
+  `status_code_ttl` → 2xx `86400`, **404/405 `2592000`**. Wichtig bei der API:
+  `status_code_range` verlangt **`from < to`** (exakt 404 schreibt man als
+  `{from: 404, to: 405}`; `{from: 404, to: 404}` → Fehler 20110).
+- **Edge** (`http_response_cache_settings`): die Content-Regel setzt
+  `s-maxage`/`stale-*` = 2592000 und entfernt `no-store`/`no-cache`; die
+  Catch-all-`no-store`-Regel bleibt **letzte** Regel.
+- **Purge:** beim Anlegen/Umbenennen einer Seite läuft `cms:pages:<slug>` durch
+  `edgePurgePathsForTag` → `/en/<slug>` **und** `/de/<slug>` werden gepurged.
+  Das gilt auch für die URL, die **vorher 404 war** — kein Verlass auf die
+  Route-Registry (die ist selbst gecacht und kennt den neuen Slug noch nicht).
+- **Restrisiko:** schlägt der Purge fehl (5/min-Budget, Netz, Token), bleibt
+  die neue Seite bis zu **30 Tage** als 404 am Edge stehen. Mitigation:
+  `cf-purge.mjs --everything` bzw. gezielter URL-Purge im Incident; Budget vor
+  Purge-Storms prüfen (`[cf-cache]`-Warnungen im Log).
 
 **Warum die TTL lang ist:** Korrektheit kommt nicht aus kurzer TTL, sondern
 aus dem synchronen Purge bei jeder CMS-Änderung und bei jedem Deploy. Eine
@@ -1026,7 +1137,7 @@ Vor jedem Commit wird diese Datei auf Aktualität geprüft und bei Bedarf ergän
 
 - **[Coolify/Build] `payload build` (v4-beta.6) bricht DB-less-Build (03.11.2026, PR #28-Revert `fix/db-less-build`):** Das Aggregat-CLI (`payload build` = importmap+types+next build) lädt die Payload-Config über `createRuntime` bei Build initial und initialisiert den Postgres-Adapter → `Error: DATABASE_URL is missing` (`envConfig` hard-fail). Bricht den Coolify-Build (`is_buildtime:false` → keine DB-Env im Build-Container), während die klassischen CLI-Subkommandos (`payload generate:importmap`/`generate:types`) env-less funktionieren. Lokal grün, weil Projekt-`.env` die `DATABASE_URL` liefert — Docker-Repro bestätigt Fehler nur ohne .env. Fix: `build` bleibt `next build`; Re-Trial-Bedingung: Datenbank-tolerantes Runtime-Load in Payload (createRuntime ohne DB für generate-only) oder Coolify-Prod-abweichendes Build-Env. Besehen in `node_modules/payload/dist/cli/runtime/createRuntime.js`.
 
-- **[Next-16/ensureStatic]** `ensureStatic` (seit 16.4.0, braucht `cacheComponents` + `partialPrefetching`): `'navigation'` (vollstatisch, hart validiert) ist mit dem NotFoundGate-Muster KOMPLETT inkompatibel — das `[locale]`-Layout rendert den Gate als bewussten Blocking-Render (`connection()`/`headers()` Outside-Suspense, Pre-Flush-404) → Page-Level `'navigation'` (z. B. impressum) bricht den Build mit `static-route-dynamic` `at body` (empirisch verifiziert; `instant=false` relaxiert NUR Instant-Navigation-Validation, nicht `'navigation'`). Kompatibler engster Level = **`'shell'`** page-level (App Shell des default-Link-Prefetchs muss statisch; kein Build-Validation-Konflikt): settings + impressum. Klassifikation bleibt ƒ; Laufzeit-Verifikation: unknown-Slug-404/preview/admin unverändert. `'navigation'`-Upgrade-Pfad = zukünftige Layout-Restrukturierung (Gate hinter eine eigene Suspense-Boundary oder Route-Gruppen-Split), NICHT Gate entfernen.
+- **[Next-16/ensureStatic]** `ensureStatic` (seit 16.4.0, braucht `cacheComponents` + `partialPrefetching`): `'shell'` ist der aktuell genutzte Level für `settings` + `impressum` (App Shell des default-Link-Prefetchs muss statisch). `'navigation'` (vollstatisch, hart validiert) verlangt eine statisch prüfbare Route — mit dem dynamischen `[locale]`-Shell (Streaming) und dem Frontend-Datencache bricht der Build mit `static-route-dynamic`. **Update 05.11.2026:** der frühere Grund (NotFoundGate als bewusster Blocking-Render im Layout) ist entfallen — der Gate ist entfernt, der 404-Status entsteht im Proxy. Ein Upgrade auf `'navigation'` ist damit wieder prüfbar, aber NICHT verifiziert; nicht ohne Messung anheben.
 
 - **[TS 6/Upgrade]** TypeScript 6.0.3 (01.11.2026, exakt gepinnt, letzte JS-Compiler-Serie vor TS 7 — TS 7 native hat keine JS-API, typescript-eslint-Peer `>=4.8.4 <6.1.0` zwingt zu <6.1): tsconfig braucht `types: ["node"]` (TS 6 defaultet `types: []` → sonst `process.env`-Typing weg) und `baseUrl` ist deprecated/entfernt — `paths` funktionieren ohne (Entries relativ zur tsconfig); Projekt nutzte baseUrl nur als paths-Präfix, kein Code-Change nötig. Verify-Kette (tsc/lint/generate:types/build/vitest) lief ohne weitere Anpassungen durch.
 - **[TS/TS7-Hybrid]** Natives TS 7 (Go-Compiler, keine JS-API) parallel als Alias-DevDep `"@typescript/native": "npm:typescript@7.0.2"` (EXAKT pinnen, kein `^` — dist-tag latest wandert; `@typescript/native` existiert nicht auf npm, `npx @typescript/native` → E404). TS 6.0.3 bleibt kanonisch (typescript-eslint-Peer <6.1, Payload-CLI/tsx/next build laden `require('typescript')`). Fallstricke: (1) `.bin/tsc` bei zwei Packages mit `bin: tsc` wird von npm **lautlos last-wins** verlinkt — im Projekt resolved `npx tsc` dadurch jetzt auf TS 7.0.2 (nicht TS 6!), deshalb Skript **Direkt-Pfad-Pflicht**: `node node_modules/@typescript/native/bin/tsc --noEmit`; Kanonisch tsc-Aufrufe nur via explizitem `node node_modules/typescript/bin/tsc`. (2) Next 16 `useTypeScriptCli` resolvet das echte `typescript`-Package (unberührt → Build-Autorität bleibt TS 6). (3) TS7-Advisory `npm run typecheck`: 0 exit, ~1.0 s vs. TS6-TSC 3.1 s (ohne npm-Overhead). (4) Keine Shim-Variante (`typescript: npm:@typescript/typescript6`) — kein `bin.tsc`, bricht Next-CLI-Discovery. Upgrade-Pfad zu echtem TS 7 erst wenn typescript-eslint #10940/#12803 (TS7-API) und vercel/next.js #97334 (Shim-Aliase) released sind.
@@ -1043,7 +1154,7 @@ Vor jedem Commit wird diese Datei auf Aktualität geprüft und bei Bedarf ergän
 - **[Migrations-Data-Default]** Auto-generierte `migrate:create`-Migrationen übernehmen Feld-Default-Datenblind (beim Draft-Feature-Aktivieren: `pages_locales._status DEFAULT 'draft'` → Bestandsdocs wurden draft, Public-Read published-only lieferte Null → gesamt /en 404 auf Prod). → Flow: nach migrate:create immer Datenspalten-Defaults prüfen; für Bestandsdaten-Defaults direkt handgeschriebene Daten-Korrektur-Migration hinterher (Guard IS DISTINCT FROM), zusätzlich Prod-Daten-Hotfix während Deploy.
 - **[Coolify/Domain-Routing]** `docker_compose_domains`-PATCH akzeptiert in der aktuellen Coolify-Version nur `name`/`domain`/`redirect` — `is_force_https_enabled` im JSON führt zu 422 („Only name, domain, and redirect fields are supported"). Force-HTTPS ist App-Setting/Default, nicht Domain-Item.
 - **[Sicherheit]** Container-Env-Probe (`docker exec <app> env`) druckt `DATABASE_URL` inkl. Passwort in den Chat → Lösung: nie Env-Werte ausgeben; bei Leak `POSTGRES_PASSWORD` rotieren via Postgres-`ALTER USER` + Coolify-Env-PATCH (`PATCH /applications/{uuid}/envs`) – Volume-Reset nicht nötig; App-Env via Force-Redeploy propagieren.
-- **[Next-16/Streaming]** Unbekannter Slug lief HTTP-200 statt 404: Layout-Skeleton-Suspense flushet Header (Status 200 fixiert), bevor das dynamische Page-`notFound()` wirft (Doku: „Before streaming starts, a 404 status can be returned; after streaming, 200 remains"). `notFound()` allein in `generateMetadata` half NICHT (Streaming-Metadata-Metadatentag flusht Head früher) → Lösung: „NotFoundGate" im `[locale]`-Layout VOR der Suspense-Boundary (liest `x-pathname` Request-Header aus `src/proxy.ts`, gecacheter `getCachedPageBySlug`-Check → `notFound()` PRE-FLUSH) + Group-`src/app/(frontend)/not-found.tsx` als Catch mit Custom-UI (Inline-Styles, Error-Recovery-Shell hat kein CSS) + `htmlLimitedBots: /.*/` in next.config (deaktiviert präemptives Streaming-Metadata-Head-Flush). Nested unbekannte Pfade abgedeckt; statische Geschwister-Routen (`preview|settings|impressum`) via STATIC_CHILD_ROUTES vom Gate ausgenommen. Trade-off: `instant = false` am Layout verschiebt preview/settings/impressum im Build `◐ → ƒ` (Runtime-Rendered); `[[...slug]]` bleibt `◐`.
+- **[Next-16/Streaming] Unbekannter Slug lief HTTP-200 statt 404** (final behoben 05.11.2026): sobald die Shell streamt (Suspense-Fallback/`loading.tsx`) oder `generateMetadata` auflöst, ist der Status auf 200 fixiert (Doku: Streaming page responses begin with a `200` status code). `notFound()` aus Page UND `generateMetadata` half NICHT (live gemessen). **Lösung:** Status im **Proxy** setzen (`NextResponse.next({ status: 404 })`), Route rendert normal, `[[...slug]]/not-found.tsx` fängt das `notFound()`. `rewrite(..., { status: 404 })` funktioniert NICHT (wird zu 307). Der frühere NotFoundGate im Layout ist entfernt und bleibt entfernt (siehe Abschnitt 404-Handling). Verifikation: `/de/dehj`, `/en/nix`, `/de/foo/bar/baz` → 404 mit lokalisierter Seite inkl. Header/Footer; `/de`, `/en`, `/de/leadership` → 200.
 - **[Payload-beta.6/LocalAPI]** Local-API-Default hat sich geändert — Local-Operations defaulten `overrideAccess: false`, Int-Test `tests/int/api.int.spec.ts` schlug mit „Forbidden" fehl; Fix: `overrideAccess: true` im Test (bewusster Stack-Verifikations-Bypass).
 - **[Payload-LocalAPI]** `revalidateTag`-Fortschritt via tsx-Subprozess-Script (Local API) → `Invariant: static generation store missing` → `safeRevalidate` skippt. Verifizier-Tooling für OSR: Mutieren statt via Subprozess via REST `PATCH /api/pages/<id>?locale=en` (Cookie-Session) — Hooks feuern dann im Next-Server-Kontext.
 - **[Feature-Rückbau] Wartungsmodus komplett entfernt (05.11.2026)** — nicht neu bauen ohne Auftrag. Entfernt: `src/components/MaintenanceScreen.tsx`, `src/cms/maintenance/*` (`state`/`snapshot`/`server`), `src/cms/globals/siteSettings/maintenance.ts`, `src/cms/globals/translations/maintenance.ts` (Gruppe `translations.maintenance`), Felder `maintenanceMode`/`maintenanceWindow`/`maintenanceMessage`, `CACHE_TAGS.maintenance` + `revalidateMaintenanceCache()`, der `maintenanceMode`-Branch **und der `payload.auth()`-Read** im `[locale]`-Layout. DB-Rückbau als **neue** Drop-Migration `20261105_140354_remove_maintenance_mode` (`DROP COLUMN IF EXISTS`), die alte `20261101_194051_maintenance_mode` bleibt unangetastet (Historie append-only). Lernpunkt: ein Session-Read (`payload.auth()` im Layout, nur für „eingeloggte Admins sehen die echte Seite") ist die teuerste Art, eine Shell zu bauen — er zwingt die komplette `LayoutShell` in den per-Visitor-Pfad und entwertet `'use cache'`. Wird so ein Feature angefragt, den Auth-Check in einen eigenen Suspense-Boundary legen statt um den ganzen Shell.

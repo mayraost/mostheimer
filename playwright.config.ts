@@ -18,7 +18,15 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'], channel: 'chromium' },
+      use: {
+        ...devices['Desktop Chrome'],
+        // Prefer the system Chrome: the bundled Playwright chromium revision is
+        // not downloaded in every environment (CI images, fresh checkouts), and
+        // a missing binary fails the whole suite before the first assertion.
+        // Override with PLAYWRIGHT_CHANNEL=chromium when the bundled build is
+        // installed instead.
+        channel: process.env.PLAYWRIGHT_CHANNEL ?? 'chrome',
+      },
     },
   ],
   webServer: {

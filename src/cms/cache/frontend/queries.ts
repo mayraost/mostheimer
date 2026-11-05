@@ -18,16 +18,36 @@ export type { FrontendLocale } from './routes';
  *   `cacheLife.revalidate` becomes the client/router stale time; the edge TTL
  *   itself comes from the public `Cache-Control` header (next.config.ts,
  *   mirroring these values) which Cloudflare honours (cache rule "respect
- *   origin"). Long TTLs are only safe because every hook flushes the tag AND
- *   purges the matching edge objects synchronously (see revalidate.ts).
+ *   origin").
  *
- * `stale-if-error` keeps the site up while the single origin container is
- * restarting (every deploy), which is why the TTLs are long.
+ * Stale/expire ratio (decision 05.11.2026): a background refresh every 5
+ * minutes, an entry lifetime of 30 days.
+ *
+ *   revalidate  300    → background revalidation on the next request after 5 min
+ *   stale       2592000 → a stale entry is still SERVED for 30 days (also when
+ *                        the origin is down or a revalidation fails)
+ *   expire      2592000 → entries are never dropped early
+ *
+ * This is deliberately NOT "short TTL for freshness": correctness comes from
+ * the synchronous invalidation path, not from the clock —
+ *   Payload hook → safeRevalidate(..., 'blocking') → revalidateTag({expire: 0})
+ *                → enqueueCloudflarePurge(urls)
+ * so a publish is visible on the next request without any TTL expiring. The
+ * long stale window is purely outage resistance: while the single origin
+ * container restarts (every deploy) the edge keeps answering from its copy
+ * instead of erroring.
+ *
+ * Consequence to keep in mind: between two CMS edits an entry may serve up to
+ * 5 minutes of old content if a hook did not fire (e.g. a direct DB write).
+ * Deliberately accepted — writes go through Payload, which always fires them.
  */
+const MONTH = 2_592_000;
+const REFRESH = 300;
+
 const CACHE_PROFILES = {
-  page: { stale: 3600, revalidate: 86400, expire: 604800 },
-  sitemap: { stale: 3600, revalidate: 3600, expire: 604800 },
-  global: { stale: 3600, revalidate: 86400, expire: 604800 },
+  page: { stale: MONTH, revalidate: REFRESH, expire: MONTH },
+  sitemap: { stale: MONTH, revalidate: REFRESH, expire: MONTH },
+  global: { stale: MONTH, revalidate: REFRESH, expire: MONTH },
 } as const;
 
 async function getPayloadClient() {

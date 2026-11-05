@@ -26,4 +26,14 @@ export const CRITICAL_404_HASH = ${JSON.stringify(hash)};
 `;
 
 writeFileSync(path.join(root, 'src', '404-critical.generated.ts'), file, 'utf8');
+
+// Format with the project's Prettier config: the emitted JSON uses double
+// quotes, while the repo formats with single quotes — without this the file
+// fails `npm run lint` on every regeneration.
+const prettier = await import('prettier');
+const prettierConfig =
+  (await prettier.resolveConfig(path.join(root, 'src', '404-critical.generated.ts'))) ?? {};
+const formatted = await prettier.format(file, { ...prettierConfig, parser: 'typescript' });
+writeFileSync(path.join(root, 'src', '404-critical.generated.ts'), formatted, 'utf8');
+
 console.log(`src/404-critical.generated.ts: ${css.length} bytes of CSS, hash ${hash}`);

@@ -63,6 +63,22 @@ export function isNonContentPath(pathname: string): boolean {
 }
 
 /**
+ * Slug of a `/<locale>/<rest>` pathname, or `''` for the locale root, or `null`
+ * when the path is not inside that locale (or carries a trailing slash, which
+ * Next/the edge redirects before it can reach a render).
+ *
+ * Used by the Proxy 404 check and by the `[[...slug]]` route: the Proxy maps the
+ * request path to a slug for its status decision, and the page resolves the same
+ * slug for rendering.
+ */
+export function pathnameToSlug(locale: FrontendLocale, pathname: string): string | null {
+  if (pathname.length > 1 && pathname.endsWith('/')) return null;
+  if (pathname === `/${locale}`) return '';
+  if (!pathname.startsWith(`/${locale}/`)) return null;
+  return pathname.slice(locale.length + 2);
+}
+
+/**
  * en/de route of an incoming content request, or null when the path is not a
  * public content page (admin/API/preview/settings, files, OG images). Used to
  * decide whether a response may carry the public edge Cache-Control.

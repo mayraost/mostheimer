@@ -6,10 +6,10 @@ import { CRITICAL_404_HASH } from '@/404-critical.generated';
  * Global 404 (route-group level, above the [locale] layout) — ALWAYS ENGLISH,
  * NO DATA ACCESS — BODY CONTENT ONLY.
  *
- * Reached only when a notFound() throw escapes the [locale] layout: unknown
- * slugs are answered INSIDE the layout by the NotFoundGate, so the localized
- * `[locale]/not-found.tsx` (full CMS chrome) renders for them. This file is the
- * safety net for everything outside the locale tree and therefore must not
+ * Reached only when a notFound() throw escapes the `[[...slug]]` segment: the
+ * page's notFound() is caught by `[[...slug]]/not-found.tsx`, which renders the
+ * localized 404 with full CMS chrome. This file is the safety net for
+ * everything outside the locale tree and therefore must not
  * touch headers(), cookies(), connection() or Payload — a broken CMS/DB must
  * still yield a styled 404, never a 500.
  *

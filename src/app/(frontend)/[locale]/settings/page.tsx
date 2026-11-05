@@ -8,9 +8,10 @@ export function generateStaticParams() {
 
 // 'shell' is the narrowest level that works here: it only requires the app
 // shell of the default link prefetch to be static (partial prefetching is on).
-// 'navigation' rejects this tree because the [locale] layout's NotFoundGate is
-// a deliberate blocking render — full static output validation fails with
-// `static-route-dynamic`. Don't raise this without restructuring that gate.
+// 'navigation' additionally demands a fully static route, which the dynamic
+// [locale] shell (streamed, connection()-guarded) does not provide — the build
+// fails with `static-route-dynamic`. Measured 05.11.2026; don't raise this
+// without re-verifying the whole tree.
 export const ensureStatic = 'shell';
 
 export default function SettingsPage() {

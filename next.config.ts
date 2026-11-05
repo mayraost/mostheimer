@@ -108,9 +108,13 @@ const PERMISSIONS_POLICY = [
  * `headers()` below and AGENTS.md § "Cloudflare Edge-Cache". Long TTLs are
  * safe because every CMS change purges the matching edge objects
  * synchronously; stale-if-error keeps the site up during deploys.
+ *
+ * 30 days (2592000 s) mirrors the `cacheLife` profile in
+ * src/cms/cache/frontend/queries.ts (`stale`/`expire`) and the Cloudflare
+ * Cache Response Rule — all three MUST stay in sync.
  */
 const PUBLIC_CACHE_CONTROL =
-  'public, s-maxage=86400, stale-while-revalidate=604800, stale-if-error=604800';
+  'public, s-maxage=2592000, stale-while-revalidate=2592000, stale-if-error=2592000';
 
 /**
  * Release identity of this build, inlined into the server bundle and served by
@@ -162,7 +166,7 @@ const nextConfig: NextConfig = {
     // from the layout, the page or generateMetadata all measured 200
     // (05.11.2026). global-not-found bypasses that render path entirely and
     // answers unmatched URLs with a real, prerendered 404 document.
-    globalNotFound: true,
+    globalNotFound: false,
   },
   // Streaming metadata disabled (htmlLimitedBots matches every UA): otherwise
   // Next flushes the HTML head (200) before the page can reject an unknown

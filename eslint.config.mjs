@@ -9,7 +9,15 @@ const eslintConfig = defineConfig([
   ...fixupConfigRules(nextVitals),
   ...fixupConfigRules(nextTs),
   eslintPluginPrettierRecommended,
-  globalIgnores(['.next/**', 'next-env.d.ts']),
+  // Local agent/QA scratch directories are gitignored; linting them produced
+  // warnings from throwaway probe scripts (0/0 lint gate).
+  globalIgnores([
+    '.next/**',
+    'next-env.d.ts',
+    '.playwright-mcp/**',
+    '.tmp-agent/**',
+    '.visual-test/**',
+  ]),
   {
     plugins: {
       'unused-imports': unusedImports,
