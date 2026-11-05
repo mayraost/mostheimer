@@ -12,6 +12,7 @@ import * as migration_20261104_211055_add_architecture_diagram from './20261104_
 import * as migration_20261104_232628_add_command_palette_translations from './20261104_232628_add_command_palette_translations';
 import * as migration_20261104_233319_add_cookie_consent_translations from './20261104_233319_add_cookie_consent_translations';
 import * as migration_20261105_140354_remove_maintenance_mode from './20261105_140354_remove_maintenance_mode';
+import * as migration_20261105_210002_add_clipboard_translations from './20261105_210002_add_clipboard_translations';
 
 export const migrations = [
   {
@@ -83,5 +84,10 @@ export const migrations = [
     up: migration_20261105_140354_remove_maintenance_mode.up,
     down: migration_20261105_140354_remove_maintenance_mode.down,
     name: '20261105_140354_remove_maintenance_mode',
+  },
+  {
+    up: migration_20261105_210002_add_clipboard_translations.up,
+    down: migration_20261105_210002_add_clipboard_translations.down,
+    name: '20261105_210002_add_clipboard_translations',
   },
 ];

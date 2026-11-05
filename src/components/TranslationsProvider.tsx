@@ -24,3 +24,12 @@ export function useTranslations(): Translation {
   }
   return context;
 }
+
+/**
+ * Non-throwing variant for components that also render on paths without CMS
+ * reachability (e.g. the 404 fallback chrome). Callers MUST have a fallback
+ * copy; a missing context is a data condition, not a programming error.
+ */
+export function useTranslationsOrNull(): Translation | null {
+  return useContext(TranslationsContext);
+}

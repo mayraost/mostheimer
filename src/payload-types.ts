@@ -7371,6 +7371,14 @@ export interface Translation {
     acceptAll: string;
     settingsLink: string;
   };
+  /**
+   * Copy-to-clipboard buttons (contact e-mail) and their screen-reader feedback.
+   */
+  clipboard: {
+    copyLabel: string;
+    copiedMessage: string;
+    failedMessage: string;
+  };
   createdBy?: {
     relationTo: 'users';
     value: number | User;
@@ -7503,6 +7511,13 @@ export interface TranslationsSelect<T extends boolean = true> {
         saveSelection?: T;
         acceptAll?: T;
         settingsLink?: T;
+      };
+  clipboard?:
+    | T
+    | {
+        copyLabel?: T;
+        copiedMessage?: T;
+        failedMessage?: T;
       };
   createdBy?: T;
   updatedBy?: T;

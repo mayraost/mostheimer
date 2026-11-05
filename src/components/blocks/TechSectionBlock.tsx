@@ -44,12 +44,7 @@ export function TechSectionBlock({ block }: { block: TechSectionBlockData }) {
                       <dd className="font-mono text-sm font-semibold text-primary">{fact.value}</dd>
                     </div>
                     {isEmail && (
-                      <CopyButton
-                        value={fact.value.trim()}
-                        label="E-Mail kopieren"
-                        copiedLabel="Kopiert"
-                        className="w-full justify-center"
-                      />
+                      <CopyButton value={fact.value.trim()} className="w-full justify-center" />
                     )}
                   </div>
                 );

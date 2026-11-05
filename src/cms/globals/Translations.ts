@@ -216,5 +216,35 @@ export const Translations: GlobalConfig = {
         },
       ],
     },
+    {
+      // Copy-to-clipboard affordance (contact e-mail). Visible label AND the
+      // screen-reader announcement live here so /en never speaks German.
+      name: 'clipboard',
+      type: 'group',
+      localized: true,
+      admin: {
+        description: 'Copy-to-clipboard buttons (contact e-mail) and their screen-reader feedback.',
+      },
+      fields: [
+        {
+          name: 'copyLabel',
+          type: 'text',
+          defaultValue: 'Copy e-mail',
+          required: true,
+        },
+        {
+          name: 'copiedMessage',
+          type: 'text',
+          defaultValue: 'E-mail address copied to the clipboard',
+          required: true,
+        },
+        {
+          name: 'failedMessage',
+          type: 'text',
+          defaultValue: 'Copying failed — please select the address manually',
+          required: true,
+        },
+      ],
+    },
   ],
 };
