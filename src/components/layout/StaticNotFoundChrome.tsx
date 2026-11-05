@@ -167,7 +167,7 @@ export function StaticNotFoundChrome({
     // `critical-fonts` carries the font tokens as a body-decoration class on the
     // column: the error document has no <body> class of its own, and the
     // next/font hashes are build-generated (see scripts/generate-404-critical-css.ts).
-    <div className="critical-fonts flex min-h-screen flex-col">
+    <div className="critical-fonts flex min-h-page flex-col">
       <StaticHeader locale={locale} />
       <main id="main-content" tabIndex={-1} className="flex-1 px-4 md:px-8">
         {children}

@@ -42,7 +42,7 @@ export const instant = false;
  */
 function LayoutSkeleton() {
   return (
-    <div className="flex min-h-screen flex-col" aria-hidden="true">
+    <div className="flex min-h-page flex-col" aria-hidden="true">
       <div className="h-16 animate-pulse border-b border-border bg-surface" />
       <main className="flex-1 px-4 md:px-8">
         <div className="mx-auto w-full max-w-6xl animate-pulse space-y-2">

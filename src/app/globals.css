@@ -320,6 +320,26 @@ body {
 }
 
 /* ─── Industrial Utility Layer ───────────────────────────────────────────── */
+
+/* Minimum page height that survives the streamed Skeleton → LayoutShell swap.
+ *
+ * The [locale] layout streams a skeleton before the real shell resolves. With
+ * plain `min-h-screen` on both, the shell is exactly one viewport tall while
+ * its page content streams in behind the Suspense boundary, so the footer's
+ * `mt-auto` parks it on the bottom edge; a frame later the content is there
+ * and the footer jumps to the end of the document (measured at 1280x900:
+ * 749 px -> 2026 px). Reserving a page-shaped envelope keeps the footer at
+ * the same place in both states.
+ *
+ * `dvh` instead of `vh`, so the mobile URL bar collapsing does not re-scale
+ * the reservation. Content taller than the reservation still grows the page
+ * (it is a minimum, not a fixed height) — new sections that stay below it
+ * would reintroduce the hop: raise the number here, never per page.
+ */
+@utility min-h-page {
+  min-height: max(100dvh, 1400px);
+}
+
 @utility dot-grid {
   /* Radial-Gradient-Punktmatrix, sehr niedrige Opazität (Spec) */
   background-image: radial-gradient(

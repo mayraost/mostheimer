@@ -27,7 +27,7 @@ import { compile, type CompileOptions } from '@tailwindcss/node';
 const CRITICAL_404_SOURCE = [
   'flex inline-flex hidden block inline-block flex-col flex-wrap items-center justify-between',
   'justify-center gap-1 gap-3 gap-6 gap-x-5 gap-y-2 flex-1 min-w-0 w-full',
-  'h-16 h-9 w-9 max-w-6xl max-w-lg min-h-screen min-h-11 min-h-[50vh] mx-auto',
+  'h-16 h-9 w-9 max-w-6xl max-w-lg min-h-page min-h-11 min-h-[50vh] mx-auto',
   'px-4 px-6 py-4 py-8 p-8 pt-4 mb-3 mb-4 mb-8 mr-2 mt-auto mt-1 sticky top-0 z-50',
   'border border-b border-t border-l border-border border-border-strong border-primary',
   'rounded-[6px] rounded-[8px] rounded-lg rounded-full',

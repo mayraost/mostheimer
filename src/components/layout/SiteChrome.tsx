@@ -27,7 +27,7 @@ export function SiteChrome({
   showConsent?: boolean;
 }) {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-page flex-col">
       {header}
       <main id="main-content" tabIndex={-1} className="flex-1 px-4 md:px-8">
         {children}
