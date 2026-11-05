@@ -53,7 +53,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -105,9 +105,33 @@ function resolveRelease(args) {
   return '';
 }
 
+/**
+ * Where the "already purged" marker lives.
+ *
+ * It MUST outlive the container: Coolify's restart *recreates* the container,
+ * so its `/tmp` is empty again — a tmpdir marker made every restart purge, which
+ * is the very bug this dedupe exists to prevent. `CF_STATE_DIR` points at a
+ * small named volume (`cf-state`) mounted for exactly this purpose.
+ *
+ * Falls back to the tmpdir only when that directory is absent (local run), and
+ * says so: a silent fallback would reintroduce the purge storm in production.
+ */
+function stateDir() {
+  const configured = process.env.CF_STATE_DIR || '/app/.cf-state';
+  try {
+    if (statSync(configured).isDirectory()) return configured;
+  } catch {
+    // Not mounted (local run) — fall through.
+  }
+  if (process.env.CF_STATE_DIR) {
+    warn(`CF_STATE_DIR '${configured}' is not a directory — marker falls back to the tmpdir`);
+  }
+  return tmpdir();
+}
+
 function markerPath(release) {
   const hash = createHash('sha256').update(release).digest('hex').slice(0, 16);
-  return join(tmpdir(), `.cf-purge-${hash}.done`);
+  return join(stateDir(), `.cf-purge-${hash}.done`);
 }
 
 /** Resolves true once the locally served app answers 200 on /api/health. */
