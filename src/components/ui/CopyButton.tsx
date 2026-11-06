@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { Check, Copy } from 'lucide-react';
 import type { Translation } from '@/payload-types';
 import { useTranslationsOrNull } from '@/components/TranslationsProvider';
+import { actionButtonClass } from './ActionLinkButton';
 
 /**
  * Copy-to-clipboard button.
@@ -40,7 +41,16 @@ const FALLBACK: Record<'en' | 'de', Required<Omit<ClipboardCopy, 'id'>>> = {
   },
 };
 
-export function CopyButton({ value, className = '' }: { value: string; className?: string }) {
+export function CopyButton({
+  value,
+  label,
+  className = '',
+}: {
+  value: string;
+  /** Optional explicit label — omit to use the `clipboard.copyLabel` group. */
+  label?: string;
+  className?: string;
+}) {
   const [copied, setCopied] = useState(false);
   const [failed, setFailed] = useState(false);
   const pathname = usePathname();
@@ -53,7 +63,7 @@ export function CopyButton({ value, className = '' }: { value: string; className
   const fallback = FALLBACK[pathname.split('/')[1] === 'de' ? 'de' : 'en'];
   const source = translations?.clipboard;
   const text = {
-    copyLabel: source?.copyLabel?.trim() || fallback.copyLabel,
+    copyLabel: label?.trim() || source?.copyLabel?.trim() || fallback.copyLabel,
     copiedMessage: source?.copiedMessage?.trim() || fallback.copiedMessage,
     failedMessage: source?.failedMessage?.trim() || fallback.failedMessage,
   };
@@ -102,19 +112,16 @@ export function CopyButton({ value, className = '' }: { value: string; className
   };
 
   return (
-    <span className="inline-flex items-center gap-2">
+    <span className={['flex items-center gap-2', className ? 'w-full' : ''].join(' ')}>
       <button
         type="button"
         onClick={handleCopy}
-        className={[
-          'mono-label inline-flex min-h-9 items-center gap-2 rounded-[6px] border border-border bg-surface-raised px-3 text-foreground transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
-          className,
-        ].join(' ')}
+        className={[actionButtonClass, className].join(' ')}
       >
         {copied ? (
-          <Check className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+          <Check className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
         ) : (
-          <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+          <Copy className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
         )}
         {text.copyLabel}
       </button>

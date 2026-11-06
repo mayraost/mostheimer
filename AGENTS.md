@@ -1193,6 +1193,64 @@ neu. Härteste Lösung bleibt Next-Skew-Protection (`deploymentId`) — offen.
   ohne Provider — der Block rendert auch auf der 404-Fallback-Chrome) und hat
   einen Per-Feld-Fallback, falls die Global-Gruppe fehlt.
 
+## QA-Iteration 2 (06.11.2026): Card-Eyebrows, Hero-Varianten, Legal-Content im CMS
+
+Erprobt auf Prod (`mostheimer.de`) gegen die Screenshots aus `mostheimer-screenshots-2026-11-05.zip`.
+
+### Eyebrows sind optional, nie ein Platzhalter
+
+- `CardHeader` (`src/components/ui/industrial.tsx`) hat **kein** Default-Meta mehr und rendert
+  **nichts**, wenn weder `label` noch `meta` gesetzt sind. Vorher hängte
+  `TechSectionBlock` an jede Karte `meta="tech section"` — auf `/privacy` 20×, auf
+  `/contact` 4×, auf `/leadership` 6× (Sah aus wie ein Template-Rest).
+- `techSection.sectionLabel` **ist** die Eyebrow. Fehlt sie, gibt es keine Zeile — nie einen
+  Blocknamen als Fülltext erfinden.
+- Kontextuelle Labels je Seite werden im **CMS** gepflegt (`contact` → `DIRECT CHANNELS`,
+  `AVAILABILITY & SCOPE`; `privacy` → `§ 5 DDG / LEGAL NOTICE`, `HOSTING & OPERATION`, …;
+  `leadership` → `ENGINEERING LEADERSHIP 01/02`, `ENABLEMENT & ADRs`).
+
+### Hero: `home` vs. `compact` (Seitenkopf statt Boilerplate)
+
+`HeroBlock` nimmt `variant` (`src/app/(frontend)/[locale]/[[...slug]]/page.tsx` entscheidet):
+
+| variant   | Wo                    | Was                                                                                                         |
+| --------- | --------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `home`    | nur `slug === 'home'` | volle H1-Größe, Stack-Zeile, Portrait-Box, 4-Metrik-Streifen über volle Breite                              |
+| `compact` | jede andere Route     | Breadcrumb-Eyebrow (`Start // Kontakt`), kleinere H1, `line-clamp-3`-Lead, Inline-Metriken, Portrait nur lg |
+
+- Die 4 Metriken (`~10 yrs`, `composable`, `remote (DE)`, `< 24 h`) bleiben als `METRICS`
+  in `HeroBlock`, damit sie nicht driften — `compact` rendert sie aber **schmal eingebettet**
+  statt als Vollbreiten-Streifen. Die Vorgabe „Metriken nur auf Home" kollidierte mit
+  `HeroBlock` als Content-Baustein; wer sie komplett entfernen will, streicht sie im Hero,
+  nicht pro Seite.
+- `blocks.tsx` und `PreviewBlocks.tsx` reichen `locale` an die lokalisierenden Blöcke durch
+  (Timeline-Chip, Case-Study-Spalten, Bento-Chips). **Beide** Dispatcher pflegen.
+- `/impressum` ist eine **eigene Route** (`src/app/(frontend)/[locale]/impressum/page.tsx`),
+  keine CMS-Seite — sie liefert `hreflang`, aber **keinen** englischen Text (Authoren-Todo).
+
+### Footer-Copyright aus dem CMS
+
+- Neuer `translations.footer`-Block (`rightsReserved`, `eyebrow`), Migration
+  `20261106_095612_add_footer_translations` + Daten-UPDATE für `de` im selben Lauf.
+- **Lokalisierte Globals mit `fallback: true`:** der englische `Read` liefert Werte, die
+  faktisch aus dem deutschen Datensatz stammen (hier: Cookie-Copy), obwohl der lokale Dev-Datensatz
+  für `en` keine eigene Zeile hat. Beim Vergleich Dev↔Prod also nie „nur weil die API etwas
+  zurückgibt" auf korrekte Locale schließen.
+
+### Proxy/Standalone: `_next` ist keine Locale
+
+- Beim manuellen Start des Standalone-Servers (`node .next/standalone/server.js`) matcht der
+  Proxy-Matcher zuerst `^/(?!(de|en))` und **nicht** wie in Produktion `_next`. Ergebnis:
+  `/_next/static/...` landete in `handleLocalizedRequest` → Slug `_next` → **Postgres-Fehler
+  `invalid input value for enum _locales: "_next"`** und ungestylte Seiten.
+- Fix (zwei Schichten): `proxy.ts` skippt `/_next` explizit **und** `pathnameToSlug` gibt für
+  Pfade mit `.` `null` zurück. Nie „wegsehen" — ohne Skip ist jeder Asset-Request eine Query.
+
+- **`.next/static` fehlt nach `rm -rf .next/cache`:** `cp -r .next/static .next/standalone/.next/static`
+  muss danach **neu** laufen; `cp -r` legt bei existierendem Ziel ein `static/static` an.
+  Vor jedem Screenshot-Check: `curl -o /dev/null -w '%{content_type}' <css-url>` muss `text/css`
+  liefern — sonst prüft man ungestyltes HTML.
+
 ## Workflow-Regeln
 
 1. **Nach jeder Dateiänderung** `npm run lint:fix` ausführen.

@@ -156,7 +156,11 @@ export default async function PreviewPage({ params, searchParams }: PreviewPageP
       {/* Client island: `useLivePreview` merges the admin's form values into
           `initialPage` (depth = PREVIEW_DEPTH, same as the fetch above). The
           server keeps the auth gate + draft fetch; nothing else crosses over. */}
-      <PreviewLive initialPage={page} serverURL={serverURL} />
+      <PreviewLive
+        initialPage={page}
+        serverURL={serverURL}
+        variant={slug === 'home' ? 'home' : 'compact'}
+      />
     </>
   );
 }

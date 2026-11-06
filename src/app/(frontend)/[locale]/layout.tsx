@@ -129,6 +129,7 @@ async function LayoutShell({
               locale={locale}
               navLinks={navigation.footerLinks ?? []}
               cookieSettingsLabel={translations.cookies}
+              rightsReserved={translations.footer}
             />
           }
         >

@@ -43,7 +43,7 @@ function TierChip({ tier }: { tier: 'core' | 'proven' | 'focus' }) {
   );
 }
 
-export function TechRadarBlock({ block }: { block: TechRadarBlockData }) {
+export function TechRadarBlock({ block }: { block: TechRadarBlockData; locale?: string }) {
   const quadrants = block.quadrants ?? [];
 
   return (

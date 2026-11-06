@@ -15,7 +15,7 @@ export function BentoTile({
 }: {
   children: React.ReactNode;
   className?: string;
-  as?: 'div' | 'article' | 'section' | 'li' | 'figure';
+  as?: 'div' | 'article' | 'section' | 'li' | 'figure' | 'header';
 } & React.HTMLAttributes<HTMLElement>) {
   return (
     <Tag
@@ -181,16 +181,30 @@ export function stableGaugeValue(seed: string, min = 62, max = 96): number {
   return min + (hash % (max - min + 1));
 }
 
-/** Card header row: mono label plus optional meta text. */
+/**
+ * Card header row: mono eyebrow plus optional meta text.
+ *
+ * `label` is optional on purpose: a card that has nothing meaningful to say in
+ * its eyebrow (legal section, plain content card) renders no row at all instead
+ * of falling back to a template placeholder. `meta` is purely additive and
+ * never defaults to a product word — callers pass real context (period, count,
+ * index).
+ *
+ * The rendered text is uppercased here, so CMS labels keep their normal casing
+ * (`Anbieterkennzeichnung`, `Engineering Leadership 01`) in the admin while the
+ * UI still reads as a mono eyebrow — no editor has to type in caps.
+ */
 export function CardHeader({
   label,
   meta,
   tone = 'primary',
 }: {
-  label: React.ReactNode;
+  label?: React.ReactNode;
   meta?: React.ReactNode;
   tone?: 'primary' | 'secondary' | 'muted';
 }) {
+  if (!label && !meta) return null;
+
   const toneClass = {
     primary: 'text-primary',
     secondary: 'text-secondary',
@@ -198,10 +212,14 @@ export function CardHeader({
   }[tone];
   return (
     <div className="mb-4 flex items-center justify-between gap-3">
-      <span className={`mono-label flex items-center gap-2 ${toneClass}`}>
-        {tone !== 'muted' && <StatusDot tone={tone === 'primary' ? 'primary' : 'secondary'} />}
-        {label}
-      </span>
+      {label ? (
+        <span className={`mono-label flex items-center gap-2 uppercase ${toneClass}`}>
+          {tone !== 'muted' && <StatusDot tone={tone === 'primary' ? 'primary' : 'secondary'} />}
+          {label}
+        </span>
+      ) : (
+        <span />
+      )}
       {meta && <span className="mono-label text-muted-foreground">{meta}</span>}
     </div>
   );

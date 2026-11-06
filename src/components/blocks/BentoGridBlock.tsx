@@ -110,23 +110,26 @@ function BentoCard({ item, index }: { item: BentoItem; index: number }) {
   return <div className={spanClass}>{card}</div>;
 }
 
-export function BentoGridBlock({ block }: { block: BentoGridBlockData }) {
+export function BentoGridBlock({ block, locale }: { block: BentoGridBlockData; locale?: string }) {
   const items = block.items ?? [];
+  const de = locale === 'de';
 
   return (
     /* id="architektur": anchor target of the hero CTA. */
     <section id="architektur" className="w-full scroll-mt-24 pt-6 pb-16 lg:py-16">
       <div className="mx-auto w-full max-w-6xl">
         <div className="mb-8 border-b border-border pb-6">
-          <Eyebrow>Architektur-Ansatz</Eyebrow>
+          <Eyebrow>{de ? 'Architektur-Ansatz' : 'Architecture approach'}</Eyebrow>
           {block.heading && (
             <h2 className="mt-3 font-heading text-3xl font-bold tracking-[-0.02em] text-foreground lg:text-4xl">
               {block.heading}
             </h2>
           )}
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <Chip variant="fill">{items.length} Säulen</Chip>
-            <Chip variant="outline">Systemarchitektur</Chip>
+            <Chip variant="fill">
+              {items.length} {de ? 'Säulen' : items.length === 1 ? 'pillar' : 'pillars'}
+            </Chip>
+            <Chip variant="outline">{de ? 'Systemarchitektur' : 'System architecture'}</Chip>
             <Chip variant="solid">composable</Chip>
           </div>
         </div>

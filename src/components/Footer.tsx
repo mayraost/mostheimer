@@ -6,6 +6,7 @@ export function Footer({
   locale,
   navLinks,
   cookieSettingsLabel,
+  rightsReserved,
 }: {
   locale: string;
   navLinks?: {
@@ -15,12 +16,17 @@ export function Footer({
   }[];
   /** Footer-Link-Label aus dem Translations-Global (DE/EN, CMS-editierbar). */
   cookieSettingsLabel?: Translation['cookies'];
+  /** Copyright-Zeile aus dem Translations-Global (DE/EN, CMS-editierbar). */
+  rightsReserved?: Translation['footer'];
 }) {
   // Fallback nur fuer Instanzen, deren Translations-Global noch keinen
   // `cookies`-Block hat (z. B. ungeseedete Dev-DB) — nie hart im Markup.
   const settingsLabel =
     cookieSettingsLabel?.settingsLink ??
     (locale === 'de' ? 'Cookie-Einstellungen' : 'Cookie settings');
+  const rightsLabel =
+    rightsReserved?.rightsReserved ??
+    (locale === 'de' ? 'Alle Rechte vorbehalten' : 'All rights reserved');
 
   return (
     <footer className="mt-auto w-full border-t border-border bg-surface/40">
@@ -65,7 +71,7 @@ export function Footer({
       <div className="border-t border-border">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-1 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-8">
           <p className="mono-label text-muted-foreground">
-            © {new Date().getFullYear()} Mayra Ostheimer · Alle Rechte vorbehalten
+            © {new Date().getFullYear()} Mayra Ostheimer · {rightsLabel}
           </p>
           <p className="mono-label text-muted-foreground">
             Next.js 16 <span className="text-primary">/</span> Payload 4{' '}

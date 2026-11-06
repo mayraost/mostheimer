@@ -26,7 +26,13 @@ type ArchPrinciple = NonNullable<ArchLayer['principles']>[number];
  * - Flow pulses animate transform/opacity only and stop under
  *   prefers-reduced-motion and body.no-animations.
  */
-export function ArchitectureDiagramBlock({ block }: { block: ArchitectureDiagramBlockData }) {
+export function ArchitectureDiagramBlock({
+  block,
+  locale,
+}: {
+  block: ArchitectureDiagramBlockData;
+  locale?: string;
+}) {
   const layers = block.layers ?? [];
   const [active, setActive] = useState(0);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -86,7 +92,10 @@ export function ArchitectureDiagramBlock({ block }: { block: ArchitectureDiagram
     >
       <div className="mx-auto w-full max-w-6xl">
         <div className="mb-8 border-b border-border pb-6">
-          <CardHeader label={block.sectionLabel || 'Architektur'} meta={`${count} layer`} />
+          <CardHeader
+            label={block.sectionLabel || (locale === 'de' ? 'Architektur' : 'Architecture')}
+            meta={`${count} ${count === 1 ? 'layer' : 'layers'}`}
+          />
           <h2
             id="architecture-diagram-heading"
             className="font-heading text-3xl font-bold tracking-[-0.02em] text-foreground lg:text-4xl"

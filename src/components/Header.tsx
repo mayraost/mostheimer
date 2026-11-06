@@ -57,10 +57,14 @@ export function Header({
   // (axe `label-content-name-mismatch`), so the full language name goes into
   // aria-label alongside it.
   const targetLanguageName = targetLocale === 'de' ? 'Deutsch' : 'English (EN)';
-  const languageSwitchLabel = `Sprache wechseln zu ${targetLanguageName}`;
+  // DE/EN routes carry the label in their own language.
+  const languageSwitchLabel =
+    locale === 'de'
+      ? `Sprache wechseln zu ${targetLanguageName}`
+      : `Switch language to ${targetLanguageName}`;
 
   const iconButtonClass =
-    'flex h-9 w-9 items-center justify-center rounded-[6px] border border-border bg-surface-raised/60 text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground';
+    'flex h-11 w-11 items-center justify-center rounded-[6px] border border-border bg-surface-raised/60 text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground lg:h-9 lg:w-9';
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur-xl">
@@ -90,7 +94,7 @@ export function Header({
           {/* Language toggle */}
           <Link
             href={languageSwitchHref}
-            className="mono-label flex h-9 min-w-9 items-center justify-center rounded-[6px] border border-border bg-surface-raised/60 px-2 text-muted-foreground transition-colors hover:border-secondary hover:text-secondary"
+            className="mono-label flex h-11 min-w-11 items-center justify-center rounded-[6px] border border-border bg-surface-raised/60 px-2 text-muted-foreground transition-colors hover:border-secondary hover:text-secondary lg:h-9 lg:min-w-9"
             aria-label={languageSwitchLabel}
             title={languageSwitchLabel}
           >
@@ -124,7 +128,7 @@ export function Header({
           <button
             ref={menuButtonRef}
             onClick={() => setIsSidebarOpen(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-[6px] border border-primary/60 bg-primary-muted text-primary transition-colors hover:border-primary hover:text-primary-hover"
+            className="flex h-11 w-11 items-center justify-center rounded-[6px] border border-primary/60 bg-primary-muted text-primary transition-colors hover:border-primary hover:text-primary-hover lg:h-9 lg:w-9"
             aria-label={translations.common.menu}
             aria-expanded={isSidebarOpen}
             aria-controls="site-menu-drawer"

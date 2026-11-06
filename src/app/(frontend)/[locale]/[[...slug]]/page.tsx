@@ -4,6 +4,7 @@ import type { Page as CmsPage } from '@/payload-types';
 import { notFound } from 'next/navigation';
 import { connection } from 'next/server';
 import { BlockRenderer } from '@/components/blocks';
+import { HeroBlock } from '@/components/blocks/HeroBlock';
 import { envConfig } from '@/envConfig';
 import { getCachedPageBySlug, getCachedSiteSettings } from '@/cms/cache/frontend/frontendCache';
 import {
@@ -144,23 +145,38 @@ export default async function Page({ params }: PageProps<'/[locale]/[[...slug]]'
   // Semantic <h1> guarantee: case-studies / tech-radar / career have no block
   // that emits one. The title renders as h1 only when no hero block exists,
   // since the hero already emits its own (one h1 per page).
+  //
+  // Hero variant: only the homepage keeps the full hero (4-metric strip). Every
+  // other route renders the hero as a compact page header, so the actual
+  // subpage content starts above the fold instead of after two screens of
+  // repeated boilerplate (desktop AND mobile, measured QA iteration 2).
   const layout = page.layout ?? [];
-  const hasHeroBlock = layout.some((block) => block.blockType === 'hero');
+  const isHome = slug === 'home';
+  const heroIndex = layout.findIndex((block) => block.blockType === 'hero');
+  const heroVariant: 'home' | 'compact' = isHome ? 'home' : 'compact';
+  // Breadcrumb eyebrow for subpage heroes: `Start // Werdegang`. Uses the page
+  // title (already localized in the CMS) so no extra copy table can drift.
+  const homeLabel = locale === 'de' ? 'Start' : 'Home';
+  const heroEyebrow = isHome || heroIndex === -1 ? undefined : `${homeLabel} // ${page.title}`;
 
   return (
     <>
       <JsonLdScript data={jsonLd} />
       <article className="mx-auto w-full max-w-6xl">
-        {!hasHeroBlock && (
+        {heroIndex === -1 && (
           <header className="mb-8 border-b border-border pb-6 pt-6 lg:pt-10">
             <h1 className="font-heading text-4xl font-bold tracking-[-0.03em] text-foreground lg:text-5xl">
               {page.title}
             </h1>
           </header>
         )}
-        {layout.map((block, index: number) => (
-          <BlockRenderer key={index} block={block} />
-        ))}
+        {layout.map((block, index: number) =>
+          block.blockType === 'hero' ? (
+            <HeroBlock key={index} block={block} variant={heroVariant} eyebrow={heroEyebrow} />
+          ) : (
+            <BlockRenderer key={index} block={block} locale={locale} />
+          ),
+        )}
       </article>
     </>
   );

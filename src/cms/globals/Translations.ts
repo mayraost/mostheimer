@@ -106,6 +106,29 @@ export const Translations: GlobalConfig = {
       ],
     },
     {
+      name: 'footer',
+      type: 'group',
+      localized: true,
+      admin: {
+        description:
+          'Footer-Copyright und der Seitenkopf-Eyebrow ("// site"). Der Footer ist sonst CMS-frei (Navigation kommt aus dem navigation-Global).',
+      },
+      fields: [
+        {
+          name: 'rightsReserved',
+          type: 'text',
+          defaultValue: 'All rights reserved',
+          required: true,
+        },
+        {
+          name: 'eyebrow',
+          type: 'text',
+          defaultValue: 'site',
+          required: true,
+        },
+      ],
+    },
+    {
       name: 'cookies',
       type: 'group',
       localized: true,
@@ -242,6 +265,44 @@ export const Translations: GlobalConfig = {
           name: 'failedMessage',
           type: 'text',
           defaultValue: 'Copying failed — please select the address manually',
+          required: true,
+        },
+      ],
+    },
+    {
+      // Action labels of the contact key-fact cards (call, social profiles) and
+      // the hint for links that open in a new tab. Localized like `clipboard`
+      // so a `/en` visitor never reads German.
+      name: 'contactActions',
+      type: 'group',
+      localized: true,
+      admin: {
+        description:
+          'Action buttons on contact cards (call, GitHub, LinkedIn) and the new-tab hint.',
+      },
+      fields: [
+        {
+          name: 'callLabel',
+          type: 'text',
+          defaultValue: 'Call',
+          required: true,
+        },
+        {
+          name: 'githubLabel',
+          type: 'text',
+          defaultValue: 'GitHub',
+          required: true,
+        },
+        {
+          name: 'linkedinLabel',
+          type: 'text',
+          defaultValue: 'LinkedIn',
+          required: true,
+        },
+        {
+          name: 'newTabHint',
+          type: 'text',
+          defaultValue: '(opens in a new tab)',
           required: true,
         },
       ],

@@ -21,7 +21,22 @@ const METRICS = [
  * is a typographic placeholder on purpose — no stock photo — until a real image
  * is uploaded in the CMS.
  */
-export function HeroBlock({ block }: { block: HeroBlockData }) {
+export function HeroBlock({
+  block,
+  variant = 'home',
+  eyebrow,
+}: {
+  block: HeroBlockData;
+  /**
+   * `home` = full hero incl. the 4-metric strip below the fold edge.
+   * `compact` = subpage header: same identity, but a one-line lead paragraph
+   * clamp, inline metrics and a closed portrait slot (no second screen of
+   * boilerplate before the real content).
+   */
+  variant?: 'home' | 'compact';
+  /** Breadcrumb eyebrow for subpages (e.g. `Start // Impressum`); home has none. */
+  eyebrow?: string;
+}) {
   const bgImage =
     block.backgroundImage !== null &&
     block.backgroundImage !== undefined &&
@@ -52,9 +67,27 @@ export function HeroBlock({ block }: { block: HeroBlockData }) {
         </div>
       )}
 
-      <div className="relative mx-auto grid w-full max-w-6xl gap-8 px-4 pt-6 pb-12 md:px-8 lg:grid-cols-[minmax(0,1fr)_260px] lg:pt-16 lg:pb-20">
+      <div
+        className={[
+          'relative mx-auto grid w-full max-w-6xl gap-8 px-4 md:px-8',
+          variant === 'compact'
+            ? 'pt-5 pb-6 lg:grid-cols-[minmax(0,1fr)_180px] lg:pt-8 lg:pb-10'
+            : 'pt-6 pb-12 lg:grid-cols-[minmax(0,1fr)_260px] lg:pt-16 lg:pb-20',
+        ].join(' ')}
+      >
         <div className="min-w-0">
-          <div className="mb-8 flex flex-wrap items-center gap-2">
+          {eyebrow && (
+            <p className="mono-label mb-4 flex items-center gap-2 text-muted-foreground">
+              <StatusDot />
+              {eyebrow}
+            </p>
+          )}
+          <div
+            className={[
+              'flex flex-wrap items-center gap-2',
+              variant === 'compact' ? 'mb-4' : 'mb-8',
+            ].join(' ')}
+          >
             {/* KEIN "available for work"-Chip (Nutzerentscheid 04.11.2026):
                 eine Verfügbarkeitsaussage kann gegenüber dem aktuellen
                 Arbeitgeber falsch wirken. Der Hero behält nur neutrale
@@ -68,14 +101,33 @@ export function HeroBlock({ block }: { block: HeroBlockData }) {
             <span className="mono-label rounded-[4px] border border-secondary/60 px-2.5 py-1.5 text-secondary">
               remote · DE
             </span>
+            {/* Subpages drop the badge row's third line by moving the location
+                inline: the page header must not cost a second screen. */}
+            {variant === 'compact' && (
+              <span className="mono-label rounded-[4px] border border-border px-2.5 py-1.5 text-muted-foreground">
+                Kiebitzreihe · Hamburg area
+              </span>
+            )}
           </div>
 
-          <h1 className="mb-6 font-heading text-[clamp(2rem,5.2vw,4.25rem)] font-bold leading-[1.04] tracking-[-0.035em] text-foreground">
+          <h1
+            className={[
+              'font-heading font-bold leading-[1.04] tracking-[-0.035em] text-foreground',
+              variant === 'compact'
+                ? 'mb-4 text-[clamp(1.75rem,3.4vw,2.75rem)]'
+                : 'mb-6 text-[clamp(2rem,5.2vw,4.25rem)]',
+            ].join(' ')}
+          >
             <TypingHeading text={block.heading} />
           </h1>
 
           {block.subheading && (
-            <p className="mb-8 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+            <p
+              className={[
+                'mb-8 max-w-2xl leading-relaxed text-muted-foreground',
+                variant === 'compact' ? 'line-clamp-3 text-base' : 'text-base sm:text-lg',
+              ].join(' ')}
+            >
               {block.subheading}
             </p>
           )}
@@ -102,7 +154,20 @@ export function HeroBlock({ block }: { block: HeroBlockData }) {
             </div>
           )}
 
-          {block.showStackBadge !== false && (
+          {variant === 'compact' && (
+            <dl className="mt-6 grid max-w-2xl grid-cols-2 gap-px border-t border-border bg-border sm:grid-cols-4">
+              {METRICS.map((metric) => (
+                <div key={metric.label} className="bg-background px-3 py-2.5">
+                  <dt className="mono-label text-muted-foreground">{metric.label}</dt>
+                  <dd className="mt-0.5 font-mono text-xs font-semibold text-foreground">
+                    {metric.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          )}
+
+          {variant === 'home' && block.showStackBadge !== false && (
             <div className="mt-8 flex flex-wrap items-center gap-2">
               <span className="mono-label mr-1 text-muted-foreground">stack</span>
               {STACK_ITEMS.map((item) => (
@@ -118,7 +183,12 @@ export function HeroBlock({ block }: { block: HeroBlockData }) {
         </div>
 
         {/* Portrait slot: typographic placeholder within the frame system */}
-        <aside className="relative hidden self-start rounded-[8px] border border-border bg-surface p-4 lg:block">
+        <aside
+          className={[
+            'relative hidden self-start rounded-[8px] border border-border bg-surface p-4',
+            variant === 'compact' ? '' : 'lg:block',
+          ].join(' ')}
+        >
           <span aria-hidden="true" className="pointer-events-none absolute inset-0">
             <span className="absolute left-0 top-0 h-3 w-3 border-l border-t border-primary" />
             <span className="absolute right-0 top-0 h-3 w-3 border-r border-t border-primary" />
@@ -138,15 +208,22 @@ export function HeroBlock({ block }: { block: HeroBlockData }) {
         </aside>
       </div>
 
-      {/* Mono metric strip: hairline separators, no invented figures */}
-      <dl className="relative mx-auto grid w-full max-w-6xl grid-cols-2 gap-px border-t border-border bg-border px-0 md:grid-cols-4">
-        {METRICS.map((metric) => (
-          <div key={metric.label} className="bg-background px-4 py-3 md:px-8">
-            <dt className="mono-label text-muted-foreground">{metric.label}</dt>
-            <dd className="mt-1 font-mono text-sm font-semibold text-foreground">{metric.value}</dd>
-          </div>
-        ))}
-      </dl>
+      {/* Mono metric strip: hairline separators, no invented figures. Home
+          only — the full-width strip is the page's own signature; subpages
+          carry the same numbers inline (`compact`) so nobody scrolls past two
+          screens of boilerplate before reaching the actual content. */}
+      {variant === 'home' && (
+        <dl className="relative mx-auto grid w-full max-w-6xl grid-cols-2 gap-px border-t border-border bg-border px-0 md:grid-cols-4">
+          {METRICS.map((metric) => (
+            <div key={metric.label} className="bg-background px-4 py-3 md:px-8">
+              <dt className="mono-label text-muted-foreground">{metric.label}</dt>
+              <dd className="mt-1 font-mono text-sm font-semibold text-foreground">
+                {metric.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
     </section>
   );
 }

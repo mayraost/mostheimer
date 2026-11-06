@@ -41,10 +41,11 @@ import { ArchitectureDiagramBlock } from '@/components/blocks/ArchitectureDiagra
 
 export type PreviewBlock = NonNullable<Page['layout']>[number];
 
-export function PreviewBlockRenderer({ block }: { block: PreviewBlock }) {
+export function PreviewBlockRenderer({ block, locale }: { block: PreviewBlock; locale?: string }) {
   switch (block.blockType) {
     case 'hero':
-      return <HeroBlock block={block} />;
+      // The preview mirrors the public route: full hero only on the homepage.
+      return <HeroBlock block={block} variant={locale === 'home' ? 'home' : 'compact'} />;
     case 'callToAction':
       return <CallToActionBlock block={block} />;
     case 'featureGrid':
@@ -54,7 +55,7 @@ export function PreviewBlockRenderer({ block }: { block: PreviewBlock }) {
     case 'richText':
       return <RichTextBlock block={block} />;
     case 'bentoGrid':
-      return <BentoGridBlock block={block} />;
+      return <BentoGridBlock block={block} locale={locale} />;
     case 'statusBlock':
       return <StatusBlock block={block} />;
     case 'techSection':
@@ -62,15 +63,15 @@ export function PreviewBlockRenderer({ block }: { block: PreviewBlock }) {
     case 'skillset':
       return <SkillsetBlock block={block} />;
     case 'caseStudy':
-      return <CaseStudyBlock block={block} />;
+      return <CaseStudyBlock block={block} locale={locale} />;
     case 'timeline':
-      return <TimelineBlock block={block} />;
+      return <TimelineBlock block={block} locale={locale} />;
     case 'testimonial':
       return <TestimonialBlock block={block} />;
     case 'techRadar':
-      return <TechRadarBlock block={block} />;
+      return <TechRadarBlock block={block} locale={locale} />;
     case 'architectureDiagram':
-      return <ArchitectureDiagramBlock block={block} />;
+      return <ArchitectureDiagramBlock block={block} locale={locale} />;
     default:
       return (
         <div className="mono-label my-4 rounded-[6px] border border-error/50 bg-surface px-4 py-8 text-center text-error">

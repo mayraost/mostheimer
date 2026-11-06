@@ -65,6 +65,13 @@ const BASE_ITEMS: CommandItem[] = [
     keywords: ['email', 'mail', 'schreiben', 'anfrage', 'hire'],
   },
   {
+    id: 'impressum',
+    label: 'Impressum',
+    href: '/impressum',
+    group: 'pages',
+    keywords: ['impressum', 'imprint', 'legal', 'rechtliches', 'anbieter', '§ 5 ddg'],
+  },
+  {
     id: 'settings',
     label: 'Einstellungen',
     href: '/settings',
@@ -88,6 +95,7 @@ const EN_LABELS: Record<string, { label: string; keywords: string[]; group?: str
   leadership: { label: 'Leadership & Enablement', keywords: ['team', 'mentoring'] },
   career: { label: 'Career', keywords: ['cv', 'resume', 'stations', 'testimonials'] },
   contact: { label: 'Contact', keywords: ['email', 'mail', 'enquiry', 'hire'] },
+  impressum: { label: 'Imprint', keywords: ['imprint', 'legal notice', 'provider', 'ddg'] },
   settings: { label: 'Settings', keywords: ['theme', 'dark', 'light', 'font size'] },
 };
 

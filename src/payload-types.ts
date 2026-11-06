@@ -7351,6 +7351,13 @@ export interface Translation {
     groupSections: string;
   };
   /**
+   * Footer-Copyright und der Seitenkopf-Eyebrow ("// site"). Der Footer ist sonst CMS-frei (Navigation kommt aus dem navigation-Global).
+   */
+  footer: {
+    rightsReserved: string;
+    eyebrow: string;
+  };
+  /**
    * Cookie-Consent-Banner (Consent Mode v2) und der Footer-Link "Cookie-Einstellungen".
    */
   cookies: {
@@ -7378,6 +7385,15 @@ export interface Translation {
     copyLabel: string;
     copiedMessage: string;
     failedMessage: string;
+  };
+  /**
+   * Action buttons on contact cards (call, GitHub, LinkedIn) and the new-tab hint.
+   */
+  contactActions: {
+    callLabel: string;
+    githubLabel: string;
+    linkedinLabel: string;
+    newTabHint: string;
   };
   createdBy?: {
     relationTo: 'users';
@@ -7492,6 +7508,12 @@ export interface TranslationsSelect<T extends boolean = true> {
         groupPages?: T;
         groupSections?: T;
       };
+  footer?:
+    | T
+    | {
+        rightsReserved?: T;
+        eyebrow?: T;
+      };
   cookies?:
     | T
     | {
@@ -7518,6 +7540,14 @@ export interface TranslationsSelect<T extends boolean = true> {
         copyLabel?: T;
         copiedMessage?: T;
         failedMessage?: T;
+      };
+  contactActions?:
+    | T
+    | {
+        callLabel?: T;
+        githubLabel?: T;
+        linkedinLabel?: T;
+        newTabHint?: T;
       };
   createdBy?: T;
   updatedBy?: T;

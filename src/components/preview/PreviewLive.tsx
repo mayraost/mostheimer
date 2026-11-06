@@ -60,7 +60,16 @@ function isRenderableBlock(block: unknown): boolean {
   return typeof block === 'object' && block !== null && 'blockType' in block;
 }
 
-export function PreviewLive({ initialPage, serverURL }: { initialPage: Page; serverURL: string }) {
+export function PreviewLive({
+  initialPage,
+  serverURL,
+  /** Cosmetic only (deadlines, count chips): the preview mimics the public route. */
+  variant = 'compact',
+}: {
+  initialPage: Page;
+  serverURL: string;
+  variant?: 'home' | 'compact';
+}) {
   const { data } = useLivePreview<Page>({
     initialData: initialPage,
     serverURL,
@@ -73,7 +82,7 @@ export function PreviewLive({ initialPage, serverURL }: { initialPage: Page; ser
         // Merged documents are form data: a block that is still being added can
         // arrive without `blockType`. Skip it instead of crashing the frame.
         if (!isRenderableBlock(block)) return null;
-        return <PreviewBlockRenderer key={block.id ?? index} block={block} />;
+        return <PreviewBlockRenderer key={block.id ?? index} block={block} locale={variant} />;
       })}
     </article>
   );

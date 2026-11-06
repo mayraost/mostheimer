@@ -73,6 +73,10 @@ export function isNonContentPath(pathname: string): boolean {
  */
 export function pathnameToSlug(locale: FrontendLocale, pathname: string): string | null {
   if (pathname.length > 1 && pathname.endsWith('/')) return null;
+  // Public files carry a dot; the Proxy matcher skips them in production, but a
+  // standalone/manual `next start` matches `^/(?!(de|en))` first and would
+  // otherwise treat `/_next` as the locale. Never let that reach a DB query.
+  if (pathname.includes('.')) return null;
   if (pathname === `/${locale}`) return '';
   if (!pathname.startsWith(`/${locale}/`)) return null;
   return pathname.slice(locale.length + 2);

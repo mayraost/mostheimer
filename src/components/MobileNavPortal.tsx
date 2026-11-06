@@ -166,7 +166,7 @@ export function MobileNavPortal({
           <button
             ref={closeButtonRef}
             onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-[6px] border border-border bg-surface-raised/60 text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+            className="flex h-11 w-11 items-center justify-center rounded-[6px] border border-border bg-surface-raised/60 text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
             aria-label={closeLabel}
             type="button"
             tabIndex={open ? undefined : -1}

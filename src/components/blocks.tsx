@@ -17,7 +17,7 @@ import { ArchitectureDiagramBlock } from './blocks/ArchitectureDiagramBlock';
 
 export type PageBlock = NonNullable<Page['layout']>[number];
 
-export function BlockRenderer({ block }: { block: PageBlock }) {
+export function BlockRenderer({ block, locale }: { block: PageBlock; locale?: string }) {
   switch (block.blockType) {
     case 'hero':
       return <HeroBlock block={block} />;
@@ -30,7 +30,7 @@ export function BlockRenderer({ block }: { block: PageBlock }) {
     case 'richText':
       return <RichTextBlock block={block} />;
     case 'bentoGrid':
-      return <BentoGridBlock block={block} />;
+      return <BentoGridBlock block={block} locale={locale} />;
     case 'statusBlock':
       return <StatusBlock block={block} />;
     case 'techSection':
@@ -38,15 +38,15 @@ export function BlockRenderer({ block }: { block: PageBlock }) {
     case 'skillset':
       return <SkillsetBlock block={block} />;
     case 'caseStudy':
-      return <CaseStudyBlock block={block} />;
+      return <CaseStudyBlock block={block} locale={locale} />;
     case 'timeline':
-      return <TimelineBlock block={block} />;
+      return <TimelineBlock block={block} locale={locale} />;
     case 'testimonial':
       return <TestimonialBlock block={block} />;
     case 'techRadar':
-      return <TechRadarBlock block={block} />;
+      return <TechRadarBlock block={block} locale={locale} />;
     case 'architectureDiagram':
-      return <ArchitectureDiagramBlock block={block} />;
+      return <ArchitectureDiagramBlock block={block} locale={locale} />;
     default:
       return (
         <div className="mono-label my-4 rounded-[6px] border border-error/50 bg-surface px-4 py-8 text-center text-error">

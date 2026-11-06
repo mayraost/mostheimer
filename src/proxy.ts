@@ -44,6 +44,7 @@ export async function proxy(request: NextRequest) {
     // redirect and crawlers would receive no image. Exact match, not
     // startsWith, to avoid catching unrelated paths.
     pathname === '/og' ||
+    pathname.startsWith('/_next') ||
     pathname.includes('.') // file requests like .json, .js, .png
   ) {
     return NextResponse.next();
