@@ -1193,7 +1193,7 @@ neu. Härteste Lösung bleibt Next-Skew-Protection (`deploymentId`) — offen.
   ohne Provider — der Block rendert auch auf der 404-Fallback-Chrome) und hat
   einen Per-Feld-Fallback, falls die Global-Gruppe fehlt.
 
-## QA-Iteration 2 (06.11.2026): Card-Eyebrows, Hero-Varianten, Legal-Content im CMS
+## QA-Iteration 2 (06.11.2026) — deployed as `e497df4`: Card-Eyebrows, Hero-Varianten, Legal-Content im CMS
 
 Erprobt auf Prod (`mostheimer.de`) gegen die Screenshots aus `mostheimer-screenshots-2026-11-05.zip`.
 
@@ -1250,6 +1250,35 @@ Erprobt auf Prod (`mostheimer.de`) gegen die Screenshots aus `mostheimer-screens
   muss danach **neu** laufen; `cp -r` legt bei existierendem Ziel ein `static/static` an.
   Vor jedem Screenshot-Check: `curl -o /dev/null -w '%{content_type}' <css-url>` muss `text/css`
   liefern — sonst prüft man ungestyltes HTML.
+
+### Impressum ist eine CMS-Seite unter alter URL
+
+- `/impressum` bleibt Route (`STATIC_CHILD_ROUTES` im Proxy), rendert aber die **CMS-Page
+  `imprint`** über `getCachedPageBySlug('imprint', locale)` — Tag `cms:pages:imprint`, also
+  greifen die normalen Publish-Hooks + Edge-Purge. Der statische Hardcode (inkl. `§ 5 TMG`)
+  ist weg; DE/EN-Copy wird ausschließlich im Admin gepflegt.
+- `KeyFactActionButton` funktioniert dort ohne `TranslationsProvider`-Annahme (useTranslationsOrNull).
+
+### Produktive Payload-Writes über `payload-prod` — Publish-Disziplin
+
+- Ein MCP-`update` **ohne** `draft: false` / explizites `_status` kann das Dokument auf `draft`
+  setzen und die publizierte Locale-Zeile leeren (heute: eine EN-Seite war ~1 min leer).
+  Regel: Locale lesen → mergen → **komplett** mit `draft: false` + `_status: 'published'`
+  zurückschreiben → re-read verifizieren.
+- Nach Schema-Änderungen (`footer`, `contactActions`) lehnt das **laufende** Prod-Schema
+  unbekannte Keys ab (`Unrecognized key`), bis das Deploy mit der Migration durch ist —
+  Content-Writes mit neuen Feldern also **nach** dem Deploy nachziehen.
+
+### Edge-Purge nach Deploy ist nicht garantiert
+
+- Heute gemessen: nach dem Deploy lieferte `/de/impressum` noch `cf-cache-status: HIT` mit
+  `Age` ~53 000 s (altes Objekt), Cache-Buster dagegen die neue Version. Das Deploy-Purge-Skript
+  hat diese Objekte nicht evictet.
+- Nach jedem Deploy deshalb **nachmessen** und bei Bedarf einen gezielten
+  `{files:[…]}`-Purge auf die Content-URLs beider Hosts fahren (ein Request, Free-Plan-Budget),
+  danach erneut `cf-cache-status`/Inhalt prüfen (MISS → 200 mit neuem Inhalt).
+- `CardHeader` uppercased seine Labels in der UI — CMS-Labels normal schreiben
+  (`Anbieterkennzeichnung`), Großschreibung ist keine Redaktionsaufgabe.
 
 ## Workflow-Regeln
 
