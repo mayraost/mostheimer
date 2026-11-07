@@ -4,7 +4,9 @@ import { useEffect, useRef, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Settings, X } from 'lucide-react';
+import { isActiveNavLink } from './navLinkState';
 
 type NavLink = {
   label: string;
@@ -69,6 +71,8 @@ export function MobileNavPortal({
   );
   const drawerRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const pathname = usePathname();
+  const de = pathname?.startsWith('/de') ?? false;
 
   // Scroll lock and dialog behaviour in one effect with complete cleanup.
   useEffect(() => {
@@ -197,23 +201,60 @@ export function MobileNavPortal({
           style={{ touchAction: 'pan-y' }}
         >
           <ul className="flex flex-col gap-2">
-            {navLinks.map((item, index) => (
-              <li key={item.id || index}>
-                <Link
-                  href={item.link}
-                  className="group flex items-center justify-between rounded-[6px] border border-transparent px-3 py-3 text-base font-medium text-foreground transition-colors hover:border-border hover:bg-surface-raised"
-                  onClick={onClose}
-                  target={item.newTab ? '_blank' : undefined}
-                  rel={item.newTab ? 'noopener noreferrer' : undefined}
-                  tabIndex={open ? undefined : -1}
-                >
-                  <span>{item.label}</span>
-                  <span className="mono-label text-muted-foreground transition-colors group-hover:text-primary">
-                    {String(index + 1).padStart(2, '0')}
-                  </span>
-                </Link>
-              </li>
-            ))}
+            {navLinks.map((item, index) => {
+              const active = isActiveNavLink(item.link, pathname);
+              return (
+                <li key={item.id || index}>
+                  <Link
+                    href={item.link}
+                    /*
+                     * Active state is a real signal, not a hover tint: emerald
+                     * rail on the left, filled surface, full-contrast label and
+                     * an emerald index chip. `aria-current="page"` is the only
+                     * thing assistive tech reads — the colour is decoration.
+                     */
+                    className={[
+                      'group relative flex items-center justify-between rounded-[6px] border px-3 py-3 text-base font-medium transition-colors',
+                      active
+                        ? 'border-primary/50 bg-primary-muted text-foreground'
+                        : 'border-transparent text-foreground hover:border-border hover:bg-surface-raised',
+                    ].join(' ')}
+                    aria-current={active ? 'page' : undefined}
+                    onClick={onClose}
+                    target={item.newTab ? '_blank' : undefined}
+                    rel={item.newTab ? 'noopener noreferrer' : undefined}
+                    tabIndex={open ? undefined : -1}
+                  >
+                    {active && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute top-2 bottom-2 left-0 w-[2px] rounded-full bg-primary"
+                      />
+                    )}
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="truncate">{item.label}</span>
+                      {active && (
+                        <span
+                          className="mono-label shrink-0 text-primary"
+                          aria-hidden="true"
+                          title={de ? 'Aktuelle Seite' : 'Current page'}
+                        >
+                          {'//'} now
+                        </span>
+                      )}
+                    </span>
+                    <span
+                      className={[
+                        'mono-label shrink-0 transition-colors',
+                        active ? 'text-primary' : 'text-muted-foreground group-hover:text-primary',
+                      ].join(' ')}
+                    >
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
 
           {/*

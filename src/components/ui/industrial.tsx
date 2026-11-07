@@ -122,10 +122,12 @@ export function Eyebrow({ children }: { children: React.ReactNode }) {
 }
 
 /** Corner crosshair ticks (optional industrial detail on cards). */
-export function CornerTicks() {
-  const tick = 'absolute h-2 w-2 border-border-strong';
+export function CornerTicks({ className = 'text-border-strong' }: { className?: string }) {
+  // `border-current`: the caller tints the whole set via a text-* class; the
+  // default keeps the neutral hairline the other cards expect.
+  const tick = 'absolute h-2 w-2 border-current';
   return (
-    <span aria-hidden="true" className="pointer-events-none absolute inset-0">
+    <span aria-hidden="true" className={`pointer-events-none absolute inset-0 ${className}`}>
       <span className={`${tick} left-0 top-0 border-l border-t`} />
       <span className={`${tick} right-0 top-0 border-r border-t`} />
       <span className={`${tick} bottom-0 left-0 border-b border-l`} />

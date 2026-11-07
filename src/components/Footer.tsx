@@ -1,8 +1,10 @@
 import Link from 'next/link';
 import { ConsentSettingsLink } from '@/components/consent/ConsentSettingsLink';
+import { isActiveNavLink } from '@/components/navLinkState';
+import { getPathname } from '@/components/serverPathname';
 import type { Translation } from '@/payload-types';
 
-export function Footer({
+export async function Footer({
   locale,
   navLinks,
   cookieSettingsLabel,
@@ -27,6 +29,7 @@ export function Footer({
   const rightsLabel =
     rightsReserved?.rightsReserved ??
     (locale === 'de' ? 'Alle Rechte vorbehalten' : 'All rights reserved');
+  const pathname = await getPathname();
 
   return (
     <footer className="mt-auto w-full border-t border-border bg-surface/40">
@@ -49,16 +52,31 @@ export function Footer({
         {navLinks && navLinks.length > 0 && (
           <nav aria-label="Footer">
             <ul className="flex flex-wrap items-center gap-x-5 gap-y-2">
-              {navLinks.map((item, index) => (
-                <li key={item.id || index}>
-                  <Link
-                    href={item.link}
-                    className="mono-label text-muted-foreground transition-colors hover:text-primary"
-                  >
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
+              {navLinks.map((item, index) => {
+                const active = isActiveNavLink(item.link, pathname);
+                return (
+                  <li key={item.id || index}>
+                    <Link
+                      href={item.link}
+                      /*
+                       * Same active rule as the drawer (one source:
+                       * `isActiveNavLink`). The footer is a quiet surface, so the
+                       * signal is emerald text + a leading dot instead of a rail.
+                       */
+                      className={[
+                        'mono-label inline-flex items-center gap-1.5 transition-colors',
+                        active ? 'text-primary' : 'text-muted-foreground hover:text-primary',
+                      ].join(' ')}
+                      aria-current={active ? 'page' : undefined}
+                    >
+                      {active && (
+                        <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-primary" />
+                      )}
+                      {item.label}
+                    </Link>
+                  </li>
+                );
+              })}
               <li>
                 {/* Client-Komponente (der Footer ist eine Server-Komponente):
                     oeffnet den Consent-Dialog ueber `CONSENT_OPEN_EVENT`. */}

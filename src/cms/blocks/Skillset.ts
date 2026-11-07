@@ -1,6 +1,6 @@
 import type { Block } from 'payload';
 
-import { icons } from 'lucide-react';
+import { ICON_NAMES } from '../../components/blocks/Icon';
 
 export const Skillset: Block = {
   slug: 'skillset',
@@ -63,13 +63,15 @@ export const Skillset: Block = {
           type: 'select',
           options: [
             { label: 'Kein Icon', value: '' },
-            ...Object.keys(icons).map((name) => ({
+            // Same single source as the bento grid: only names the renderer
+            // actually draws (see `ICON_CATALOG`).
+            ...ICON_NAMES.map((name) => ({
               label: name,
               value: name,
             })),
           ],
           admin: {
-            description: 'Lucide icon name (empty = no icon)',
+            description: 'Lucide interchange icon name (empty = no icon)',
           },
         },
         {

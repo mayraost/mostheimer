@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Page } from '@/payload-types';
-import { Icon } from './Icon';
+import { Icon, isKnownIcon } from './Icon';
 import { BentoTile, Chip, CornerTicks, Eyebrow, StatusDot } from '../ui/industrial';
 import { SpotlightGrid } from '../ui/MotionWrappers';
 import { Decode } from '../ui/Decode';
@@ -12,11 +12,16 @@ type BentoItem = NonNullable<BentoGridBlockData['items']>[number];
  * Bento mosaic of the architecture pillars (homepage centrepiece).
  *
  * Layout: 4-column grid with 8px gaps; `featured` tiles span 2 columns on lg
- * (1 on mobile/tablet). Icon in a round hairline frame, mono "pillar 0X" label,
- * emerald/cyan border state by position.
+ * (1 on mobile/tablet). Icon in a round hairline frame, mono "pillar 0X" label.
+ * The featured tile carries an emerald hairline, the others a neutral one.
  *
- * No maturity vocabulary on purpose: no "featured/core" chip and no maturity
- * gauge — emphasis is purely spatial (spanning) plus description depth.
+ * No maturity vocabulary on purpose: no "core" chip and no maturity gauge —
+ * emphasis is purely spatial (spanning) plus the featured hairline.
+ *
+ * Icon contract: the CMS select offers every Lucide name, the frontend only
+ * renders the small `ICON_CATALOG`. When a stored name is outside that
+ * catalog the frame must NOT render — an empty emerald/dashed ring reads as
+ * broken ("Säule 02/03/05 look weird"), worse than having no icon at all.
  */
 function BentoCard({
   item,
@@ -27,8 +32,20 @@ function BentoCard({
   index: number;
   locale: 'de' | 'en';
 }) {
+  /*
+   * Emphasis is the CMS `featured` flag — nothing else. Two earlier sources of
+   * noise are gone on purpose:
+   * - `index % 3 === 0` promoted cards 01 and 04 without any content reason,
+   * - `item.highlight` is a per-card teaser LINE ("Millions of requests.") that
+   *   almost every pillar has; treating it as emphasis promoted all of them.
+   *
+   * Result before: five pillars showed one mixed set of emerald tiles, so the
+   * non-featured ones read as half-loaded copies instead of a hierarchy.
+   */
+  const isEmphasis = Boolean(item.featured);
+  const hasIcon = isKnownIcon(item.iconName);
   const de = locale === 'de';
-  const isEmphasis = Boolean(item.featured || item.highlight) || index % 3 === 0;
+  const pillarLabel = `${de ? 'Säule' : 'Pillar'} ${String(index + 1).padStart(2, '0')}`;
 
   const card = (
     <BentoTile
@@ -36,28 +53,32 @@ function BentoCard({
       className={[
         'spotlight-card bento-reveal group h-full transition-colors duration-200',
         isEmphasis
-          ? 'border-primary/40 bg-surface hover:border-primary hover:shadow-[0_0_28px_-10px_rgba(16,185,129,0.55)]'
-          : 'border-border bg-surface hover:border-secondary/60 hover:shadow-[0_0_28px_-10px_rgba(6,182,212,0.45)]',
+          ? // Featured pillar: emerald hairline + emerald corner ticks carry the
+            // hierarchy (spans 2 columns). Only one tile should look like this.
+            'border-primary/50 bg-surface hover:border-primary hover:shadow-[0_0_28px_-10px_rgba(16,185,129,0.55)]'
+          : // Core pillars: neutral hairline that only lights up on hover.
+            'border-border-strong/70 bg-surface/70 hover:border-secondary/60 hover:bg-surface hover:shadow-[0_0_28px_-10px_rgba(6,182,212,0.45)]',
       ].join(' ')}
     >
       <div className="dot-grid-dense absolute inset-0 opacity-[0.35]" aria-hidden="true" />
-      <CornerTicks />
+      <CornerTicks className={isEmphasis ? 'text-primary/40' : undefined} />
 
       <div className="relative flex h-full flex-col p-5">
         <div className="mb-5 flex items-start justify-between gap-3">
           <Decode
-            text={`${de ? 'Säule' : 'Pillar'} ${String(index + 1).padStart(2, '0')}`}
+            text={pillarLabel}
             className={`mono-label ${isEmphasis ? 'text-primary' : 'text-muted-foreground'}`}
           />
-          <span className="mono-label flex items-center gap-1.5 text-muted-foreground">
-            <StatusDot tone={isEmphasis ? 'primary' : 'secondary'} />
-            {item.featured ? 'featured' : 'core'}
-          </span>
+          {item.featured && (
+            <span className="mono-label flex items-center gap-1.5 text-primary">
+              <StatusDot tone="primary" />
+              Featured
+            </span>
+          )}
         </div>
 
-        <div className="mb-4 flex items-center gap-3">
-          {/* Icon only when iconName is set (empty slots stay decorative). */}
-          {item.iconName ? (
+        {hasIcon && (
+          <div className="mb-4 flex items-center gap-3">
             <span
               className={[
                 'flex h-11 w-11 shrink-0 items-center justify-center rounded-full border',
@@ -68,26 +89,31 @@ function BentoCard({
             >
               <Icon name={item.iconName} className="h-5 w-5" />
             </span>
-          ) : (
-            <span
-              aria-hidden="true"
-              className="mono-label flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-dashed border-border-strong text-muted-foreground"
-            >
-              +
-            </span>
-          )}
-        </div>
+          </div>
+        )}
 
         {item.highlight && (
           <p className="mono-label mb-2 text-muted-foreground">{item.highlight}</p>
         )}
 
-        <h3 className="mb-2 font-heading text-lg font-semibold leading-snug tracking-tight text-foreground lg:text-xl">
+        <h3
+          className={[
+            'mb-2 font-heading font-semibold leading-snug tracking-tight text-foreground',
+            isEmphasis ? 'text-lg lg:text-xl' : 'text-lg',
+          ].join(' ')}
+        >
           {item.title}
         </h3>
 
         {item.description && (
-          <p className="text-sm leading-relaxed text-muted-foreground">{item.description}</p>
+          <p
+            className={[
+              'text-sm leading-relaxed',
+              isEmphasis ? 'text-muted-foreground' : 'text-muted-foreground/85',
+            ].join(' ')}
+          >
+            {item.description}
+          </p>
         )}
 
         {item.ctaLabel && (
