@@ -101,28 +101,34 @@ export function Header({
             {targetLocale}
           </Link>
 
-          {/* Theme toggle */}
-          <button
-            onClick={handleThemeToggle}
-            className={iconButtonClass}
-            title={`${translations.common.theme}: ${theme}`}
-            aria-label={`${translations.common.theme}: ${theme}`}
-            type="button"
-          >
-            {theme === 'system' && <SunMoon className="h-4 w-4" />}
-            {theme === 'light' && <Sun className="h-4 w-4 text-warning" />}
-            {theme === 'dark' && <Moon className="h-4 w-4 text-primary" />}
-          </button>
+          {/*
+           * Theme + settings live in the mobile drawer below `lg` (see
+           * MobileNavPortal) to keep the header row from overflowing on small
+           * screens; desktop keeps them inline. Hidden with `hidden`/`lg:flex`,
+           * not CSS order, so only one of the two is ever focusable.
+           */}
+          <div className="hidden items-center gap-2 lg:flex">
+            <button
+              onClick={handleThemeToggle}
+              className={iconButtonClass}
+              title={`${translations.common.theme}: ${theme}`}
+              aria-label={`${translations.common.theme}: ${theme}`}
+              type="button"
+            >
+              {theme === 'system' && <SunMoon className="h-4 w-4" />}
+              {theme === 'light' && <Sun className="h-4 w-4 text-warning" />}
+              {theme === 'dark' && <Moon className="h-4 w-4 text-primary" />}
+            </button>
 
-          {/* Settings */}
-          <Link
-            href={`/${locale}/settings`}
-            className={iconButtonClass}
-            aria-label={translations.common.settingsButtonAria}
-            title={translations.common.settingsButtonAria}
-          >
-            <Settings className="h-4 w-4" />
-          </Link>
+            <Link
+              href={`/${locale}/settings`}
+              className={iconButtonClass}
+              aria-label={translations.common.settingsButtonAria}
+              title={translations.common.settingsButtonAria}
+            >
+              <Settings className="h-4 w-4" />
+            </Link>
+          </div>
 
           {/* Sidebar toggle */}
           <button
@@ -152,6 +158,19 @@ export function Header({
         title={translations.common.menu}
         closeLabel={locale === 'de' ? 'Menü schließen' : 'Close menu'}
         statusLabel={`Kiebitzreihe · ${locale.toUpperCase()}`}
+        settingsHref={`/${locale}/settings`}
+        settingsLabel={translations.common.settingsButtonAria}
+        themeLabel={`${translations.common.theme}: ${theme}`}
+        themeIcon={
+          theme === 'system' ? (
+            <SunMoon className="h-4 w-4" />
+          ) : theme === 'light' ? (
+            <Sun className="h-4 w-4 text-warning" />
+          ) : (
+            <Moon className="h-4 w-4 text-primary" />
+          )
+        }
+        onThemeToggle={handleThemeToggle}
       />
     </header>
   );
