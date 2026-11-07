@@ -1,5 +1,5 @@
 import type { Block } from 'payload';
-import { icons } from 'lucide-react';
+import { ICON_NAMES } from '../../components/blocks/Icon';
 
 export const BentoGrid: Block = {
   slug: 'bentoGrid',
@@ -48,12 +48,18 @@ export const BentoGrid: Block = {
         {
           name: 'iconName',
           type: 'select',
-          options: Object.keys(icons).map((name) => ({
-            label: name,
-            value: name,
-          })),
+          options: [
+            { label: 'Kein Icon', value: '' },
+            // Single source: the frontend catalog (`ICON_CATALOG`). Offering
+            // all ~1600 Lucide names let editors pick icons the renderer
+            // silently drops (empty ring on the card).
+            ...ICON_NAMES.map((name) => ({
+              label: name,
+              value: name,
+            })),
+          ],
           admin: {
-            description: 'Lucide icon name',
+            description: 'Lucide interchange icon name (empty = no icon)',
           },
         },
         {

@@ -246,7 +246,7 @@ import type { Page } from '@payload-config'; // Payload-Config-Alias
 - `HeroBlock` – Hero-Bereich mit Tipp-Animation; Felder `showStackBadge` (Stack-Badge-Zeile über dem Heading), `ctaLabel/ctaLink` (Primary-Pill) und `ctaLabel2/ctaLink2` (Ghost-Pill) – Pillen nur bei Label+Link
 - `RichTextBlock` – echter Lexical-Renderer via `RichText` aus `@payloadcms/richtext-lexical/react` (kein raw-JSON mehr)
 - `SkillsetBlock` – Skill-Karten (Items: name, level als **Freitext-Badge** — bewusst kein Skill-Balken, description, iconName-Select mit leerer „Kein Icon"-Option, highlight); Block-CTA nur Label+Link; Featured-Sektion auf Home + Wiederverwendung je Kategorie auf `/skills`. Lucide-Gotcha: `Figma` (Trademark-Removal) und `FileCode2` existieren 2026 nicht mehr → `PenTool`/`FileCode`; iconName leer → gar kein Icon, kein CircleHelp-Fallback im SkillsetBlock.
-- `BentoGridBlock` – Bento-Raster (4-Spalten, `featured` = 2 Spalten); Items: highlight/title/description/iconName/ctaLabel/ctaLink/featured (aktive Tile CTA nur mit Link, Label `… →`)
+- `BentoGridBlock` – Bento-Raster (4-Spalten, `featured` = 2 Spalten); Items: highlight/title/description/iconName/ctaLabel/ctaLink/featured (aktive Tile CTA nur mit Link, Label `… →`). **`isEmphasis` ist rein inhaltsgetrieben (`featured || highlight`)** — niemals per `index % n` ableiten (siehe „Gelernte Fehler"); Icons rendert nur `ICON_CATALOG`, kein Icon heißt **kein** Frame.
 - `StatusBlock` – Status-Karte (badgeLabel/title/description) mit `networkTopics`-Array als Tag-Pillen
 - `TechSectionBlock` – Deep-Dive-Sektion (sectionLabel/heading/body, Absätze via `\n\n`) mit `keyFacts`-dl (label/value)
 - `CtaBlock` – Call-to-Action; Button-Pill nur rendern wenn `buttonLabel && buttonLink` gesetzt (kein leerer Pill)
@@ -1611,3 +1611,69 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Navigation: aktive Seite + Bento-Pillar-Zustände (07.11.2026)
+
+Zwei Beschwerden aus dem Review, beide mit derselben Ursachenklasse: **eine
+Eigenschaft, die an mehreren Stellen abgeleitet wird, statt aus einer Quelle zu
+kommen.**
+
+### Aktive Seite im Menü — `isActiveNavLink()` ist die einzige Regel
+
+- `src/components/navLinkState.ts` entscheidet für Drawer **und** Footer:
+  Locale-Root (`/de`) matcht **exakt** (sonst leuchtet „Startseite" auf jeder
+  Unterseite), Unterseiten matchen exakt oder als Pfad-Präfix
+  (`/de/leadership/2025` → Leadership bleibt aktiv), Trailing-Slash/Query/Hash
+  werden ignoriert, `#anchor` und `http(s)://`/`mailto:` sind **nie** aktiv.
+- Der sichtbare Zustand (Rail + `bg-primary-muted` + `// now` im Drawer,
+  Emerald-Text + Punkt im Footer) ist reine Deko; die Information für
+  Screenreader ist `aria-current="page"`. **Beides setzen** — nur Farbe ist buggy.
+- Der **Footer ist eine Server Component**: kein `usePathname()`. Er nutzt
+  `getPathname()` (`src/components/serverPathname.ts` → `x-pathname` aus dem
+  Proxy, dieselbe Quelle wie die not-found-Boundaries). Der Footer nicht in
+  eine Client-Component umwandeln, nur um einen aktiven Zustand zu bekommen —
+  das zieht `ConsentSettingsLink` mit ins Browser-Bundle.
+- Es gibt **keine** Desktop-Nav in der Kopfzeile (nur Logo, Suche, Sprache,
+  Theme, Settings, Burger) — die Punkte in der Kopfzeile sind bewusst keine
+  Seitenlinks und dürfen nicht als Navigation markiert werden.
+
+### Bento-„Säulen sehen komisch aus, wenn inaktiv" — zwei unabhängige Ursachen
+
+1. **Leere Icon-Ringe.** Der CMS-Select bot **alle** Lucide-Namen an
+   (`Object.keys(icons)`), der Renderer kennt nur `ICON_CATALOG` (~25 Pfade).
+   `Bot`, `Users`, `Heart` waren live gespeichert → `Icon` gab `null` zurück,
+   der **Rahmen** blieb stehen: ein leerer Emerald-Kreis, der wie ein
+   Ladefehler aussieht. Fix: (a) die drei Icons in den Katalog aufgenommen,
+   (b) **beide** Selects (`BentoGrid`, `Skillset`) speisen sich jetzt aus
+   `ICON_NAMES` — eine Quelle, kein Drift, (c) `BentoCard` rendert den Frame
+   nur noch bei `isKnownIcon(item.iconName)`. Merke: _ein Select darf nie mehr
+   Werte anbieten, als der Renderer zeichnet._
+2. **`isEmphasis` aus der Position UND aus `highlight` abgeleitet.**
+   `item.featured || item.highlight || index % 3 === 0` markierte praktisch
+   **jede** Kachel: `highlight` ist eine Teaser-Zeile pro Karte
+   („Millions of requests."), die fast alle Pillars haben, und die
+   Positions-Regel hob zusätzlich 01 und 04 ohne Inhaltsgrund hervor. Ergebnis:
+   fünf Pillars zeigten ein gleichförmig emerald umrandetes Set, die
+   „core"-Karten wirkten wie halb-geladene Kopien der Featured-Karte statt wie
+   eine gewollte Hierarchie. Fix: `isEmphasis = Boolean(item.featured)` — die
+   **einzige** Quelle ist jetzt das CMS-Flag; „core"-Kacheln haben neutralen
+   Hairline (`border-border-strong/70`) und leuchten erst im Hover, die
+   Featured-Karte zusätzlich über emerald Corner-Ticks (`CornerTicks` nimmt
+   jetzt `className` und zeichnet `border-current`). Merke: ein Feld namens
+   `highlight`, das auf jeder Karte gesetzt ist, ist ein **Textfeld**, kein
+   Zustand — erst prüfen, wie oft es befüllt ist, bevor es Styling steuert.
+
+- Auch das Status-Label war eine Ableitung: stand früher auf jeder Karte
+  (`FEATURED`/`core`). Jetzt erscheint `Featured` **nur** auf der
+  Featured-Karte — „core" ist der Normalfall und braucht kein Schild.
+- `Säule 0X` wird über `locale` gerendert (`Säule`/`Pillar`); die zuvor
+  hartkodierte deutsche Variante war auf `/en` falsch.
+
+### Verifikation (Produktions-Standalone, nicht `next dev`)
+
+`next dev`-Turbopack hydratisiert hier weiterhin nicht (bekannt) — der
+Drawer öffnet sich dort gar nicht. Messweg: `npm run build`, `src/public` und
+`.next/static` nach `.next/standalone/` kopieren, `node .next/standalone/server.js`.
+**Achtung:** `'use cache'`-Queries halten die alte HTML-Antwort, also immer mit
+Cache-Buster (`?cb=$RANDOM`) gegen den Origin prüfen, sonst misst man den
+vorherigen Build. Tests: `tests/int/nav-state.int.spec.ts` (10 Fälle, ohne DB).
