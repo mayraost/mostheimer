@@ -241,6 +241,44 @@ body {
   }
 }
 
+/* ─── Motion Tokens ────────────────────────────────────────────────────────
+ * Easing + Durations for the scroll reveal / micro-interaction layer.
+ *
+ * These are ALIASES over the existing palette, never a second colour system:
+ * `--color-accent-emerald` IS `--color-primary`, `--color-bg-deep` IS
+ * `--color-background`. Re-declaring the raw values would fork the palette and
+ * break the light theme (a hardcoded `#090A0D` stays dark in `.light`).
+ * `--border-subtle` is the resting card border the spec asks for, defined as
+ * the hairline the design system already uses.
+ *
+ * The curves are deliberately non-overshooting: no bounce, no spring. They are
+ * plain `cubic-bezier` values, so they need no build step.
+ */
+@theme {
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-in-out-tech: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --duration-instant: 80ms;
+  --duration-micro: 150ms;
+  --duration-fast: 260ms;
+  --duration-reveal: 420ms;
+}
+
+:root {
+  /* Alias tokens (spec vocabulary → existing palette). */
+  --color-bg-deep: var(--color-background);
+  --color-surface-onyx: var(--color-surface);
+  --color-accent-emerald: var(--color-primary);
+  --color-accent-cyan: var(--color-secondary);
+  --color-text-primary: var(--color-foreground);
+  --color-text-muted: var(--color-muted-foreground);
+  --border-subtle: var(--color-border);
+
+  /* Scroll telemetry, written by the rAF fallback (0 → 1). */
+  --scroll-progress: 0;
+}
+
 @layer base {
   html {
     /* Horizontal scroll aus dem off-canvas Menü-Drawer (translate-x-full
@@ -315,6 +353,51 @@ body {
       animation-iteration-count: 1 !important;
       transition-duration: 0.001ms !important;
       scroll-behavior: auto !important;
+    }
+  }
+
+  /*
+   * Dual motion guardrail (spec §1.1). The base block above only shortens the
+   * DURATION of a running animation; it cannot undo a start state applied by a
+   * class. Every reveal / decode / spotlight asset therefore lives behind
+   * `.motion-assets` (html only gets that class when animations run — see
+   * MOTION_BOOTSTRAP in DocumentShell) and the two selectors below are the
+   * complete off-switch for BOTH triggers:
+   *   - user setting `animations: off` (SettingsProvider → body.no-animations)
+   *   - OS `prefers-reduced-motion: reduce`
+   * Anything hidden for an animation is forced visible and untransformed; no
+   * element waits for a timer.
+   */
+  body.no-animations [data-reveal],
+  body.no-animations [data-decode],
+  html.no-animations [data-reveal],
+  html.no-animations [data-decode] {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-reveal],
+    [data-decode] {
+      opacity: 1 !important;
+      transform: none !important;
+      transition: none !important;
+    }
+  }
+
+  /* Scroll-progress bar: frozen visible bar instead of a moving meter. */
+  body.no-animations [data-scroll-progress],
+  html.no-animations [data-scroll-progress] {
+    transform: scaleX(1) !important;
+    transition: none !important;
+    animation: none !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-scroll-progress] {
+      transform: scaleX(1) !important;
+      transition: none !important;
     }
   }
 }
@@ -594,6 +677,149 @@ body {
   }
   100% {
     transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+/* ─── Scroll Animations & Micro-Interactions (spec 2026-11-07) ─────────────
+ * House rules for everything in this section:
+ * - ONLY `transform` and `opacity` animate. No height/width/top/margin
+ *   transitions → CLS stays 0.
+ * - The default (server-rendered, no JS) state is ALWAYS visible. Hidden start
+ *   states are applied by a class only after the client hook decided that the
+ *   element really is below the fold — so a visitor without JS, a crawler or a
+ *   broken bundle never sees a blank section.
+ * - Every rule here is inert under `body.no-animations` /
+ *   `prefers-reduced-motion` (see the guardrail block in @layer base).
+ */
+
+/* Reveal: cards enter once, staggered, 12px rise. */
+.motion-assets [data-reveal='pending'] {
+  opacity: 0;
+  transform: translate3d(0, 12px, 0);
+}
+
+.motion-assets [data-reveal='shown'] {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  transition:
+    opacity var(--duration-reveal) var(--ease-out-expo),
+    transform var(--duration-reveal) var(--ease-out-expo),
+    border-color var(--duration-fast) var(--ease-out-quart);
+  /* Capped at 225ms so a fast scroller never waits. */
+  transition-delay: min(calc(var(--stagger-index, 0) * 45ms), 225ms);
+}
+
+/* Border glint: the 1px frame flashes emerald for 280ms on entry. */
+.motion-assets .bento-reveal[data-reveal='shown'] {
+  animation: border-glint 280ms var(--ease-out-quart) both;
+}
+
+@keyframes border-glint {
+  from {
+    border-color: rgba(16, 185, 129, 0.3);
+  }
+  to {
+    border-color: var(--border-subtle);
+  }
+}
+
+/* Cursor spotlight (Linear-style): one pointermove listener on the grid writes
+   --mouse-x/--mouse-y per card. Pure CSS, zero React re-renders. */
+@media (hover: hover) and (pointer: fine) {
+  .spotlight-grid .spotlight-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: radial-gradient(
+      320px circle at var(--mouse-x, -500px) var(--mouse-y, -500px),
+      rgba(16, 185, 129, 0.05),
+      transparent 70%
+    );
+    opacity: 0;
+    transition: opacity var(--duration-fast) var(--ease-out-quart);
+  }
+
+  .spotlight-grid .spotlight-card:hover::after {
+    opacity: 1;
+  }
+}
+
+/* Decode: the mono label re-types itself once (technical charset). */
+.motion-assets [data-decode='pending'] {
+  opacity: 0.001;
+}
+
+@keyframes decode-in {
+  from {
+    opacity: 0.35;
+    transform: translate3d(0, 2px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.motion-assets [data-decode='running'] {
+  animation: decode-in 280ms var(--ease-out-expo) both;
+}
+
+/* Tabular numerals: count-up must never jitter horizontally. */
+[data-count-up] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Scroll-progress telemetry bar (top edge of the sticky header). */
+[data-scroll-progress] {
+  transform: scaleX(var(--scroll-progress, 0));
+  transform-origin: 0% 50%;
+  will-change: transform;
+}
+
+/* Native scroll-driven timeline when the browser supports it (§2.1 primary
+   path). Progressive enhancement — the CSS variable above stays the fallback. */
+@supports (animation-timeline: scroll()) {
+  .motion-assets [data-scroll-progress] {
+    animation: scroll-progress-grow linear both;
+    animation-timeline: scroll(root block);
+  }
+
+  @keyframes scroll-progress-grow {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
+}
+
+/* Header compression: the padding change is instant (no layout transition);
+   only the backdrop and the rule sharpen. */
+[data-header-compact='true'] {
+  background-color: color-mix(in srgb, var(--color-background) 84%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+[data-header-compact='true'] .header-rule {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Live status dot: outer ring expands and fades, core stays solid (§3.5). */
+@keyframes live-dot-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
     opacity: 0;
   }
 }

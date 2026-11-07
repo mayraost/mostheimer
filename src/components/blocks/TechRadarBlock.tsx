@@ -2,6 +2,7 @@ import React from 'react';
 
 import type { Page } from '@/payload-types';
 import { BentoTile, Chip, CardHeader } from '../ui/industrial';
+import { RevealGrid } from '../ui/MotionWrappers';
 
 type TechRadarBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'techRadar' }>;
 type Quadrant = NonNullable<TechRadarBlockData['quadrants']>[number];
@@ -64,12 +65,13 @@ export function TechRadarBlock({ block }: { block: TechRadarBlockData; locale?: 
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
+        <RevealGrid className="grid grid-cols-1 gap-2 lg:grid-cols-2">
           {quadrants.map((quadrant: Quadrant, qIndex) => {
             const items = quadrant.items ?? [];
             return (
               <BentoTile
                 key={quadrant.id ?? quadrant.title}
+                data-reveal=""
                 className={
                   qIndex % 2 === 0
                     ? 'border-border p-5 hover:border-primary/40'
@@ -117,7 +119,7 @@ export function TechRadarBlock({ block }: { block: TechRadarBlockData; locale?: 
               </BentoTile>
             );
           })}
-        </div>
+        </RevealGrid>
       </div>
     </section>
   );

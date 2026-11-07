@@ -5,9 +5,10 @@ import { usePathname } from 'next/navigation';
 import { useSettings } from './SettingsProvider';
 import { useTranslations } from './TranslationsProvider';
 import { Moon, Sun, SunMoon, Settings, Menu } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Logo } from './Logo';
 import { CommandPalette } from './ui/CommandPalette';
+import { ScrollProgressBar } from './ui/ScrollProgressBar';
 import { MobileNavPortal } from './MobileNavPortal';
 import type { CommandItem } from './ui/CommandPalette';
 
@@ -30,8 +31,34 @@ export function Header({
   const { theme, currentTheme, setTheme } = useSettings();
   const translations = useTranslations();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [compact, setCompact] = useState(false);
   const pathname = usePathname();
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+
+  /**
+   * Header compression (§2.2): past 24px the bar switches to the denser
+   * backdrop. Only a boolean flips (twice per page visit at most) — the height
+   * reduction is a CSS class on the inner row, and the row height is reserved
+   * by the sticky layout, so nothing below the header shifts. The listener is
+   * passive and rAF-coalesced.
+   */
+  useEffect(() => {
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      setCompact(window.scrollY > 24);
+    };
+    const onScroll = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, []);
 
   /**
    * The dialog lifecycle lives in the portal (`MobileNavPortal`); the header
@@ -67,8 +94,21 @@ export function Header({
     'flex h-11 w-11 items-center justify-center rounded-[6px] border border-border bg-surface-raised/60 text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground lg:h-9 lg:w-9';
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-3 px-4 md:px-8">
+    <header
+      data-header-compact={compact ? 'true' : 'false'}
+      className="header-rule sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur-xl transition-[background-color,border-color] duration-260 ease-out-quart"
+    >
+      <ScrollProgressBar />
+      <div
+        className={[
+          'mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 md:px-8',
+          // Height is a real layout property, so it may NOT animate: the row
+          // snaps between 64px and 56px. The page content is laid out below the
+          // sticky header in normal flow, so the shorter bar never moves it
+          // (CLS stays 0) — only the header's own density changes.
+          compact ? 'h-14' : 'h-16',
+        ].join(' ')}
+      >
         {/*
          * A11y: the visible text ("mayra ostheimer" + "// dev") must be part of
          * the accessible name. On mobile that text is hidden, so an sr-only

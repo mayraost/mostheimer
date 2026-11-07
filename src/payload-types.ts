@@ -7389,6 +7389,10 @@ export interface Translation {
     copyLabel: string;
     copiedMessage: string;
     failedMessage: string;
+    /**
+     * Inline button label while the copy confirmation is shown (2s). Screen readers still hear "E-mail address copied".
+     */
+    copiedInline: string;
   };
   /**
    * Action buttons on contact cards (call, GitHub, LinkedIn) and the new-tab hint.
@@ -7544,6 +7548,7 @@ export interface TranslationsSelect<T extends boolean = true> {
         copyLabel?: T;
         copiedMessage?: T;
         failedMessage?: T;
+        copiedInline?: T;
       };
   contactActions?:
     | T

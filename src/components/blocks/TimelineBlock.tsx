@@ -2,6 +2,7 @@ import React from 'react';
 
 import type { Page } from '@/payload-types';
 import { BentoTile, Chip, splitParagraphs } from '../ui/industrial';
+import { TimelineRail } from './TimelineRail';
 
 type TimelineBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'timeline' }>;
 type TimelineEntry = NonNullable<TimelineBlockData['entries']>[number];
@@ -34,25 +35,22 @@ export function TimelineBlock({ block, locale }: { block: TimelineBlockData; loc
           </div>
         )}
 
-        <ol className="relative">
-          {/* Rail */}
-          <span
-            aria-hidden="true"
-            className="absolute left-[7px] top-2 bottom-2 w-px bg-border md:left-[147px]"
-          />
-
+        <TimelineRail>
           {entries.map((entry: TimelineEntry, index) => (
             <li
               key={entry.id ?? entry.company}
-              className="relative pb-4 pl-7 last:pb-0 md:flex md:items-stretch md:gap-0 md:pl-0"
+              data-station
+              data-reveal=""
+              className="group/station relative pb-4 pl-7 last:pb-0 md:flex md:items-stretch md:gap-0 md:pl-0"
             >
-              {/* Node */}
+              {/* Node: resting = 6px dot, active station = brighter 6px dot
+                  with a wider emerald glow (§2.5). */}
               <span
                 aria-hidden="true"
                 className="absolute left-0 top-5 flex h-3.5 w-3.5 items-center justify-center md:left-[140px]"
               >
-                <span className="h-3.5 w-3.5 rounded-full border border-primary/60 bg-background" />
-                <span className="absolute h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
+                <span className="h-3.5 w-3.5 rounded-full border border-primary/60 bg-background transition-colors group-data-[active]/station:border-primary" />
+                <span className="absolute h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_10px_rgba(16,185,129,0.8)] transition-shadow group-data-[active]/station:shadow-[0_0_14px_rgba(16,185,129,1)]" />
               </span>
 
               {/* Period column: fixed width, right-aligned, mono. */}
@@ -65,7 +63,7 @@ export function TimelineBlock({ block, locale }: { block: TimelineBlockData; loc
 
               {/* Station card: own surface + hairline, so consecutive entries
                   never read as one continuous paragraph block. */}
-              <BentoTile className="min-w-0 flex-1 p-4 md:ml-4 lg:p-5">
+              <BentoTile className="min-w-0 flex-1 p-4 transition-colors duration-200 group-data-[active]/station:border-primary/60 md:ml-4 lg:p-5">
                 <div className="mb-2 flex flex-wrap items-baseline gap-x-3 gap-y-1 md:hidden">
                   <p className="mono-label text-muted-foreground">{entry.period || '—'}</p>
                   <p className="mono-label text-primary">{String(index + 1).padStart(2, '0')}</p>
@@ -86,7 +84,7 @@ export function TimelineBlock({ block, locale }: { block: TimelineBlockData; loc
               </BentoTile>
             </li>
           ))}
-        </ol>
+        </TimelineRail>
       </div>
     </section>
   );

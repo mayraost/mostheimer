@@ -1701,3 +1701,68 @@ mit `border-t`.
   nur Suche, Sprache und Menü.
 - Der **MobileNavPortal-Prop-Vertrag ist erweitert** — wer den Drawer je von woanders
   rendert, muss die fünf neuen Props mitgeben (TypeScript erzwingt das).
+## Scroll-Animationen & Micro-Interactions (07.11.2026)
+
+Umsetzung der Spec „High-Performance Scroll Animations". Leitregel: **nur
+`transform`/`opacity`**, kein Scroll-Jacking, CLS = 0.
+
+### Dateien
+
+| Datei | Rolle |
+| --- | --- |
+| `src/hooks/useScrollReveal.ts` | `IntersectionObserver` (`threshold .12`, `rootMargin "0px 0px -40px 0px"`), einmalig; exportiert `motionEnabled()` als **einzige** Motion-Entscheidung |
+| `src/hooks/useBentoSpotlight.ts` | EIN rAF-gedrosselter `pointermove`-Listener aufs Grid, schreibt `--mouse-x/--mouse-y` auf die Karte — **kein React-State** |
+| `src/hooks/useTimelineProgress.ts` | Scroll-Fortschritt → `--rail-progress` + `data-active` auf der aktiven Station |
+| `src/components/ui/MotionWrappers.tsx` | `RevealGrid` / `SpotlightGrid`: Client-Wrapper, nehmen Server-`children` (Seiten bleiben RSC) |
+| `src/components/ui/Decode.tsx` | Mono-Decode (280ms) + Count-Up (350ms) für numerische Metriken |
+| `src/components/ui/ScrollProgressBar.tsx` | Top-Bar, primär `animation-timeline: scroll(root)`, Fallback `--scroll-progress` |
+| `src/components/ui/LiveDot.tsx` | Telemetrie-Puls (3.5s, Ring `scale(1)→2.2`, `opacity .5→0`) |
+| `src/components/blocks/TimelineRail.tsx` | Client-Island für die Timeline-Rails (Beam `scaleY`) |
+
+### Dual Motion-Guardrail — EINE Quelle, `<html>`
+
+- `MOTION_BOOTSTRAP` (`DocumentShell`, `<head>`, **vor** dem ersten Paint) setzt
+  `html.motion-assets` (an) bzw. `no-animations` (aus). `SettingsProvider`
+  spiegelt die Klasse auf `<html>` **und** `<body>`.
+- `motionEnabled()` prüft `html.no-animations`, `body.no-animations` **und** das
+  Fehlen von `html.motion-assets` → in allen Fällen `false`.
+- **Gotcha:** `SettingsProvider` toggelt historisch `root.classList`
+  (= `<html>`), meine CSS-Regeln zielten zuerst nur auf `body`. Beides muss
+  abgedeckt bleiben — sonst greift der Guardrail je nach Schreibweg nur halb.
+- **Gotcha:** Der bestehende `@media (prefers-reduced-motion)`-Block setzt nur
+  `animation-duration: 0.001ms`; das **kann einen per Klasse gesetzten
+  Startzustand (`opacity:0`) NIE aufheben.** Deshalb der eigene Block, der
+  `[data-reveal]`/`[data-decode]`/`[data-scroll-progress]` hart auf
+  `opacity:1; transform:none` zwingt.
+
+### Startzustand ist per Default SICHTBAR
+
+Ohne JS / ohne `motion-assets` ist **alles sichtbar**. Der versteckte Zustand
+(`data-reveal="pending"`) wird erst clientseitig gesetzt, und Elemente im ersten
+Viewport werden sofort gezeigt (sonst wirkt der Hero wie ein Ladezustand).
+Nie `opacity:0` als CSS-Default auf Reveal-Ziele schreiben.
+
+### CLS-Regeln, die hier gelten
+
+- Header-Kompression ändert `h-16 → h-14`: **nicht** animieren (Layout-Property),
+  nur Backdrop/Border transitionen. Der Inhalt liegt im Normalfluss unter dem
+  sticky Header → kein Shift.
+- `Decode` bei Zahlen: `font-variant-numeric: tabular-nums` ist Pflicht, sonst
+  zittert die Breite beim Hochzählen.
+- Spotlight/Glint färben nur `border-color`/`background` — keine Boxänderung.
+
+### Wording/Content
+
+- `clipboard.copiedInline` (neues Feld, Migration
+  `20261107_221931_add_clipboard_copied_inline`, DE-`UPDATE` im selben Lauf):
+  sichtbares Inline-Label `[ KOPIERT // 200 OK ]` / `[ COPIED // 200 OK ]`.
+- **`CopyButton` pinnt jetzt `aria-label` auf `copyLabel`**, weil das sichtbare
+  Label während der Bestätigung wechselt. Die volle Bestätigung läuft weiter
+  über den `sr-only` `role="status"`-Span.
+
+### Gotcha: `payload migrate:create` interaktiv
+
+Läuft es ohne `< /dev/null`, fragt es „No schema changes detected. Would you like
+to create a blank migration file?" und **erzeugt bei Nichtantwort gar nichts**
+(Exit 0, keine Datei). Immer `< /dev/null` anhängen oder die Frage beantworten.
+

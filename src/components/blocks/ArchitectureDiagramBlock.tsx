@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import type { Page } from '@/payload-types';
 import { CardHeader, StatusDot } from '../ui/industrial';
+import { motionEnabled } from '@/hooks/useScrollReveal';
 
 type ArchitectureDiagramBlockData = Extract<
   NonNullable<Page['layout']>[number],
@@ -35,7 +36,46 @@ export function ArchitectureDiagramBlock({
 }) {
   const layers = block.layers ?? [];
   const [active, setActive] = useState(0);
+  /* Hover cross-highlighting (§3.2): which layer the pointer is over, or null.
+     Non-participating layers dim to 0.45; the hovered one keeps full contrast. */
+  const [hovered, setHovered] = useState<number | null>(null);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const tablistRef = useRef<HTMLDivElement | null>(null);
+
+  /**
+   * Scroll-linked pipeline (§2.4): the vertical connector between the layer
+   * stations fills emerald→cyan as the section travels through the viewport,
+   * and every layer whose marker the fill has passed switches its status dot
+   * on. One CSS variable (`--pipeline-progress`) on the tablist; no state, no
+   * re-render per frame.
+   */
+  useEffect(() => {
+    const tablist = tablistRef.current;
+    if (!tablist || !motionEnabled()) return;
+
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const rect = tablist.getBoundingClientRect();
+      const start = window.innerHeight * 0.85;
+      const end = window.innerHeight * 0.35;
+      const span = rect.height + (start - end);
+      const raw = span > 0 ? (start - rect.top) / span : 1;
+      tablist.style.setProperty('--pipeline-progress', String(Math.min(1, Math.max(0, raw))));
+    };
+    const onScroll = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, []);
 
   const count = layers.length;
   const activeLayer = layers[active];
@@ -112,19 +152,41 @@ export function ArchitectureDiagramBlock({
         <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           {/* ── Layer tabs (vertical pipeline) ────────────────────────── */}
           <div
+            ref={tablistRef}
             role="tablist"
             aria-orientation="vertical"
             aria-label="Architektur-Layer"
-            className="flex flex-col gap-2"
+            className="relative flex flex-col gap-2"
+            onMouseLeave={() => setHovered(null)}
           >
+            {/* Scroll-linked pipeline (§2.4): the spine between the stations,
+                filled from layer 1 to layer N by scroll progress. */}
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute left-8 top-4 bottom-4 w-px bg-border"
+            >
+              <span
+                className="block w-px origin-top bg-gradient-to-b from-primary to-secondary"
+                style={{
+                  height: '100%',
+                  transform: 'scaleY(var(--pipeline-progress, 0))',
+                }}
+              />
+            </span>
             {layers.map((layer, index) => {
               const selected = index === active;
+              const dimmed = hovered !== null && hovered !== index;
               return (
-                <div key={layer.id ?? layer.title} className="relative">
+                <div
+                  key={layer.id ?? layer.title}
+                  className="relative transition-opacity duration-150"
+                  style={{ opacity: dimmed ? 0.45 : 1 }}
+                  onMouseEnter={() => setHovered(index)}
+                >
                   {index < count - 1 && (
                     <span
                       aria-hidden="true"
-                      className="pointer-events-none absolute left-1/2 top-full z-10 h-2 w-px -translate-x-1/2 overflow-hidden bg-border"
+                      className="pointer-events-none absolute left-8 top-full z-10 h-2 w-px -translate-x-1/2 overflow-hidden bg-border"
                     >
                       <span
                         className={`block h-2 w-px ${

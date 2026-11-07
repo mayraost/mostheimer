@@ -2,6 +2,7 @@ import React from 'react';
 import type { Page } from '@/payload-types';
 import { Icon } from './Icon';
 import { BentoTile, CardHeader, Chip } from '../ui/industrial';
+import { RevealGrid } from '../ui/MotionWrappers';
 
 type SkillsetBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'skillset' }>;
 type SkillsetItem = NonNullable<SkillsetBlockData['items']>[number];
@@ -9,8 +10,9 @@ type SkillsetItem = NonNullable<SkillsetBlockData['items']>[number];
 function SkillsetCard({ item, index }: { item: SkillsetItem; index: number }) {
   return (
     <BentoTile
+      data-reveal=""
       className={[
-        'group h-full gap-3 p-5 transition-colors',
+        'bento-reveal group h-full gap-3 p-5 transition-colors',
         item.highlight
           ? 'border-primary/50 bg-surface hover:border-primary'
           : 'border-border hover:border-secondary/60',
@@ -62,11 +64,11 @@ export function SkillsetBlock({ block }: { block: SkillsetBlockData }) {
           )}
         </div>
 
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
+        <RevealGrid className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
           {block.items?.map((item, index) => (
             <SkillsetCard key={item.id ?? item.name} item={item} index={index} />
           ))}
-        </div>
+        </RevealGrid>
 
         {block.ctaLabel && block.ctaLink && (
           <div className="mt-8">

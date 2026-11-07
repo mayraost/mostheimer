@@ -2,6 +2,8 @@ import React from 'react';
 import type { Page } from '@/payload-types';
 import { Icon } from './Icon';
 import { BentoTile, Chip, CornerTicks, Eyebrow, StatusDot } from '../ui/industrial';
+import { SpotlightGrid } from '../ui/MotionWrappers';
+import { Decode } from '../ui/Decode';
 
 type BentoGridBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'bentoGrid' }>;
 type BentoItem = NonNullable<BentoGridBlockData['items']>[number];
@@ -30,8 +32,9 @@ function BentoCard({
 
   const card = (
     <BentoTile
+      data-reveal=""
       className={[
-        'group h-full transition-colors duration-200',
+        'spotlight-card bento-reveal group h-full transition-colors duration-200',
         isEmphasis
           ? 'border-primary/40 bg-surface hover:border-primary hover:shadow-[0_0_28px_-10px_rgba(16,185,129,0.55)]'
           : 'border-border bg-surface hover:border-secondary/60 hover:shadow-[0_0_28px_-10px_rgba(6,182,212,0.45)]',
@@ -42,9 +45,10 @@ function BentoCard({
 
       <div className="relative flex h-full flex-col p-5">
         <div className="mb-5 flex items-start justify-between gap-3">
-          <span className={`mono-label ${isEmphasis ? 'text-primary' : 'text-muted-foreground'}`}>
-            {de ? 'Säule' : 'Pillar'} {String(index + 1).padStart(2, '0')}
-          </span>
+          <Decode
+            text={`${de ? 'Säule' : 'Pillar'} ${String(index + 1).padStart(2, '0')}`}
+            className={`mono-label ${isEmphasis ? 'text-primary' : 'text-muted-foreground'}`}
+          />
           <span className="mono-label flex items-center gap-1.5 text-muted-foreground">
             <StatusDot tone={isEmphasis ? 'primary' : 'secondary'} />
             {item.featured ? 'featured' : 'core'}
@@ -147,7 +151,7 @@ export function BentoGridBlock({ block, locale }: { block: BentoGridBlockData; l
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <SpotlightGrid className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {items.map((item, index) => (
             <BentoCard
               key={item.id ?? item.title}
@@ -156,7 +160,7 @@ export function BentoGridBlock({ block, locale }: { block: BentoGridBlockData; l
               locale={de ? 'de' : 'en'}
             />
           ))}
-        </div>
+        </SpotlightGrid>
       </div>
     </section>
   );
