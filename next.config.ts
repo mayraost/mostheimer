@@ -109,12 +109,26 @@ const PERMISSIONS_POLICY = [
  * safe because every CMS change purges the matching edge objects
  * synchronously; stale-if-error keeps the site up during deploys.
  *
- * 30 days (2592000 s) mirrors the `cacheLife` profile in
- * src/cms/cache/frontend/queries.ts (`stale`/`expire`) and the Cloudflare
- * Cache Response Rule — all three MUST stay in sync.
+ * 1 day fresh (86400 s) + 30 days stale mirrors the `cacheLife` profile in
+ * src/cms/cache/frontend/queries.ts (`stale`/`expire`), the Cloudflare Cache
+ * Rule (`status_code_ttl` 2xx = 86400) and the Cache Response Rule — all
+ * three MUST stay in sync. A longer `s-maxage` is pointless: the status-code
+ * TTL override caps 2xx at one day, while the stale window stays 30 days.
  */
 const PUBLIC_CACHE_CONTROL =
-  'public, s-maxage=2592000, stale-while-revalidate=2592000, stale-if-error=2592000';
+  'public, s-maxage=86400, stale-while-revalidate=2592000, stale-if-error=2592000';
+
+/** OG renders are deterministic per query; 1 day keeps them warm for crawlers. */
+const OG_CACHE_CONTROL =
+  'public, max-age=86400, s-maxage=86400, stale-while-revalidate=2592000, stale-if-error=2592000';
+
+/** Uploaded media (Payload file endpoint + static media path). */
+const MEDIA_CACHE_CONTROL =
+  'public, max-age=86400, s-maxage=86400, stale-while-revalidate=2592000, stale-if-error=2592000';
+
+/** Generated favicon/icon routes (hashed query in the HTML). */
+const FAVICON_CACHE_CONTROL =
+  'public, max-age=86400, s-maxage=86400, stale-while-revalidate=2592000, stale-if-error=2592000';
 
 /**
  * Release identity of this build, inlined into the server bundle and served by
@@ -201,7 +215,10 @@ const nextConfig: NextConfig = {
       // Deliberately not global: that would also block legitimate
       // cross-origin loads such as API fetches from external tooling.
       source: '/media/:path*',
-      headers: [{ key: 'Cross-Origin-Resource-Policy', value: 'same-origin' }],
+      headers: [
+        { key: 'Cross-Origin-Resource-Policy', value: 'same-origin' },
+        { key: 'Cache-Control', value: MEDIA_CACHE_CONTROL },
+      ],
     },
     {
       // Media is also served by Payload's REST file endpoint
@@ -229,10 +246,30 @@ const nextConfig: NextConfig = {
       headers: [{ key: 'Cache-Control', value: PUBLIC_CACHE_CONTROL }],
     },
     {
-      // Admin panel, REST/API surface, live preview and the OG renderer: never
-      // cacheable at the edge, regardless of TTL.
-      source: '/:path(admin|api|preview|og)(.*)',
+      // Admin panel, REST/API surface and live preview: never cacheable at the
+      // edge, regardless of TTL. `/og` is intentionally NOT here: the OG
+      // renderer is public and gets a short, bounded edge TTL instead (see the
+      // dedicated entry below).
+      source: '/:path(admin|api|preview)(.*)',
       headers: [{ key: 'Cache-Control', value: 'private, no-store' }],
+    },
+    {
+      // Per-page OG images: public, 1 day (deterministic per query; warmed at
+      // deploy, stale-if-error covers a longer outage).
+      source: '/og',
+      headers: [{ key: 'Cache-Control', value: OG_CACHE_CONTROL }],
+    },
+    {
+      // Payload's file endpoint is public media; the generic `/api/*` no-store
+      // entry above matches first, so this later entry must re-assert the
+      // public TTL (last entry wins for a given source + header key).
+      source: '/api/media/file/:path*',
+      headers: [{ key: 'Cache-Control', value: MEDIA_CACHE_CONTROL }],
+    },
+    {
+      // Generated favicon route (HTML references it with a content hash query).
+      source: '/favicon.ico',
+      headers: [{ key: 'Cache-Control', value: FAVICON_CACHE_CONTROL }],
     },
     {
       // Locale-scoped preview and settings routes.
