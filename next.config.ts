@@ -118,6 +118,13 @@ const PERMISSIONS_POLICY = [
 const PUBLIC_CACHE_CONTROL =
   'public, s-maxage=86400, stale-while-revalidate=2592000, stale-if-error=2592000';
 
+/**
+ * `headers()` cannot match the response status, so the public directive above
+ * also lands on a 404. The zone's Cache Rule sets every 4xx/5xx to `no-store`
+ * (`status_code_ttl` = -1) and the Response-Rule catch-all adds `no-store`;
+ * both layers are required to keep the 404-poisoning fix intact.
+ */
+
 /** OG renders are deterministic per query; 1 day keeps them warm for crawlers. */
 const OG_CACHE_CONTROL =
   'public, max-age=86400, s-maxage=86400, stale-while-revalidate=2592000, stale-if-error=2592000';

@@ -515,7 +515,7 @@ function resolveOrigins(env = process.env) {
  * `[{ zoneId, origins }]` — the content zone (and only it) by default.
  *
  * Pure: takes the env it reads as a parameter so the policy is unit-testable
- * (`tests/int/cf-purge-script.int.spec.ts`). Cloudflare purges are zone-scoped
+ * (`tests/int/cloudflare-purge.int.spec.ts`). Cloudflare purges are zone-scoped
  * and there is no host-based purge, so a URL must never be handed to a zone that
  * does not own its host: the API answers `success: true` and evicts nothing
  * while spending purge budget (see header).
@@ -546,7 +546,7 @@ function resolveZones(env = process.env) {
   return [{ zoneId, origins: resolveOrigins(env) }];
 }
 
-// Exported for the policy test (tests/int/cf-purge-script.int.spec.ts).
+// Exported for the policy test (tests/int/cloudflare-purge.int.spec.ts).
 export { CONTENT_ORIGINS, DEFAULT_CONTENT_ZONE_ID, resolveOrigins, resolveZones };
 
 async function main() {
