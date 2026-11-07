@@ -141,10 +141,15 @@ const FAVICON_CACHE_CONTROL =
  * Release identity of this build, inlined into the server bundle and served by
  * /api/health: the client-side ReleaseGuard reloads an open tab once after a
  * deploy instead of letting it navigate with the previous build's chunks.
- * Prefers the CI commit (Coolify passes SOURCE_COMMIT as a build arg), falls
- * back to the build timestamp.
+ *
+ * Passed through unchanged; `/api/health` does NOT trust it as the primary
+ * source and prefers the image's Next BUILD_ID (`src/lib/release.ts`). The CI
+ * commit only works when Coolify also injects `SOURCE_COMMIT` into the build
+ * (`include_source_commit_in_build`), which it does NOT here — so a
+ * `build-${Date.now()}` fallback would make every build a "new release" and
+ * send open tabs into a reload loop. Hence: no timestamp fallback.
  */
-const RELEASE_ID = process.env.SOURCE_COMMIT || `build-${Date.now()}`;
+const RELEASE_ID = process.env.SOURCE_COMMIT?.trim() || '';
 
 const nextConfig: NextConfig = {
   output: 'standalone',

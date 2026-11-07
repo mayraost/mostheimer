@@ -1254,9 +1254,23 @@ räumt **kein** Deploy mehr die Edge-Kopie der Chunks (Edge **und** Browser beha
 sie) — dafür ist der ebenfalls gecachte Cache-Layer wertvoller im Ausfall.
 Für „neuer Deploy, alter Client-Bundle":
 `ReleaseGuard` (`src/components/ReleaseGuard.tsx`) holt `/api/health`
-(`release` = Build-ID aus `src/build-info.ts`, beim Build generiert), vergleicht
-sie mit der des Tabs und lädt einen alten Tab beim Mount/Fokus exakt einmal hart
-neu. Härteste Lösung bleibt Next-Skew-Protection (`deploymentId`) — offen.
+(`release` = **Next BUILD_ID**, aus `/app/.cf-release`, siehe `src/lib/release.ts`),
+vergleicht sie mit der des Tabs und lädt einen alten Tab beim Mount/Fokus
+**höchstens einmal pro Release** hart neu. Härteste Lösung bleibt
+Next-Skew-Protection (`deploymentId`) — offen.
+
+### Release-ID: EINE Quelle, an die Image-ID gebunden (07.11.2026)
+
+`src/lib/release.ts` → `getReleaseId()` ist die **einzige** Quelle für
+`/api/health` `release`. Reihenfolge: `/app/.cf-release` (vom Dockerfile aus
+`.next/BUILD_ID` gebacken) → `.next/BUILD_ID` (lokaler Build-Baum) →
+`NEXT_RELEASE_ID` → `null`. Dieselbe Datei liest `scripts/cf-purge.mjs`; Health,
+Deploy-Purge und `ReleaseGuard` teilen damit **eine** Identität.
+
+**NIE einen Zeitstempel als Release-ID.** `build-${Date.now()}` (der frühere
+Fallback in `next.config.ts`) ist pro Build verschieden, auch beim Redeploy
+desselben Commits — Coolify liefert `include_source_commit_in_build=false`, also
+kommt `SOURCE_COMMIT` im Build **leer** an. Folge: jeder Build = „neues Release".
 
 ## Dependencies & Audit (Stand 05.11.2026)
 
