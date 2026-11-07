@@ -1701,3 +1701,53 @@ mit `border-t`.
   nur Suche, Sprache und Menü.
 - Der **MobileNavPortal-Prop-Vertrag ist erweitert** — wer den Drawer je von woanders
   rendert, muss die fünf neuen Props mitgeben (TypeScript erzwingt das).
+
+## Logo-Lockup: `logo-lockup.svg` + `LogoLockup.tsx` (07.11.2026)
+
+Vollständiger Schriftzug (M/O-Glyphen-Marke + MAYRA OSTHEIMER + Subline). Beide Dateien
+kommen aus **einer** Quelle (Generator `gen23.mjs` im Scratch, nicht im Repo) — von Hand
+ändern heißt, die andere Datei driftet.
+
+| Datei                             | Rolle                                                                         |
+| --------------------------------- | ----------------------------------------------------------------------------- |
+| `src/public/logo-lockup.svg`      | Standalone, transparent, `@font-face` Space Grotesk als base64-woff2 eingebettet (~40 KB) |
+| `src/components/LogoLockup.tsx`   | Inline-Variante, `useId()`-präfixierte IDs, Font aus den App-CSS-Variablen     |
+
+### Geometrie, die man nicht raten muss
+
+- **Das M ist keine V-Platte mit zwei Kontrafächen.** Gemessen am Referenzbild besteht jede
+  Zeile des M aus mehreren **disjunkten** Spans (Stem | Band | Inline-„kha" | Band | Stem);
+  die Kanten folgen Geraden, das Band hat ein dunkles Inline-Element. Deshalb ist das M als
+  **43 Bracket-Strips** (254 Vertices, 1.2 px DP-Simplify) abgetragen — ein handgebautes
+  Polygon lag bei ~48 % Pixelabweichung, die Trace bei 3.6 % (M-Region).
+- **Flache Spitzen sind Pflicht:** pincht eine der Shapes auf null Breite, füllen **beide**
+  `fill-rule`s die ganze Fläche. Keine Subpfade, keine Fill-Rule-Tricks.
+- Bewahrt: Stems `304..400`/`698..794` y `493..1004` (Seam-Hairline `350..355`/`743..748`),
+  O-Achteck `874..1262 × 527..1007` mit 45°-Bevels, `</>` 26 px bei 45°, 12 Node-Dots,
+  Bloom = zwei `feGaussianBlur` + `feColorMatrix` + `feMerge`, Wortmarke Space Grotesk
+  `191.6/500/2.6` @ (1423,716), `202.5/700/-8.9` @ (1423,913), Subline `68.4/600/-1.48` @ y 1018.
+
+### Font-Wiring
+
+- Standalone: base64-`@font-face` **im** `<style>` des SVG, `font-display: swap` — damit ist
+  die Datei ohne App-CSS überall identisch. `document.fonts.check('700 40px "Space Grotesk")`
+  → **true** in einer reinen SVG-Dokument-Session, MARKS: `MAYRA`/`OSTHEIMER`/Subline messen
+  sauber (kein Fallback-Breiten-Drift).
+- Component: **kein** eingebettetes Font. Die `<style>`-Regel nutzt
+  `var(--font-heading), var(--font-body), var(--font-space-grotesk)` — diese Tokens liegen in
+  `globals.css` unter `body` (nicht `:root`), weil `next/font` seine Variablen am `<body>`
+  setzt; Referenz in `:root` wäre *invalid at computed-value time* (siehe Font-Stack-Kommentar).
+
+### Gotchas
+
+- **IDs müssen pro Instanz eindeutig sein:** `gM`/`gO`/`gA`/`gS`/`gW`/`bloom` werden über
+  `` `id={`${uid}gM`}` `` bzw. `` `fill={`url(#${uid}gM)`}` `` präfixiert (`useId()` ohne
+  Sonderzeichen). Ohne Präfix gewinnt bei zwei Lockups der erste Filter und der zweite
+  verliert seinen Bloom stumm.
+- **`// WEB & APPLICATION ARCHITECT` als Template-Literal** (`{\`…\`}`) rendern — als nackter
+  JSX-Text läuft `//` in `react/jsx-no-comment-textnodes` und `&` wird in XML zu `&amp;`
+  (im Standalone-XML steht deshalb bewusst `&amp;`, in der Component das Literal).
+- **`<style>` in JSX nur als Template-Literal** (`<style>{\`…\`}</style>`), sonst werden die
+  CSS-Braces als JSX-Expression geparst.
+- Verifikation der Standalone-Datei: `file://`-Navigation (Dokumentmodus) **und** `<img>` mit
+  `data:`-URL — Chromium blockt `file://`-Subressourcen, das sieht sonst wie ein kaputtes SVG aus.
