@@ -1676,3 +1676,28 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - **Keine hartkodierten deutschen UI-Labels in React-Komponenten:** `BentoCard` bekommt
   `locale` als Prop — der
   Card-Header (`Säule 0X` / `Pillar 0X`) wurde vorher hart deutsch gerendert.
+
+## Header: Theme + Settings — Desktop inline, mobil im Burger-Menü (07.11.2026)
+
+Der Header hat rechts fünf Bedienelemente (Suche, Sprache, Theme, Settings, Menü). Unterhalb
+`lg` gibt es die **Theme-Umschaltung und den Settings-Link nicht** — beide sitzen als eigene
+Zeilen am Ende des Burger-Drawers (`MobileNavPortal`), direkt unter der Nav-Liste, abgetrennt
+mit `border-t`.
+
+- **Sichtbarkeit über `hidden lg:flex`, nicht über CSS-Order.** Der Desktop-Block in
+  `Header.tsx` ist ein `<div className="hidden items-center gap-2 lg:flex">`; der Drawer
+  rendert die beiden Zeilen unabhängig davon. Dadurch ist immer nur **eine** der beiden
+  Kopien fokussierbar (kein doppelter Tab-Stop, kein doppelter Accessible Name).
+- **Der Drawer bekommt die Werte als Props** (`themeIcon`, `themeLabel`, `onThemeToggle`,
+  `settingsHref`, `settingsLabel`) — der Theme-State lebt in `SettingsProvider`, den Locale-
+  Pfad kennt nur der Header. `MobileNavPortal` bleibt damit frei von CMS-/Context-Reads und
+  rendert auch im 404-Fallback gleich.
+- **Text-Label statt Icon-only im Drawer:** Zeilen im Nav-Rhythmus (`min-h-11`, `mono-label`,
+  Label links, Icon rechts), damit das 44px-Touch-Target hält und „Theme"/„Settings" auch bei
+  `large-font` verständlich bleibt. Verifiziert mit `large-font` + `light`: einzeilig, kein
+  Umbruch, Drawer scrollt.
+- **`lg` (1024px) ist die Grenze, weil dort die Header-Zeile sonst bricht.** Bei 390 px
+  gemessen: Header-Zeile `scrollWidth === clientWidth`, keine Überläufe, fokussierbar sind
+  nur Suche, Sprache und Menü.
+- Der **MobileNavPortal-Prop-Vertrag ist erweitert** — wer den Drawer je von woanders
+  rendert, muss die fünf neuen Props mitgeben (TypeScript erzwingt das).

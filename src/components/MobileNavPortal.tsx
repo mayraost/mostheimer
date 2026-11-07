@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useSyncExternalStore } from 'react';
+import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { X } from 'lucide-react';
+import { Settings, X } from 'lucide-react';
 
 type NavLink = {
   label: string;
@@ -29,6 +30,11 @@ type NavLink = {
  * `overflow: hidden`. On close, every inline property is removed individually
  * and the scroll position restored — never write `overflow: 'unset'`, which
  * would override the CSS `overflow-x: clip`.
+ *
+ * The drawer owns the theme toggle and the settings link below `lg`. They are
+ * passed in as props (`themeIcon`/`onThemeToggle`/`settingsHref`) because the
+ * theme state lives in `SettingsProvider` and the links need the locale.
+ * Desktop keeps both in the header; the drawer is simply never opened there.
  */
 export function MobileNavPortal({
   open,
@@ -37,6 +43,11 @@ export function MobileNavPortal({
   title,
   closeLabel,
   statusLabel,
+  settingsHref,
+  settingsLabel,
+  themeLabel,
+  themeIcon,
+  onThemeToggle,
 }: {
   open: boolean;
   onClose: () => void;
@@ -44,6 +55,11 @@ export function MobileNavPortal({
   title: string;
   closeLabel: string;
   statusLabel: string;
+  settingsHref: string;
+  settingsLabel: string;
+  themeLabel: string;
+  themeIcon: ReactNode;
+  onThemeToggle: () => void;
 }) {
   // SSR guard without setState in an effect: portal only after hydration.
   const mounted = useSyncExternalStore(
@@ -199,6 +215,37 @@ export function MobileNavPortal({
               </li>
             ))}
           </ul>
+
+          {/*
+           * Theme + settings moved out of the mobile header row to keep it
+           * from wrapping: plain list rows (same rhythm as the nav items) so
+           * the 44px touch targets hold and a text label stays visible — the
+           * icon-only buttons in the header are desktop-only.
+           */}
+          <div className="mt-2 flex flex-col gap-2 border-t border-border pt-2">
+            <button
+              onClick={onThemeToggle}
+              className="mono-label flex min-h-11 items-center justify-between gap-3 rounded-[6px] border border-transparent px-3 py-3 text-left text-muted-foreground transition-colors hover:border-border hover:bg-surface-raised hover:text-foreground"
+              aria-label={themeLabel}
+              title={themeLabel}
+              type="button"
+              tabIndex={open ? undefined : -1}
+            >
+              <span>{themeLabel}</span>
+              {themeIcon}
+            </button>
+            <Link
+              href={settingsHref}
+              className="mono-label flex min-h-11 items-center justify-between gap-3 rounded-[6px] border border-transparent px-3 py-3 text-muted-foreground transition-colors hover:border-border hover:bg-surface-raised hover:text-foreground"
+              aria-label={settingsLabel}
+              title={settingsLabel}
+              onClick={onClose}
+              tabIndex={open ? undefined : -1}
+            >
+              <span>{settingsLabel}</span>
+              <Settings className="h-4 w-4" />
+            </Link>
+          </div>
         </nav>
 
         <div className="shrink-0 border-t border-border p-4">
