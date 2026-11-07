@@ -1,4 +1,5 @@
 import type { GlobalConfig } from 'payload';
+import { protectedAuthorshipFields } from '../security/authorship';
 import { revalidateNotFoundCache } from '../cache/frontend/frontendCache';
 import { wordingBeforeValidate } from '../wording/beforeValidateWordingCheck';
 
@@ -37,5 +38,7 @@ export const NotFound: GlobalConfig = {
       localized: true,
       defaultValue: '/',
     },
+    // Authorship is admin-only metadata; public reads must not carry it.
+    ...protectedAuthorshipFields(),
   ],
 };

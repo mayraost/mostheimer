@@ -1,4 +1,5 @@
-import { GlobalConfig } from 'payload';
+import type { GlobalConfig } from 'payload';
+import { protectedAuthorshipFields } from '../security/authorship';
 import { revalidateTranslationsCache } from '../cache/frontend/frontendCache';
 import { wordingBeforeValidate } from '../wording/beforeValidateWordingCheck';
 
@@ -307,5 +308,7 @@ export const Translations: GlobalConfig = {
         },
       ],
     },
+    // Authorship is admin-only metadata; public reads must not carry it.
+    ...protectedAuthorshipFields(),
   ],
 };

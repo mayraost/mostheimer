@@ -432,6 +432,55 @@ await payload.delete({ collection: 'posts', id: '123' });
 - **Plugin:** `@payloadcms/plugin-mcp` exakt `4.0.0-beta.7` (in `src/payload.config.ts`); Scope: alle Built-in-Tools ON bis auf `delete@media`; `users` read-only (`find` via `overrideResponse` redigiert `hash`/`salt`). Machtkontrolle = Permissions des Key-Owner-Users (keine per-Key-Toggles in Beta.6).
 - **Key-Erzwungene Reveal-Kette:** Key = `useAPIKey` am Owner-User (Users-Collection, `reveal: true`); Migration `20261104_165445_add_mcp_api_keys` legt `api_key`/`api_key_index`/`api_key_last4` an; Prod-Key in `~/.config/opencode/.secrets/payload-mcp-prod-api-key` (chmod 600), Secret-Files nie ins Repo.
 
+### MCP-Write-Muster (aus der Praxis, 07.11.2026)
+
+- **Lokalisierte Felder sind `required: true` — ein Teil-Update wird abgelehnt.** Ein
+  `updateGlobal`/`updateDocument` mit nur z. B. `{settings: {themeDescription}}` antwortet
+  200, schreibt aber nichts (bzw. scheitert an der Validierung). Muster: **vollständigen
+  Datensatz lesen → im Speicher ändern → komplett zurückschreiben** (ohne `id`,
+  `createdBy`/`updatedBy`, `updatedAt`, `createdAt`, `globalType`). Danach **re-read**
+  und den geänderten Wert prüfen; „updated successfully" ist kein Beweis.
+- Lokale Antworten des MCP kommen als Textblock (`Document from collection "pages": {...}`
+  bzw. ```json-Fences) — vor dem Weiterverarbeiten auf das JSON-Objekt zuschneiden
+  (erste `{` bis letzte `}`).
+- Seiten-Updates brauchen `_status: 'published'` + `draft: false`, sonst kippt das
+  Dokument in den Draft (siehe Abschnitt „Produktive Payload-Writes").
+
+## Security: `users` darf nie öffentlich ausgeliefert werden (Stand 07.11.2026)
+
+**Symptom (Prod, gemeldet):** `GET /api/pages?depth=1` lieferte über die Relationen
+`createdBy`/`updatedBy` vollständige `users`-Dokumente (E-Mail, `apiKey*`, komplettes
+`sessions`-Array). `/api/users` antwortete zwar schon 403, aber **Payloads Relation-Populate
+umging den Collection-Access** — der Leak saß also in der _populierten_ Relation, nicht im
+Endpunkt.
+
+**Zwei unabhängige Schichten (beide nötig, beide drin):**
+
+1. **Users-Collection** (`src/cms/collections/Users.ts`): `access.read` = nur mit Session;
+   zusätzlich `defaultPopulate: { name: true }`, damit ein Populate selbst dann nur den
+   Anzeigenamen enthält, wenn der Zugriff erlaubt ist.
+2. **Authorship-Felder** (`src/cms/security/authorship.ts` → `protectedAuthorshipFields()`):
+   `createdBy`/`updatedBy` werden via `createCreatedByField`/`createUpdatedByField`
+   (Export aus `payload`) mit `access.read: Boolean(user)` **überschrieben**. Kein
+   `authorship: false`! Das würde die Stamping-Hooks verlieren.
+   - **Warum manuell statt weglassen:** Payloads `sanitize` **injiziert** die Felder
+     automatisch, sobald irgendeine Collection Auth hat (`payload/dist/collections/config/sanitize.js`,
+     `authorship` default `{createdBy: true, updatedBy: true}`) — bei `users`, `media`
+     und `pages` waren sie also ohne eigenes Zutun da. Weglassen reicht nicht, das Feld
+     muss mit Access-Override **deklariert** werden (Spread oder als Feld-Eintrag, danach
+     backfillt `sanitize` nur noch `relationTo`).
+   - `protectedAuthorshipFields()` liegt in **allen** Collections (`users`, `media`,
+     `pages`) und **allen** Globals (`navigation`, `not-found`, `site-settings`,
+     `translations`) am Ende des `fields`-Arrays. **Neue Collection/Global → aufnehmen**,
+     sonst leakt der Author wieder.
+   - Keine Migration nötig (kein Schema-/Spalten-Change, reine Access-/Admin-Config).
+
+**Verifikation (ohne Login-Cookie):** `GET /api/pages?depth=2` → `createdBy`/`updatedBy`
+fehlen komplett; `GET /api/users` → 403; `GET /api/globals/translations?depth=1` → kein
+`createdBy`/`updatedBy`. Am Origin prüfen (`ssh coolify "curl -s http://127.0.0.1:3300/..."`
+bzw. lokaler Standalone), weil der Edge-Cache alte API-Antworten nicht kennt — API ist
+`no-store`.
+
 ## Theming & UI
 
 ### Theme-System
@@ -1611,3 +1660,19 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## QA Iteration 3 — Anchor-IDs, Wording, Security (07.11.2026)
+
+- **Anchor-IDs sind locale-abhängig:** die Architektur-Sektion (`BentoGridBlock`) rendert
+  `id="architektur"` (de) bzw. `id="architecture"` (en). Der Hero-CTA muss dazu passen —
+  im CMS ist `en/home → hero.ctaLink = "#architecture"`, `de/home = "#architektur"`. Die
+  Command-Palette zieht per `EN_LABELS[...].href` nach. **Nie einen deutschen Anchor in
+  EN-Content schreiben**: erloescht still (kein Scroll, kein Fehler).
+- **„Schön Klinik" ist vorerst aus allen Inhalten entfernt** (Case Study + Career-Timeline,
+  beide Locales). BORA, Allianz und hoerzu.de bleiben. Bei Textänderungen an den
+  caseStudy-/Timeline-Einträgen also weiterhin ohne Schön-Klinik-Erwähnung.
+- **Anrede DE:** Content-/UI-Seiten duzen, nur `impressum` und `privacy` siezen. Neue
+  UI-Texte im `translations`-Global entsprechend duzen.
+- **Keine hartkodierten deutschen UI-Labels in React-Komponenten:** `BentoCard` bekommt
+  `locale` als Prop — der
+  Card-Header (`Säule 0X` / `Pillar 0X`) wurde vorher hart deutsch gerendert.
