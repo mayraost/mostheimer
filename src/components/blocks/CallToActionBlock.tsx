@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Page } from '@/payload-types';
 import { Eyebrow, StatusDot } from '../ui/industrial';
+import { ctaArrowClass, ctaArrowHoverClass, ctaMotionClass } from '../ui/ActionLinkButton';
 
 type CallToActionBlockData = Extract<
   NonNullable<Page['layout']>[number],
@@ -47,14 +48,17 @@ export function CallToActionBlock({ block }: { block: CallToActionBlockData }) {
               <a
                 href={block.buttonLink}
                 className={[
-                  'mono-label inline-flex min-h-11 shrink-0 items-center gap-2 rounded-[6px] px-5 transition-colors',
+                  'group mono-label inline-flex min-h-11 shrink-0 items-center gap-2 rounded-[6px] px-5',
                   isPrimary
                     ? 'bg-primary text-primary-foreground hover:bg-primary-hover'
                     : 'border border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground',
+                  ctaMotionClass,
                 ].join(' ')}
               >
                 {block.buttonLabel}
-                <span aria-hidden="true">→</span>
+                <span aria-hidden="true" className={`${ctaArrowClass} ${ctaArrowHoverClass}`}>
+                  →
+                </span>
               </a>
             )}
           </div>

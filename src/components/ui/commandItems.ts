@@ -4,8 +4,9 @@ import type { CommandItem } from '@/components/ui/CommandPalette';
  * Command palette entries per locale.
  *
  * A static constant rather than CMS content on purpose: the palette mirrors the
- * site's information architecture, not editorial copy. Anchors (`#architektur`)
- * only exist on the home page, where they act as in-page jumps.
+ * site's information architecture, not editorial copy. Anchors
+ * (`#architektur` / `#architecture`) only exist on the home page, where they act
+ * as in-page jumps; the anchor id follows the locale (see BentoGridBlock).
  */
 const BASE_ITEMS: CommandItem[] = [
   {
@@ -34,7 +35,7 @@ const BASE_ITEMS: CommandItem[] = [
     label: 'Case Studies',
     href: '/case-studies',
     group: 'pages',
-    keywords: ['projekte', 'enterprise', 'impact', 'referenzen', 'schön klinik', 'hoerzu'],
+    keywords: ['projekte', 'enterprise', 'impact', 'referenzen', 'hoerzu', 'bora', 'allianz'],
   },
   {
     id: 'tech-radar',
@@ -80,11 +81,16 @@ const BASE_ITEMS: CommandItem[] = [
   },
 ];
 
-const EN_LABELS: Record<string, { label: string; keywords: string[]; group?: string }> = {
+const EN_LABELS: Record<
+  string,
+  { label: string; keywords: string[]; href?: string; group?: string }
+> = {
   home: { label: 'Home / Profile', keywords: ['start', 'about', 'profile'] },
   architektur: {
     label: 'Architecture philosophy',
-    keywords: ['pillars', 'system architecture', 'principles', 'approach'],
+    // English anchor: the section id is locale-aware on the home page.
+    href: '#architecture',
+    keywords: ['pillars', 'system architecture', 'principles', 'approach', 'architektur'],
   },
   schaubild: {
     label: 'Interactive architecture diagram',
@@ -108,6 +114,7 @@ export function getCommandItems(locale: string): CommandItem[] {
       ...item,
       label: override?.label ?? item.label,
       keywords: override?.keywords ?? item.keywords,
+      href: override?.href ?? item.href,
       group: item.group,
     };
   });

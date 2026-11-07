@@ -80,7 +80,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
 
     setCurrentAnimations(disableAnimations ? 'off' : 'on');
+    // Single source of truth for both guardrail layers (CSS + hooks): the
+    // class lives on <html> (same element the pre-hydration MOTION_BOOTSTRAP
+    // touches). `motion-assets` arms the hidden reveal start states; without it
+    // everything stays visible, which is what "animations off" must mean.
     root.classList.toggle('no-animations', disableAnimations);
+    root.classList.toggle('motion-assets', !disableAnimations);
+    document.body.classList.toggle('no-animations', disableAnimations);
     localStorage.setItem('animations', animations);
   }, [theme, fontSize, animations, mounted]);
 

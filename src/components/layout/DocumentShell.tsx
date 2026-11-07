@@ -15,6 +15,23 @@ export { BODY_FONT_CLASS };
  */
 export const THEME_BOOTSTRAP = `(function(){try{var s=localStorage.getItem('theme');var t=(s==='light'||s==='dark'||s==='system')?s:'dark';var c=t==='system'?(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):t;var r=document.documentElement;r.classList.remove('light','dark');r.classList.add(c);}catch(e){document.documentElement.classList.add('dark');}})();`;
 
+/**
+ * Pre-hydration motion bootstrap (dual guardrail, spec §1.1).
+ *
+ * SettingsProvider applies the same decision a frame later; doing it HERE
+ * keeps the first paint correct in both directions:
+ * - animations ON  → `html.motion-assets`, which arms the hidden start states;
+ *   without it a page would paint fully visible and then jump into the reveal.
+ * - animations OFF (user setting `off` OR `prefers-reduced-motion: reduce`)
+ *   → `html.motion-assets` is never set and `body.no-animations` is applied, so
+ *   nothing is ever hidden. Reduced motion is checked here too because the CSS
+ *   guardrail alone cannot stop the hooks from running.
+ *
+ * Mirrors `SettingsProvider`'s precedence exactly: an explicit `on` wins over
+ * the OS preference (same as the settings page documents).
+ */
+export const MOTION_BOOTSTRAP = `(function(){try{var r=document.documentElement;var s=localStorage.getItem('animations');var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;var off=s==='off'||(s!=='on'&&reduce);r.classList.toggle('motion-assets',!off);if(off){(function apply(){var b=document.body;if(!b){document.addEventListener('DOMContentLoaded',apply,{once:true});return;}b.classList.add('no-animations');})();}}catch(e){}})();`;
+
 function SkipLink({ locale }: { locale: string }) {
   const label = locale === 'de' ? 'Zum Inhalt springen' : 'Skip to content';
   return (
@@ -51,6 +68,9 @@ export function DocumentShell({ locale, children }: { locale: string; children: 
       {/* eslint-disable-next-line @next/next/no-head-element */}
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
+        {/* Motion guardrail before the first paint: a stored "animations off"
+            or an OS reduce-motion preference must never flash an animation. */}
+        <script dangerouslySetInnerHTML={{ __html: MOTION_BOOTSTRAP }} />
         {/* Consent Mode v2: Default-Signale MÜSSEN vor jedem GTM-Script
             evaluiert werden — daher hier im Head, vor allen Container-Scripts. */}
         <ConsentBootstrapScript />

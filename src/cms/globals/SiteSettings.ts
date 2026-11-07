@@ -1,4 +1,5 @@
 import type { GlobalConfig } from 'payload';
+import { protectedAuthorshipFields } from '../security/authorship';
 import { revalidateSiteSettingsCache } from '../cache/frontend/frontendCache';
 import { wordingBeforeValidate } from '../wording/beforeValidateWordingCheck';
 
@@ -45,5 +46,7 @@ export const SiteSettings: GlobalConfig = {
       type: 'upload',
       relationTo: 'media',
     },
+    // Authorship is admin-only metadata; public reads must not carry it.
+    ...protectedAuthorshipFields(),
   ],
 };

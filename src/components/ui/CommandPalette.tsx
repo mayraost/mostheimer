@@ -311,9 +311,12 @@ export function CommandPalette({ locale, items }: { locale: string; items: Comma
                             onClick={() => run(item)}
                             onMouseMove={() => setActiveIndex(index)}
                             className={[
-                              'flex w-full items-center justify-between gap-3 rounded-[4px] px-3 py-2 text-left transition-colors',
+                              // §3.5: active entry gets a 2px emerald indicator
+                              // bar on the left plus a background lift. The bar is
+                              // a box-shadow inset, so toggling it never reflows.
+                              'flex w-full items-center justify-between gap-3 rounded-[4px] px-3 py-2 text-left transition-colors duration-150 ease-out-quart',
                               active
-                                ? 'bg-primary-muted text-foreground ring-1 ring-primary'
+                                ? 'bg-[rgba(255,255,255,0.04)] text-foreground shadow-[inset_2px_0_0_0_var(--color-primary)]'
                                 : 'text-muted-foreground hover:bg-surface-raised',
                             ].join(' ')}
                           >

@@ -2,6 +2,8 @@ import React from 'react';
 import type { Page } from '@/payload-types';
 import { Icon, isKnownIcon } from './Icon';
 import { BentoTile, Chip, CornerTicks, Eyebrow, StatusDot } from '../ui/industrial';
+import { SpotlightGrid } from '../ui/MotionWrappers';
+import { Decode } from '../ui/Decode';
 
 type BentoGridBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'bentoGrid' }>;
 type BentoItem = NonNullable<BentoGridBlockData['items']>[number];
@@ -21,7 +23,15 @@ type BentoItem = NonNullable<BentoGridBlockData['items']>[number];
  * catalog the frame must NOT render — an empty emerald/dashed ring reads as
  * broken ("Säule 02/03/05 look weird"), worse than having no icon at all.
  */
-function BentoCard({ item, index, locale }: { item: BentoItem; index: number; locale?: string }) {
+function BentoCard({
+  item,
+  index,
+  locale,
+}: {
+  item: BentoItem;
+  index: number;
+  locale: 'de' | 'en';
+}) {
   /*
    * Emphasis is the CMS `featured` flag — nothing else. Two earlier sources of
    * noise are gone on purpose:
@@ -39,8 +49,9 @@ function BentoCard({ item, index, locale }: { item: BentoItem; index: number; lo
 
   const card = (
     <BentoTile
+      data-reveal=""
       className={[
-        'group h-full transition-colors duration-200',
+        'spotlight-card bento-reveal group h-full transition-colors duration-200',
         isEmphasis
           ? // Featured pillar: emerald hairline + emerald corner ticks carry the
             // hierarchy (spans 2 columns). Only one tile should look like this.
@@ -54,9 +65,10 @@ function BentoCard({ item, index, locale }: { item: BentoItem; index: number; lo
 
       <div className="relative flex h-full flex-col p-5">
         <div className="mb-5 flex items-start justify-between gap-3">
-          <span className={`mono-label ${isEmphasis ? 'text-primary' : 'text-muted-foreground'}`}>
-            {pillarLabel}
-          </span>
+          <Decode
+            text={pillarLabel}
+            className={`mono-label ${isEmphasis ? 'text-primary' : 'text-muted-foreground'}`}
+          />
           {item.featured && (
             <span className="mono-label flex items-center gap-1.5 text-primary">
               <StatusDot tone="primary" />
@@ -142,8 +154,12 @@ export function BentoGridBlock({ block, locale }: { block: BentoGridBlockData; l
   const de = locale === 'de';
 
   return (
-    /* id="architektur": anchor target of the hero CTA. */
-    <section id="architektur" className="w-full scroll-mt-24 pt-6 pb-16 lg:py-16">
+    /* Locale-aware anchor for the hero CTA: "#architektur" (de) / "#architecture"
+       (en). The old fixed German id broke the English hero CTA target. */
+    <section
+      id={de ? 'architektur' : 'architecture'}
+      className="w-full scroll-mt-24 pt-6 pb-16 lg:py-16"
+    >
       <div className="mx-auto w-full max-w-6xl">
         <div className="mb-8 border-b border-border pb-6">
           <Eyebrow>{de ? 'Architektur-Ansatz' : 'Architecture approach'}</Eyebrow>
@@ -161,11 +177,16 @@ export function BentoGridBlock({ block, locale }: { block: BentoGridBlockData; l
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <SpotlightGrid className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {items.map((item, index) => (
-            <BentoCard key={item.id ?? item.title} item={item} index={index} locale={locale} />
+            <BentoCard
+              key={item.id ?? item.title}
+              item={item}
+              index={index}
+              locale={de ? 'de' : 'en'}
+            />
           ))}
-        </div>
+        </SpotlightGrid>
       </div>
     </section>
   );

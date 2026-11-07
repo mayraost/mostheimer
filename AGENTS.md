@@ -432,6 +432,55 @@ await payload.delete({ collection: 'posts', id: '123' });
 - **Plugin:** `@payloadcms/plugin-mcp` exakt `4.0.0-beta.7` (in `src/payload.config.ts`); Scope: alle Built-in-Tools ON bis auf `delete@media`; `users` read-only (`find` via `overrideResponse` redigiert `hash`/`salt`). Machtkontrolle = Permissions des Key-Owner-Users (keine per-Key-Toggles in Beta.6).
 - **Key-Erzwungene Reveal-Kette:** Key = `useAPIKey` am Owner-User (Users-Collection, `reveal: true`); Migration `20261104_165445_add_mcp_api_keys` legt `api_key`/`api_key_index`/`api_key_last4` an; Prod-Key in `~/.config/opencode/.secrets/payload-mcp-prod-api-key` (chmod 600), Secret-Files nie ins Repo.
 
+### MCP-Write-Muster (aus der Praxis, 07.11.2026)
+
+- **Lokalisierte Felder sind `required: true` — ein Teil-Update wird abgelehnt.** Ein
+  `updateGlobal`/`updateDocument` mit nur z. B. `{settings: {themeDescription}}` antwortet
+  200, schreibt aber nichts (bzw. scheitert an der Validierung). Muster: **vollständigen
+  Datensatz lesen → im Speicher ändern → komplett zurückschreiben** (ohne `id`,
+  `createdBy`/`updatedBy`, `updatedAt`, `createdAt`, `globalType`). Danach **re-read**
+  und den geänderten Wert prüfen; „updated successfully" ist kein Beweis.
+- Lokale Antworten des MCP kommen als Textblock (`Document from collection "pages": {...}`
+  bzw. ```json-Fences) — vor dem Weiterverarbeiten auf das JSON-Objekt zuschneiden
+  (erste `{` bis letzte `}`).
+- Seiten-Updates brauchen `_status: 'published'` + `draft: false`, sonst kippt das
+  Dokument in den Draft (siehe Abschnitt „Produktive Payload-Writes").
+
+## Security: `users` darf nie öffentlich ausgeliefert werden (Stand 07.11.2026)
+
+**Symptom (Prod, gemeldet):** `GET /api/pages?depth=1` lieferte über die Relationen
+`createdBy`/`updatedBy` vollständige `users`-Dokumente (E-Mail, `apiKey*`, komplettes
+`sessions`-Array). `/api/users` antwortete zwar schon 403, aber **Payloads Relation-Populate
+umging den Collection-Access** — der Leak saß also in der _populierten_ Relation, nicht im
+Endpunkt.
+
+**Zwei unabhängige Schichten (beide nötig, beide drin):**
+
+1. **Users-Collection** (`src/cms/collections/Users.ts`): `access.read` = nur mit Session;
+   zusätzlich `defaultPopulate: { name: true }`, damit ein Populate selbst dann nur den
+   Anzeigenamen enthält, wenn der Zugriff erlaubt ist.
+2. **Authorship-Felder** (`src/cms/security/authorship.ts` → `protectedAuthorshipFields()`):
+   `createdBy`/`updatedBy` werden via `createCreatedByField`/`createUpdatedByField`
+   (Export aus `payload`) mit `access.read: Boolean(user)` **überschrieben**. Kein
+   `authorship: false`! Das würde die Stamping-Hooks verlieren.
+   - **Warum manuell statt weglassen:** Payloads `sanitize` **injiziert** die Felder
+     automatisch, sobald irgendeine Collection Auth hat (`payload/dist/collections/config/sanitize.js`,
+     `authorship` default `{createdBy: true, updatedBy: true}`) — bei `users`, `media`
+     und `pages` waren sie also ohne eigenes Zutun da. Weglassen reicht nicht, das Feld
+     muss mit Access-Override **deklariert** werden (Spread oder als Feld-Eintrag, danach
+     backfillt `sanitize` nur noch `relationTo`).
+   - `protectedAuthorshipFields()` liegt in **allen** Collections (`users`, `media`,
+     `pages`) und **allen** Globals (`navigation`, `not-found`, `site-settings`,
+     `translations`) am Ende des `fields`-Arrays. **Neue Collection/Global → aufnehmen**,
+     sonst leakt der Author wieder.
+   - Keine Migration nötig (kein Schema-/Spalten-Change, reine Access-/Admin-Config).
+
+**Verifikation (ohne Login-Cookie):** `GET /api/pages?depth=2` → `createdBy`/`updatedBy`
+fehlen komplett; `GET /api/users` → 403; `GET /api/globals/translations?depth=1` → kein
+`createdBy`/`updatedBy`. Am Origin prüfen (`ssh coolify "curl -s http://127.0.0.1:3300/..."`
+bzw. lokaler Standalone), weil der Edge-Cache alte API-Antworten nicht kennt — API ist
+`no-store`.
+
 ## Theming & UI
 
 ### Theme-System
@@ -1677,3 +1726,166 @@ Drawer öffnet sich dort gar nicht. Messweg: `npm run build`, `src/public` und
 **Achtung:** `'use cache'`-Queries halten die alte HTML-Antwort, also immer mit
 Cache-Buster (`?cb=$RANDOM`) gegen den Origin prüfen, sonst misst man den
 vorherigen Build. Tests: `tests/int/nav-state.int.spec.ts` (10 Fälle, ohne DB).
+## QA Iteration 3 — Anchor-IDs, Wording, Security (07.11.2026)
+
+- **Anchor-IDs sind locale-abhängig:** die Architektur-Sektion (`BentoGridBlock`) rendert
+  `id="architektur"` (de) bzw. `id="architecture"` (en). Der Hero-CTA muss dazu passen —
+  im CMS ist `en/home → hero.ctaLink = "#architecture"`, `de/home = "#architektur"`. Die
+  Command-Palette zieht per `EN_LABELS[...].href` nach. **Nie einen deutschen Anchor in
+  EN-Content schreiben**: erloescht still (kein Scroll, kein Fehler).
+- **„Schön Klinik" ist vorerst aus allen Inhalten entfernt** (Case Study + Career-Timeline,
+  beide Locales). BORA, Allianz und hoerzu.de bleiben. Bei Textänderungen an den
+  caseStudy-/Timeline-Einträgen also weiterhin ohne Schön-Klinik-Erwähnung.
+- **Anrede DE:** Content-/UI-Seiten duzen, nur `impressum` und `privacy` siezen. Neue
+  UI-Texte im `translations`-Global entsprechend duzen.
+- **Keine hartkodierten deutschen UI-Labels in React-Komponenten:** `BentoCard` bekommt
+  `locale` als Prop — der
+  Card-Header (`Säule 0X` / `Pillar 0X`) wurde vorher hart deutsch gerendert.
+
+## Header: Theme + Settings — Desktop inline, mobil im Burger-Menü (07.11.2026)
+
+Der Header hat rechts fünf Bedienelemente (Suche, Sprache, Theme, Settings, Menü). Unterhalb
+`lg` gibt es die **Theme-Umschaltung und den Settings-Link nicht** — beide sitzen als eigene
+Zeilen am Ende des Burger-Drawers (`MobileNavPortal`), direkt unter der Nav-Liste, abgetrennt
+mit `border-t`.
+
+- **Sichtbarkeit über `hidden lg:flex`, nicht über CSS-Order.** Der Desktop-Block in
+  `Header.tsx` ist ein `<div className="hidden items-center gap-2 lg:flex">`; der Drawer
+  rendert die beiden Zeilen unabhängig davon. Dadurch ist immer nur **eine** der beiden
+  Kopien fokussierbar (kein doppelter Tab-Stop, kein doppelter Accessible Name).
+- **Der Drawer bekommt die Werte als Props** (`themeIcon`, `themeLabel`, `onThemeToggle`,
+  `settingsHref`, `settingsLabel`) — der Theme-State lebt in `SettingsProvider`, den Locale-
+  Pfad kennt nur der Header. `MobileNavPortal` bleibt damit frei von CMS-/Context-Reads und
+  rendert auch im 404-Fallback gleich.
+- **Text-Label statt Icon-only im Drawer:** Zeilen im Nav-Rhythmus (`min-h-11`, `mono-label`,
+  Label links, Icon rechts), damit das 44px-Touch-Target hält und „Theme"/„Settings" auch bei
+  `large-font` verständlich bleibt. Verifiziert mit `large-font` + `light`: einzeilig, kein
+  Umbruch, Drawer scrollt.
+- **`lg` (1024px) ist die Grenze, weil dort die Header-Zeile sonst bricht.** Bei 390 px
+  gemessen: Header-Zeile `scrollWidth === clientWidth`, keine Überläufe, fokussierbar sind
+  nur Suche, Sprache und Menü.
+- Der **MobileNavPortal-Prop-Vertrag ist erweitert** — wer den Drawer je von woanders
+  rendert, muss die fünf neuen Props mitgeben (TypeScript erzwingt das).
+## Scroll-Animationen & Micro-Interactions (07.11.2026)
+
+Umsetzung der Spec „High-Performance Scroll Animations". Leitregel: **nur
+`transform`/`opacity`**, kein Scroll-Jacking, CLS = 0.
+
+### Dateien
+
+| Datei | Rolle |
+| --- | --- |
+| `src/hooks/useScrollReveal.ts` | `IntersectionObserver` (`threshold .12`, `rootMargin "0px 0px -40px 0px"`), einmalig; exportiert `motionEnabled()` als **einzige** Motion-Entscheidung |
+| `src/hooks/useBentoSpotlight.ts` | EIN rAF-gedrosselter `pointermove`-Listener aufs Grid, schreibt `--mouse-x/--mouse-y` auf die Karte — **kein React-State** |
+| `src/hooks/useTimelineProgress.ts` | Scroll-Fortschritt → `--rail-progress` + `data-active` auf der aktiven Station |
+| `src/components/ui/MotionWrappers.tsx` | `RevealGrid` / `SpotlightGrid`: Client-Wrapper, nehmen Server-`children` (Seiten bleiben RSC) |
+| `src/components/ui/Decode.tsx` | Mono-Decode (280ms) + Count-Up (350ms) für numerische Metriken |
+| `src/components/ui/ScrollProgressBar.tsx` | Top-Bar, primär `animation-timeline: scroll(root)`, Fallback `--scroll-progress` |
+| `src/components/ui/LiveDot.tsx` | Telemetrie-Puls (3.5s, Ring `scale(1)→2.2`, `opacity .5→0`) |
+| `src/components/blocks/TimelineRail.tsx` | Client-Island für die Timeline-Rails (Beam `scaleY`) |
+
+### Dual Motion-Guardrail — EINE Quelle, `<html>`
+
+- `MOTION_BOOTSTRAP` (`DocumentShell`, `<head>`, **vor** dem ersten Paint) setzt
+  `html.motion-assets` (an) bzw. `no-animations` (aus). `SettingsProvider`
+  spiegelt die Klasse auf `<html>` **und** `<body>`.
+- `motionEnabled()` prüft `html.no-animations`, `body.no-animations` **und** das
+  Fehlen von `html.motion-assets` → in allen Fällen `false`.
+- **Gotcha:** `SettingsProvider` toggelt historisch `root.classList`
+  (= `<html>`), meine CSS-Regeln zielten zuerst nur auf `body`. Beides muss
+  abgedeckt bleiben — sonst greift der Guardrail je nach Schreibweg nur halb.
+- **Gotcha:** Der bestehende `@media (prefers-reduced-motion)`-Block setzt nur
+  `animation-duration: 0.001ms`; das **kann einen per Klasse gesetzten
+  Startzustand (`opacity:0`) NIE aufheben.** Deshalb der eigene Block, der
+  `[data-reveal]`/`[data-decode]`/`[data-scroll-progress]` hart auf
+  `opacity:1; transform:none` zwingt.
+
+### Startzustand ist per Default SICHTBAR
+
+Ohne JS / ohne `motion-assets` ist **alles sichtbar**. Der versteckte Zustand
+(`data-reveal="pending"`) wird erst clientseitig gesetzt, und Elemente im ersten
+Viewport werden sofort gezeigt (sonst wirkt der Hero wie ein Ladezustand).
+Nie `opacity:0` als CSS-Default auf Reveal-Ziele schreiben.
+
+### CLS-Regeln, die hier gelten
+
+- Header-Kompression ändert `h-16 → h-14`: **nicht** animieren (Layout-Property),
+  nur Backdrop/Border transitionen. Der Inhalt liegt im Normalfluss unter dem
+  sticky Header → kein Shift.
+- `Decode` bei Zahlen: `font-variant-numeric: tabular-nums` ist Pflicht, sonst
+  zittert die Breite beim Hochzählen.
+- Spotlight/Glint färben nur `border-color`/`background` — keine Boxänderung.
+
+### Wording/Content
+
+- `clipboard.copiedInline` (neues Feld, Migration
+  `20261107_221931_add_clipboard_copied_inline`, DE-`UPDATE` im selben Lauf):
+  sichtbares Inline-Label `[ KOPIERT // 200 OK ]` / `[ COPIED // 200 OK ]`.
+- **`CopyButton` pinnt jetzt `aria-label` auf `copyLabel`**, weil das sichtbare
+  Label während der Bestätigung wechselt. Die volle Bestätigung läuft weiter
+  über den `sr-only` `role="status"`-Span.
+
+### Gotcha: `payload migrate:create` interaktiv
+
+Läuft es ohne `< /dev/null`, fragt es „No schema changes detected. Would you like
+to create a blank migration file?" und **erzeugt bei Nichtantwort gar nichts**
+(Exit 0, keine Datei). Immer `< /dev/null` anhängen oder die Frage beantworten.
+
+
+## Logo-Lockup, Header-Marke & Icon-Set (07.11.2026)
+
+Drei Ableitungen aus **einem** Artwork (dem abgetragenen MO-Mark). Wer eins davon
+ändert, muss die anderen mitziehen — sonst driften Favicon und Header auseinander.
+
+| Datei | Rolle |
+| --- | --- |
+| `src/components/LogoLockup.tsx` | Voller Lockup: Mark + `MAYRA OSTHEIMER` + Subline `// WEB & APPLICATION ARCHITECT` |
+| `src/public/logo-lockup.svg` | Dasselbe standalone, transparent, Space Grotesk als base64-woff2 eingebettet |
+| `src/components/LogoLockupMark.tsx` | **Header-Variante**: Mark + Wortmarke, **ohne** Subline |
+| `src/app/icon.svg`, `favicon.ico`, `apple-icon.png` | Favicon-Set (Next-File-Conventions) |
+| `src/public/icon-192.png`, `icon-512.png` | Manifest-Icons |
+| `src/app/manifest.ts` | Web-App-Manifest |
+
+### Warum der Header die Subline NICHT zeigt
+
+Der volle Lockup hat Aspect 3.57 (viewBox `2303 × 645`). Skaliert man ihn auf die
+Headerhöhe, wird die dritte Zeile rechnerisch **6–7 px** hoch (`56 px ÷ 645 × 70`).
+Das ist nicht „etwas klein", das ist unlesbar. `LogoLockupMark` lässt die Subline
+deshalb weg und croppt den viewBox — die Subline bleibt dem vollen Lockup auf
+großen Flächen vorbehalten. **Nicht** „nur kurz den vollen Lockup reinziehen": das
+ist der Fehler, den diese Trennung verhindert.
+
+### Light-Theme: `currentColor`, kein Fixwert
+
+Die Referenz-Wortmarke ist fast weiß (`#F2F4F5`). Im Header sitzt das Logo auf
+`bg-background/85` — im Light-Theme also auf **Weiß** → unsichtbar. `LogoLockupMark`
+nutzt deshalb `fill="currentColor"` auf der Wortmarke (Farbe kommt von der
+Textklasse am `<svg>`). Der volle Lockup behält den Fixwert, weil er auf
+dunklen Flächen sitzt.
+
+### Icon-Set: Fallstricke, teuer gelernt
+
+- **Art-Bounds messen, nicht schätzen.** Ein geratener Rahmen (`253..1278 / 443..1008`)
+  schnitt das `</>`-Akzent oben ab und setzte den Glyph sichtbar außer Mitte.
+  Korrekt (per Raster gemessen): `x 268..1277`, `y 443..1043` → `ART = {x:268,y:443,w:1009,h:600}`.
+- **Das `</>` ist ein 23 px-Stroke** um `y=443..529`; seine Tinte beginnt bei 431.5.
+  Ein Bounds-Start auf `443` clippt es.
+- **iOS ignoriert Transparenz** → `apple-icon.png` braucht eine Platte (`#121212`).
+  Gleichzeitig wendet iOS eine eigene Eckmaske an, der Radius ist kosmetisch.
+- **Maskable braucht mehr Padding als `any`.** Android beschneidet bis 20 % pro
+  Seite; deshalb `icon-512.png` mit `pad = 0.2` und im Manifest **zwei** Einträge
+  (`purpose: 'any'` und `'maskable'`) — eine Datei für beides sieht unmaskiert zu klein aus.
+- **ICO selbst gebaut:** im Projekt gibt es weder `png-to-ico` noch ImageMagick/ffmpeg.
+  Das ICO-Containern (6-Byte-Header + 16-Byte-Directory + PNG-Payloads) schreibt
+  `icons.mjs` in wenigen Zeilen; `sharp` liefert die PNGs. Format ist Vista+ (PNG im ICO).
+- **Next serviert nur `icon.svg` / `apple-icon.png` / `favicon.ico`** aus `src/app`.
+  Die Manifest-PNGs liegen in `src/public` — sonst 404 im Manifest.
+
+### React/JSX vs. SVG-Attribute
+
+`LogoLockup*.tsx` nutzt JSX-Namen (`className`, `stopColor`, `fontSize`,
+`letterSpacing`, `fillRule`, `strokeWidth`). Das ist **kein** gültiges SVG/XML —
+wer daraus eine `.svg`-Datei ableitet, muss auf `class`/`stop-color`/`font-size`/
+`fill-rule`/`stroke-width` übersetzen. Ein Regex-Strip der JSX-Wrapper erzeugt
+sonst still broken XML (und `<img src="data:image/svg+xml,...">` zeigt nur das
+Broken-Image-Icon).

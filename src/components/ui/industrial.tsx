@@ -63,10 +63,18 @@ export function Chip({
   children,
   variant = 'outline',
   className = '',
+  interactive = false,
 }: {
   children: React.ReactNode;
   variant?: 'fill' | 'outline' | 'cyan' | 'solid';
   className?: string;
+  /**
+   * Tech-badge hover telemetry (spec §3.2): 150ms border/background shift to
+   * cyan (secondary) or emerald (primary). Opt-in — only badges that represent
+   * a real technology/stack item get it, so generic counters in a section
+   * header do not look clickable.
+   */
+  interactive?: boolean;
 }) {
   const variants: Record<NonNullable<Parameters<typeof Chip>[0]['variant']>, string> = {
     fill: 'border border-primary bg-primary text-primary-foreground',
@@ -74,13 +82,20 @@ export function Chip({
     cyan: 'border border-secondary bg-secondary text-secondary-foreground',
     solid: 'border border-primary/40 bg-primary-muted text-primary',
   };
+  const hover =
+    interactive && variant !== 'fill' && variant !== 'cyan'
+      ? 'transition-colors duration-150 ease-out-quart hover:border-secondary/45 hover:bg-secondary/10 hover:text-secondary'
+      : '';
   return (
     <span
       className={[
         'mono-label inline-flex items-center gap-1.5 rounded-[4px] px-2 py-1',
         variants[variant],
+        hover,
         className,
-      ].join(' ')}
+      ]
+        .filter(Boolean)
+        .join(' ')}
     >
       {children}
     </span>

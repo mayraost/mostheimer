@@ -1,5 +1,6 @@
 import type { CollectionConfig } from 'payload';
 import { revalidateAllFrontendCmsCaches } from '../cache/frontend/frontendCache';
+import { protectedAuthorshipFields } from '../security/authorship';
 
 export const Media: CollectionConfig = {
   slug: 'media',
@@ -26,5 +27,7 @@ export const Media: CollectionConfig = {
       type: 'text',
       required: true,
     },
+    // Authorship is admin-only metadata; public reads must not carry it.
+    ...protectedAuthorshipFields(),
   ],
 };

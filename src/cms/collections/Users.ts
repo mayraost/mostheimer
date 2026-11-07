@@ -1,4 +1,5 @@
 import type { CollectionConfig } from 'payload';
+import { protectedAuthorshipFields } from '../security/authorship';
 
 export const Users: CollectionConfig = {
   slug: 'users',
@@ -16,6 +17,19 @@ export const Users: CollectionConfig = {
     // POST /api/users/:id/api-key/reveal.
     useAPIKey: { reveal: true },
   },
+  access: {
+    // Security (07.11.2026): `users` never leaves the server without a session.
+    // Public `GET /api/pages?depth=1` used to populate `createdBy`/`updatedBy`
+    // into full user documents (email, apiKey metadata, active sessions). The
+    // read rule plus the defaultPopulate allowlist below close that path.
+    read: ({ req: { user } }) => Boolean(user),
+  },
+  // Relation populates of users only ever carry the display name. Even an
+  // access-allowed read can therefore not leak email, sessions, api_key or
+  // hash/salt fields into a JSON response.
+  defaultPopulate: {
+    name: true,
+  },
   admin: {
     useAsTitle: 'email',
   },
@@ -25,5 +39,7 @@ export const Users: CollectionConfig = {
       type: 'text',
       required: true,
     },
+    // Authorship is admin-only metadata; public reads must not carry it.
+    ...protectedAuthorshipFields(),
   ],
 };

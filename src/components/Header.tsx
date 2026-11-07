@@ -5,9 +5,10 @@ import { usePathname } from 'next/navigation';
 import { useSettings } from './SettingsProvider';
 import { useTranslations } from './TranslationsProvider';
 import { Moon, Sun, SunMoon, Settings, Menu } from 'lucide-react';
-import { useRef, useState } from 'react';
-import { Logo } from './Logo';
+import { useEffect, useRef, useState } from 'react';
+import { LogoLockupMark } from './LogoLockupMark';
 import { CommandPalette } from './ui/CommandPalette';
+import { ScrollProgressBar } from './ui/ScrollProgressBar';
 import { MobileNavPortal } from './MobileNavPortal';
 import type { CommandItem } from './ui/CommandPalette';
 
@@ -30,8 +31,34 @@ export function Header({
   const { theme, currentTheme, setTheme } = useSettings();
   const translations = useTranslations();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [compact, setCompact] = useState(false);
   const pathname = usePathname();
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+
+  /**
+   * Header compression (§2.2): past 24px the bar switches to the denser
+   * backdrop. Only a boolean flips (twice per page visit at most) — the height
+   * reduction is a CSS class on the inner row, and the row height is reserved
+   * by the sticky layout, so nothing below the header shifts. The listener is
+   * passive and rAF-coalesced.
+   */
+  useEffect(() => {
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      setCompact(window.scrollY > 24);
+    };
+    const onScroll = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, []);
 
   /**
    * The dialog lifecycle lives in the portal (`MobileNavPortal`); the header
@@ -67,20 +94,38 @@ export function Header({
     'flex h-11 w-11 items-center justify-center rounded-[6px] border border-border bg-surface-raised/60 text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground lg:h-9 lg:w-9';
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-3 px-4 md:px-8">
+    <header
+      data-header-compact={compact ? 'true' : 'false'}
+      className="header-rule sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur-xl transition-[background-color,border-color] duration-260 ease-out-quart"
+    >
+      <ScrollProgressBar />
+      <div
+        className={[
+          'mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 md:px-8',
+          // Height is a real layout property, so it may NOT animate: the row
+          // snaps between 64px and 56px. The page content is laid out below the
+          // sticky header in normal flow, so the shorter bar never moves it
+          // (CLS stays 0) — only the header's own density changes.
+          compact ? 'h-14' : 'h-16',
+        ].join(' ')}
+      >
         {/*
-         * A11y: the visible text ("mayra ostheimer" + "// dev") must be part of
-         * the accessible name. On mobile that text is hidden, so an sr-only
-         * text supplies the name instead of a contradictory aria-label.
+         * A11y: the lockup renders the wordmark as SVG <text>, which is NOT
+         * reliably exposed as text by every screen reader. The sr-only span
+         * therefore carries the full accessible name (brand + destination),
+         * and the SVG itself is decorative (`aria-hidden`) so the name is not
+         * announced twice.
          */}
         <Link href={`/${locale}`} className="group flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-[6px] border border-border bg-surface-raised text-primary transition-colors group-hover:border-primary/60 group-hover:text-primary-hover">
-            <Logo className="h-5 w-5" />
-          </span>
-          <span className="hidden font-heading text-lg font-bold tracking-tight text-foreground sm:inline">
-            mayra ostheimer
-          </span>
+          {/*
+           * The full lockup (with subline) does not fit: at the header's
+           * 56–64px height its third line scales to 6–7px. `LogoLockupMark`
+           * carries mark + wordmark only, so both stay legible.
+           */}
+          <LogoLockupMark
+            title=""
+            className="h-7 w-auto shrink-0 text-foreground transition-opacity group-hover:opacity-80 sm:h-8"
+          />
           <span className="mono-label hidden text-primary lg:inline">{'//'} dev</span>
           <span className="sr-only">
             mayra ostheimer — {locale === 'de' ? 'Startseite' : 'home'}
@@ -101,28 +146,34 @@ export function Header({
             {targetLocale}
           </Link>
 
-          {/* Theme toggle */}
-          <button
-            onClick={handleThemeToggle}
-            className={iconButtonClass}
-            title={`${translations.common.theme}: ${theme}`}
-            aria-label={`${translations.common.theme}: ${theme}`}
-            type="button"
-          >
-            {theme === 'system' && <SunMoon className="h-4 w-4" />}
-            {theme === 'light' && <Sun className="h-4 w-4 text-warning" />}
-            {theme === 'dark' && <Moon className="h-4 w-4 text-primary" />}
-          </button>
+          {/*
+           * Theme + settings live in the mobile drawer below `lg` (see
+           * MobileNavPortal) to keep the header row from overflowing on small
+           * screens; desktop keeps them inline. Hidden with `hidden`/`lg:flex`,
+           * not CSS order, so only one of the two is ever focusable.
+           */}
+          <div className="hidden items-center gap-2 lg:flex">
+            <button
+              onClick={handleThemeToggle}
+              className={iconButtonClass}
+              title={`${translations.common.theme}: ${theme}`}
+              aria-label={`${translations.common.theme}: ${theme}`}
+              type="button"
+            >
+              {theme === 'system' && <SunMoon className="h-4 w-4" />}
+              {theme === 'light' && <Sun className="h-4 w-4 text-warning" />}
+              {theme === 'dark' && <Moon className="h-4 w-4 text-primary" />}
+            </button>
 
-          {/* Settings */}
-          <Link
-            href={`/${locale}/settings`}
-            className={iconButtonClass}
-            aria-label={translations.common.settingsButtonAria}
-            title={translations.common.settingsButtonAria}
-          >
-            <Settings className="h-4 w-4" />
-          </Link>
+            <Link
+              href={`/${locale}/settings`}
+              className={iconButtonClass}
+              aria-label={translations.common.settingsButtonAria}
+              title={translations.common.settingsButtonAria}
+            >
+              <Settings className="h-4 w-4" />
+            </Link>
+          </div>
 
           {/* Sidebar toggle */}
           <button
@@ -152,6 +203,19 @@ export function Header({
         title={translations.common.menu}
         closeLabel={locale === 'de' ? 'Menü schließen' : 'Close menu'}
         statusLabel={`Kiebitzreihe · ${locale.toUpperCase()}`}
+        settingsHref={`/${locale}/settings`}
+        settingsLabel={translations.common.settingsButtonAria}
+        themeLabel={`${translations.common.theme}: ${theme}`}
+        themeIcon={
+          theme === 'system' ? (
+            <SunMoon className="h-4 w-4" />
+          ) : theme === 'light' ? (
+            <Sun className="h-4 w-4 text-warning" />
+          ) : (
+            <Moon className="h-4 w-4 text-primary" />
+          )
+        }
+        onThemeToggle={handleThemeToggle}
       />
     </header>
   );

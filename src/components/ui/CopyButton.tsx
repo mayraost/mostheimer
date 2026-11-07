@@ -14,9 +14,11 @@ import { actionButtonClass } from './ActionLinkButton';
  *   `document.execCommand('copy')` fallback with a temporary textarea.
  * - Where both fail (insecure context) the button is a silent no-op: no throw
  *   and no false "copied" state — only the localized failure message is shown.
- * - Confirmation is announced through a separate `role="status"` +
- *   `aria-live="polite"` region so the button keeps its own accessible name
- *   (label-content-name stays valid).
+ * - Confirmation: the visible label swaps INLINE to the terminal line
+ *   (`[ COPIED // 200 OK ]`, spec §3.4) for 2s while the button turns emerald.
+ *   The accessible name is pinned via `aria-label` to the stable copy label, so
+ *   it does not change under the user's focus; the full sentence is announced
+ *   through a separate `role="status"` + `aria-live="polite"` region.
  * - This is an ADDITION next to a real link (e.g. a visible `mailto:` anchor);
  *   it never replaces it.
  *
@@ -33,11 +35,13 @@ const FALLBACK: Record<'en' | 'de', Required<Omit<ClipboardCopy, 'id'>>> = {
     copyLabel: 'Copy e-mail',
     copiedMessage: 'E-mail address copied to the clipboard',
     failedMessage: 'Copying failed — please select the address manually',
+    copiedInline: '[ COPIED // 200 OK ]',
   },
   de: {
     copyLabel: 'E-Mail kopieren',
     copiedMessage: 'E-Mail-Adresse in die Zwischenablage kopiert',
     failedMessage: 'Kopieren nicht möglich — bitte Adresse manuell markieren',
+    copiedInline: '[ KOPIERT // 200 OK ]',
   },
 };
 
@@ -66,6 +70,7 @@ export function CopyButton({
     copyLabel: label?.trim() || source?.copyLabel?.trim() || fallback.copyLabel,
     copiedMessage: source?.copiedMessage?.trim() || fallback.copiedMessage,
     failedMessage: source?.failedMessage?.trim() || fallback.failedMessage,
+    copiedInline: source?.copiedInline?.trim() || fallback.copiedInline,
   };
 
   const copyLegacy = (input: string): boolean => {
@@ -116,17 +121,30 @@ export function CopyButton({
       <button
         type="button"
         onClick={handleCopy}
-        className={[actionButtonClass, className].join(' ')}
+        // The visible label swaps to the terminal confirmation (spec §3.4),
+        // so the accessible name is pinned to the stable copy label — it must
+        // not change under the user's focus while the confirmation runs.
+        aria-label={text.copyLabel}
+        className={[
+          actionButtonClass,
+          className,
+          // Emerald confirmation state: border, text and fill (no layout).
+          copied ? 'border-primary bg-primary/10 text-primary' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
       >
         {copied ? (
           <Check className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
         ) : (
           <Copy className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
         )}
-        {text.copyLabel}
+        <span aria-hidden={copied ? 'true' : undefined}>
+          {copied ? text.copiedInline : text.copyLabel}
+        </span>
       </button>
-      {/* Result announcement only — the visible label never changes, so the
-          button's accessible name stays stable across states. */}
+      {/* Result announcement only — the visible label changes, so the stable
+          spoken confirmation stays available to screen readers here. */}
       <span role="status" aria-live="polite" className="sr-only">
         {copied ? text.copiedMessage : failed ? text.failedMessage : ''}
       </span>
