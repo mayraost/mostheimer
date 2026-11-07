@@ -49,6 +49,23 @@
  * non-2xx — each logs one concise warning and exits 0. The app never fails to
  * start because of a purge. The token is never logged.
  *
+ * CACHE WARMING AFTER A SUCCESSFUL PURGE
+ *
+ * A purge empties the edge; without warming the next visitors pay the origin
+ * round-trip for every route and every new-build chunk. After a successful
+ * purge the script warms:
+ *   - every public route from the sitemap (`/de`, `/en`, every slug, plus
+ *     `/sitemap.xml`, `/robots.txt`, `/llms.txt`); `/` is no-store and skipped,
+ *   - every `/_next/static/**` asset referenced by those pages, including CSS
+ *     `url(...)` fonts/media (assets are never purged, but a new build's chunks
+ *     are cold).
+ * Warming goes through the public host (the edge), not the local origin, so it
+ * actually populates the cache. It waits until the public `/api/health` reports
+ * the SAME release as the local container, otherwise it would re-cache the
+ * previous release during the Traefik switch. Best-effort, bounded concurrency,
+ * fail-soft. `--warm-only` re-warms without purging; `CF_WARM=0` or `--no-warm`
+ * disables warming.
+ *
  * MULTIPLE ZONES → ONE CONTENT ZONE
  *
  * Cloudflare purges are ZONE-scoped and there is no host-based purge. The site
@@ -93,14 +110,46 @@ const DEFAULT_CONTENT_ZONE_ID = '97b8bfd76c5ddbe777f5f185631859bc';
 /** Hosts that serve content (both in the `mostheimer.de` zone). */
 const CONTENT_ORIGINS = ['https://mostheimer.de', 'https://www.mostheimer.de'];
 
+/**
+ * Warming (see header). Bounded so a deploy never turns into a request storm:
+ * routes are warmed sequentially, assets with a small worker pool and a hard
+ * cap. Every request is best-effort and fail-soft.
+ */
+const WARM_CONCURRENCY = Math.max(
+  1,
+  Number.parseInt(process.env.CF_WARM_CONCURRENCY || '4', 10) || 4,
+);
+const WARM_MAX_ASSETS = Math.max(
+  1,
+  Number.parseInt(process.env.CF_WARM_MAX_ASSETS || '500', 10) || 500,
+);
+const WARM_SWITCH_TIMEOUT_MS = Math.max(
+  5_000,
+  Number.parseInt(process.env.CF_WARM_SWITCH_TIMEOUT_MS || '120000', 10) || 120_000,
+);
+const WARM_USER_AGENT = 'mostheimer-deploy-warmer/1.0 (+https://mostheimer.de)';
+const WARM_ASSET_PREFIXES = ['/_next/static/', '/media/', '/api/media/file/'];
+const WARM_ASSET_EXACT = new Set(['/favicon.ico', '/og']);
+const WARM_ASSET_EXTENSION =
+  /\.(?:css|js|mjs|woff2?|ttf|otf|eot|png|jpe?g|webp|avif|gif|svg|ico|mp4|webm|pdf)$/i;
+
 /** Parse `--flag [value]` pairs; unknown flags are ignored on purpose. */
 function parseArgs(argv) {
-  const args = { waitForRelease: false, release: '', dryRun: false, everything: false };
+  const args = {
+    waitForRelease: false,
+    release: '',
+    dryRun: false,
+    everything: false,
+    noWarm: false,
+    warmOnly: false,
+  };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--wait-for-release') args.waitForRelease = true;
     else if (arg === '--dry-run') args.dryRun = true;
     else if (arg === '--everything') args.everything = true;
+    else if (arg === '--no-warm') args.noWarm = true;
+    else if (arg === '--warm-only') args.warmOnly = true;
     else if (arg === '--release') args.release = argv[index + 1] ?? '';
   }
   return args;
@@ -178,7 +227,10 @@ async function waitForHealthy(port) {
 
 /** Parses a sitemap document into site-relative paths. */
 function parseSitemap(xml) {
-  const paths = new Set(['/', '/sitemap.xml']);
+  // `/` and `/sitemap.xml` are part of every deploy purge; the two text
+  // endpoints are edge-cached for 1 h and are not in the sitemap, so a deploy
+  // must evict them explicitly (they only change with a build).
+  const paths = new Set(['/', '/sitemap.xml', '/robots.txt', '/llms.txt']);
   for (const match of xml.matchAll(/<loc>([^<]+)<\/loc>/g)) {
     try {
       paths.add(new URL(match[1].trim()).pathname);
@@ -218,6 +270,201 @@ async function fetchContentPaths(port) {
     }
   }
   return null;
+}
+
+/**
+ * True for paths that must never be warmed: admin/API surface, Next internals
+ * (except static), preview/settings, Cloudflare internals. `/api/media/file/`
+ * is deliberately allowed (Payload's file endpoint is a public image asset).
+ */
+function isForbiddenAssetPath(pathname) {
+  if (pathname.startsWith('/admin')) return true;
+  if (pathname.startsWith('/_next') && !pathname.startsWith('/_next/static/')) return true;
+  if (pathname.startsWith('/cdn-cgi') || pathname.startsWith('/mcp')) return true;
+  if (pathname.startsWith('/api') && !pathname.startsWith('/api/media/file/')) return true;
+  if (/\/preview(?:\/|$)/.test(pathname) || /\/settings(?:\/|$)/.test(pathname)) return true;
+  return false;
+}
+
+/** Static chunks, media uploads, favicon/OG renders and anything with an asset extension. */
+function isWarmableAsset(pathname) {
+  if (WARM_ASSET_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return true;
+  if (WARM_ASSET_EXACT.has(pathname)) return true;
+  if (pathname.startsWith('/icon') || pathname.startsWith('/apple-icon')) return true;
+  return WARM_ASSET_EXTENSION.test(pathname);
+}
+
+/** Resolves a same-origin asset reference to a site-relative path + query. */
+function toSiteAsset(value, baseUrl) {
+  const raw = value.trim().replace(/&amp;/g, '&');
+  if (!raw || raw.startsWith('#') || /^(?:data|mailto|tel|javascript):/i.test(raw)) return null;
+  let url;
+  try {
+    url = new URL(raw, baseUrl);
+  } catch {
+    return null;
+  }
+  if (url.origin !== new URL(baseUrl).origin) return null;
+  if (url.pathname === '/' || url.pathname.startsWith('//')) return null;
+  if (isForbiddenAssetPath(url.pathname)) return null;
+  if (!isWarmableAsset(url.pathname)) return null;
+  return `${url.pathname}${url.search}`;
+}
+
+/** Assets referenced by a rendered page: src/href/poster, srcset, og/twitter images. */
+function extractHtmlAssets(html, pageUrl) {
+  const assets = new Set();
+  for (const match of html.matchAll(/(?:src|href|poster)\s*=\s*["']([^"']+)["']/gi)) {
+    const asset = toSiteAsset(match[1], pageUrl);
+    if (asset) assets.add(asset);
+  }
+  for (const match of html.matchAll(/(?:srcset|imagesrcset)\s*=\s*["']([^"']+)["']/gi)) {
+    for (const candidate of match[1].split(',')) {
+      const [url] = candidate.trim().split(/\s+/);
+      const asset = toSiteAsset(url, pageUrl);
+      if (asset) assets.add(asset);
+    }
+  }
+  for (const match of html.matchAll(/<meta\b[^>]*>/gi)) {
+    const tag = match[0];
+    const key = (tag.match(
+      /(?:property|name)\s*=\s*["'](og:image(?::url|:secure_url)?|twitter:image(?::src)?)["']/i,
+    ) ?? [])[1];
+    if (!key) continue;
+    const content = (tag.match(/content\s*=\s*["']([^"']+)["']/i) ?? [])[1];
+    const asset = toSiteAsset(content ?? '', pageUrl);
+    if (asset) assets.add(asset);
+  }
+  return [...assets];
+}
+
+/** Fonts/images referenced from CSS, resolved relative to the CSS file URL. */
+function extractCssAssets(css, cssUrl) {
+  const assets = new Set();
+  for (const match of css.matchAll(/url\(\s*(['"]?)([^'")]+)\1\s*\)/gi)) {
+    const asset = toSiteAsset(match[2], cssUrl);
+    if (asset) assets.add(asset);
+  }
+  return [...assets];
+}
+
+/** Public routes worth warming (no `/`, no admin/API/preview/settings, no trailing slash). */
+function collectWarmPaths(paths) {
+  const out = [];
+  const seen = new Set();
+  for (const raw of paths ?? []) {
+    if (typeof raw !== 'string' || raw.length === 0) continue;
+    const path = raw.startsWith('/') ? raw : `/${raw}`;
+    if (path === '/' || path.startsWith('//') || path.includes('..')) continue;
+    if (path.length > 1 && path.endsWith('/')) continue;
+    if (isForbiddenAssetPath(path)) continue;
+    if (seen.has(path)) continue;
+    seen.add(path);
+    out.push(path);
+  }
+  return out;
+}
+
+/** `/api/health` release of an origin (local or public), or null. */
+async function readRelease(origin) {
+  try {
+    const response = await fetch(`${origin}/api/health`, {
+      headers: { 'user-agent': WARM_USER_AGENT, 'cache-control': 'no-cache' },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    if (!response.ok) return null;
+    const body = await response.json().catch(() => null);
+    return typeof body?.release === 'string' ? body.release : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Waits until the PUBLIC host serves the same release as the local container.
+ * Without this, warming during a Traefik switch could re-cache the previous
+ * release instead of the new one.
+ */
+async function waitForPublicRelease(port) {
+  const local = await readRelease(`http://127.0.0.1:${port}`);
+  if (!local) return false;
+  const deadline = Date.now() + WARM_SWITCH_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    if ((await readRelease(SITE_ORIGIN)) === local) return true;
+    await sleep(WAIT_INTERVAL_MS);
+  }
+  return false;
+}
+
+/**
+ * Warms routes and their assets through the public edge. Fail-soft: every
+ * request is independent, a failure only increments the counter.
+ */
+async function warmCache(paths, { origin = SITE_ORIGIN, concurrency = WARM_CONCURRENCY } = {}) {
+  const routes = collectWarmPaths(paths);
+  const base = origin.replace(/\/+$/, '');
+  const assetQueue = [];
+  const assetSeen = new Set();
+  let failed = 0;
+
+  const addAssets = (assets) => {
+    for (const asset of assets) {
+      if (assetQueue.length >= WARM_MAX_ASSETS) return;
+      if (assetSeen.has(asset)) continue;
+      assetSeen.add(asset);
+      assetQueue.push(asset);
+    }
+  };
+
+  const fetchOne = async (path, referer) => {
+    const url = `${base}${path}`;
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'user-agent': WARM_USER_AGENT,
+          ...(referer ? { referer } : {}),
+        },
+        redirect: 'follow',
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+      const type = response.headers.get('content-type') ?? '';
+      if (!response.ok) {
+        failed += 1;
+        warn(`warm ${path} → HTTP ${response.status}`);
+        await response.arrayBuffer().catch(() => {});
+        return;
+      }
+      if (type.includes('text/html')) {
+        addAssets(extractHtmlAssets(await response.text(), url));
+      } else if (type.includes('text/css')) {
+        addAssets(extractCssAssets(await response.text(), url));
+      } else {
+        // Consume the body so the edge stores the complete object (fonts,
+        // images, JS). Assets are small; the cap bounds memory.
+        await response.arrayBuffer().catch(() => {});
+      }
+    } catch (error) {
+      failed += 1;
+      warn(`warm ${path} failed (${error instanceof Error ? error.message : 'unknown'})`);
+    }
+  };
+
+  // Routes first: their HTML yields the asset list (chunks, fonts, images, OG).
+  for (const route of routes) await fetchOne(route, base);
+
+  // Assets: small worker pool; CSS responses can append fonts/images live.
+  let index = 0;
+  await Promise.all(
+    Array.from({ length: Math.max(1, concurrency) }, async () => {
+      while (index < assetQueue.length) {
+        const asset = assetQueue[index];
+        index += 1;
+        await fetchOne(asset, base);
+      }
+    }),
+  );
+
+  return { routes: routes.length, assets: assetSeen.size, failed };
 }
 
 /**
@@ -304,6 +551,25 @@ export { CONTENT_ORIGINS, DEFAULT_CONTENT_ZONE_ID, resolveOrigins, resolveZones 
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  const port = process.env.PORT || '3000';
+  const warmEnabled = !args.noWarm && process.env.CF_WARM !== '0';
+
+  // Operator/verification path: no purge, no token, no marker. Used by the
+  // weekly Coolify scheduled task and for manual re-warms.
+  if (args.warmOnly) {
+    if (!warmEnabled) {
+      log('cache warming disabled (CF_WARM=0 / --no-warm)');
+      return;
+    }
+    const paths = await fetchContentPaths(port);
+    if (!paths || paths.length === 0) {
+      warn('cache warming skipped: no route list from /sitemap.xml');
+      return;
+    }
+    const result = await warmCache(paths);
+    log(`warmed ${result.routes} routes + ${result.assets} assets (${result.failed} failed)`);
+    return;
+  }
 
   const token = process.env.CLOUDFLARE_API_TOKEN ?? '';
   const zones = resolveZones();
@@ -330,28 +596,25 @@ async function main() {
     return;
   }
   if (args.dryRun) {
-    log(`dry run: release ${release}, would wait for health then purge content URLs`);
+    log(`dry run: release ${release}, would wait for health then purge content URLs and warm`);
     return;
   }
 
   if (args.waitForRelease) {
-    const healthy = await waitForHealthy(process.env.PORT || '3000');
+    const healthy = await waitForHealthy(port);
     if (!healthy) {
       warn(`origin not healthy within ${WAIT_TIMEOUT_MS / 1000}s — deploy purge skipped`);
       return;
     }
   }
 
-  // Operator escape hatch only (see header); never the default path.
-  let paths = null;
-  if (args.everything) {
-    // Nothing to collect: the body below flushes the whole zone.
-  } else {
-    paths = (await fetchContentPaths(process.env.PORT || '3000'))?.filter(isPurgeable) ?? null;
-    if (!paths || paths.length === 0) {
-      warn('could not read the content route list from /sitemap.xml — deploy purge skipped');
-      return;
-    }
+  // Read the route list for both the purge and the warm step. The operator
+  // `--everything` path does not need it for purging, but still uses it for
+  // warming when available.
+  const paths = (await fetchContentPaths(port))?.filter(isPurgeable) ?? null;
+  if (!args.everything && (!paths || paths.length === 0)) {
+    warn('could not read the content route list from /sitemap.xml — deploy purge skipped');
+    return;
   }
 
   // One request per zone: a zone only evicts objects of hosts it serves, and
@@ -385,7 +648,29 @@ async function main() {
   }
 
   // Marker only when every zone succeeded, otherwise the next run retries.
+  // Write it BEFORE warming: a crash while warming must not trigger a re-purge
+  // on the next container start.
   if (!args.everything && failed === 0) writeFileSync(marker, new Date().toISOString());
+
+  if (!warmEnabled) {
+    log('cache warming disabled (CF_WARM=0 / --no-warm)');
+    return;
+  }
+  if (failed > 0) {
+    log('cache warming skipped: purge failed');
+    return;
+  }
+  if (!paths || paths.length === 0) {
+    log('cache warming skipped: no route list');
+    return;
+  }
+  if (!(await waitForPublicRelease(port))) {
+    warn('cache warming skipped: public host is not serving this release yet');
+    return;
+  }
+
+  const result = await warmCache(paths);
+  log(`warmed ${result.routes} routes + ${result.assets} assets (${result.failed} failed)`);
 }
 
 /**

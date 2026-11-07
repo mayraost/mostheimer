@@ -798,11 +798,14 @@ in der **Node.js-Runtime** (`functions-config-manifest.json` →
   p50 **9,5 ms** / p95 **12,9 ms**; mit `PROXY_SLUG_CACHE=0` p50 **13,5 ms** /
   p95 **16,9 ms**.
 
-## Cloudflare Edge-Cache (Stand 05.11.2026)
+## Cloudflare Edge-Cache (Stand 07.11.2026)
 
-Der Edge (Cloudflare, Zone `mosthi.de` `fc81dba86a79cddf0b956eed4a25a965`)
+Der Edge (Cloudflare, Zone `mostheimer.de` `97b8bfd76c5ddbe777f5f185631859bc`)
 cacht das öffentliche HTML; **jede** Next.js-Revalidierung purgt die exakt
 betroffenen Objekte im selben Code-Pfad, und jeder Deploy purgt einmal alles.
+Die Legacy-Zone `mosthi.de` (`fc81dba86a79cddf0b956eed4a25a965`) ist seit
+07.11.2026 **komplett cache-bypassed** (eine `cache: false`-Regel, sonst keine
+Zone-Rules); `mosthi.de`/`www.mosthi.de` liefern nur noch 301.
 
 ### Ohne Cache-Control greift keine Cloudflare-Cache (wichtig erklärt)
 
@@ -816,19 +819,25 @@ exakt dieselben Werte schreiben. Beide Stellen MÜSSEN synchron bleiben
 
 ### TTL- und Purge-Vertrag
 
-| Pfad                                                                       | Cache-Control (Edge, sichtbar beim Besucher)                                                  | TTL           | Was purgt                                                |
-| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------- | -------------------------------------------------------- |
-| `/`, `/de…`, `/en…` (public Seiten, anonym) — **auch 404**                 | `public, max-age=0, s-maxage=2592000, stale-while-revalidate=2592000, stale-if-error=2592000` | **30 d** Edge | Hooks (Tag-Flush, synchron) + Deploy-Purge + Admin-Flush |
-| `/admin*`, `/api/*`, `/_next/*`, `*preview*`, `*settings*`, `/og`, `/mcp*` | `no-store`                                                                                    | keine         | n/a — nie gecacht                                        |
-| andere Hosts in der Zone (`*.mosthi.de` → andere Projekte)                 | `no-store`, `DYNAMIC`/`BYPASS`                                                                | keine         | n/a — nie gecacht                                        |
+| Pfad                                                                                                                          | Cache-Control (Edge, sichtbar beim Besucher)                                                    | TTL                        | Was purgt                                                |
+| ----------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | -------------------------- | -------------------------------------------------------- |
+| `/de`, `/en`, `/de/…`, `/en/…` (public Seiten, anonym, **2xx/3xx**)                                                           | `public, max-age=0, s-maxage=86400, stale-while-revalidate=2592000, stale-if-error=2592000`     | **1 d fresh / 30 d stale** | Hooks (Tag-Flush, synchron) + Deploy-Purge + Admin-Flush |
+| `/_next/static/*`                                                                                                             | `public, max-age=31536000, immutable, s-maxage=31536000`                                        | **1 Jahr**                 | nie (Invariante)                                         |
+| `/sitemap.xml`, `/robots.txt`, `/llms.txt`                                                                                    | `public, max-age=0, s-maxage=3600, stale-while-revalidate=3600, stale-if-error=3600`            | **1 h**                    | Deploy-Purge (+ `cms:sitemap` für die Sitemap)           |
+| `/og`                                                                                                                         | `public, max-age=86400, s-maxage=86400, stale-while-revalidate=2592000, stale-if-error=2592000` | **1 d**                    | nie (Query-Key unbounded, Warm beim Deploy/7d)           |
+| `/media/*`, `/api/media/file/*`                                                                                               | `public, max-age=86400, s-maxage=86400, stale-while-revalidate=2592000, stale-if-error=2592000` | **1 d**                    | nie (Self-Heal nach 1 d; Warm beim Deploy/7d)            |
+| `/favicon.ico`, `/icon*`, `/apple-icon*`                                                                                      | `public, max-age=86400, s-maxage=86400, stale-while-revalidate=2592000, stale-if-error=2592000` | **1 d**                    | nie (Warm beim Deploy/7d)                                |
+| `/admin*`, `/api/*`, `/_next/*` (non-static), `*preview*`, `*settings*`, `/mcp*`, `/` (Locale-Redirect), **alle 404/non-2xx** | `no-store`                                                                                      | keine                      | n/a — nie gecacht                                        |
+| andere Hosts der Zone (`home.mostheimer.de`)                                                                                  | `no-store`, `DYNAMIC`/`BYPASS`                                                                  | keine                      | n/a — nie gecacht                                        |
+| `mosthi.de` / `www.mosthi.de` (eigene Zone)                                                                                   | `cache: false` → `DYNAMIC`                                                                      | keine                      | n/a — nie gecacht                                        |
 
-### Cache-Lebensdauern — eine Kette, drei Stellen (Stand 05.11.2026)
+### Cache-Lebensdauern — eine Kette, drei Stellen (Stand 07.11.2026)
 
-| Ebene            | Ort                                                     | Refresh (Hintergrund)          | Max. Lebensdauer / Stale                                                                  |
-| ---------------- | ------------------------------------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------- |
-| Next Data Cache  | `cacheLife` in `src/cms/cache/frontend/queries.ts`      | `revalidate: 300`              | `stale`/`expire: 2592000` (30 d)                                                          |
-| Proxy-Slug-Cache | `src/proxy-slug-cache.ts`                               | `PROXY_SLUG_CACHE_REFRESH=300` | `PROXY_SLUG_CACHE_MAX_AGE=2592000`; **negativ** nur 60 s (`PROXY_SLUG_CACHE_MISSING_TTL`) |
-| Cloudflare Edge  | Cache-Rule (Status-Code-TTL 404 = 30 d) + Response-Rule | —                              | 30 d `s-maxage` / `stale-*`                                                               |
+| Ebene            | Ort                                                                                | Refresh (Hintergrund)          | Max. Lebensdauer / Stale                                                                  |
+| ---------------- | ---------------------------------------------------------------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------- |
+| Next Data Cache  | `cacheLife` in `src/cms/cache/frontend/queries.ts`                                 | `revalidate: 300`              | `stale`/`expire: 2592000` (30 d)                                                          |
+| Proxy-Slug-Cache | `src/proxy-slug-cache.ts`                                                          | `PROXY_SLUG_CACHE_REFRESH=300` | `PROXY_SLUG_CACHE_MAX_AGE=2592000`; **negativ** nur 60 s (`PROXY_SLUG_CACHE_MISSING_TTL`) |
+| Cloudflare Edge  | Cache-Rule (2xx `86400`, static `31536000`, text `3600`, og `300`) + Response-Rule | —                              | **1 d fresh / 30 d stale** (Content); Assets 1 a                                          |
 
 **Korrektheit kommt NICHT aus der TTL, sondern aus dem Purge:** jede
 CMS-Änderung läuft `safeRevalidate(..., 'blocking')` → `revalidateTag({expire:0})`
@@ -838,40 +847,34 @@ Konsequenz, die man kennen muss: feuert ein Hook nicht (z. B. direkter
 DB-Write, Skript), bleibt altes HTML bis zu 5 min stehen bzw. im Edge bis zum
 nächsten Purge.
 
-### 404-Antworten werden am Edge gecacht (Stand 05.11.2026)
+### 404- und Fehlerantworten werden NICHT gecacht (Stand 07.11.2026)
 
-404-Dokumente sind **Content-URLs**, keine Assets: sie dürfen (und sollen)
-lange am Edge liegen, damit ein Crawler auf eine kaputte URL nicht bei jedem
-Treffer durch den Tunnel zum einzigen Origin geht.
+Die frühere Fassung (404 30 Tage am Edge) war ein Poisoning-Risiko und ist
+entfernt: bei einem Origin-Ausfall übernimmt der Traefik-Catch-All
+(`placeholder-404`, priority -1000), liefert 404, und die Content-Response-Rule
+hätte diesen 404 mit `s-maxage=2592000` 30 Tage gecacht — auch nach Recovery
+(Plain-Restart purged nicht: `[cf-purge] … already purged — skipping`).
+Gemessen am 07.11.2026: erstmaliger Request während eines Container-Stops →
+404, danach `HIT 404` (Age 15) nach dem Restart.
 
-- **Origin** (`next.config.ts`): `PUBLIC_CACHE_CONTROL` = 30 d — gilt für 200
-  **und** 404 (gleicher Pfad-Header, kein Status-Match nötig; Next-`headers()`
-  kann nicht auf Response-Status matchen).
-- **Edge** (`http_request_cache_settings`): `edge_ttl.mode: respect_origin` +
-  `status_code_ttl` → 2xx `86400`, **404/405 `2592000`**. Wichtig bei der API:
-  `status_code_range` verlangt **`from < to`** (exakt 404 schreibt man als
-  `{from: 404, to: 405}`; `{from: 404, to: 404}` → Fehler 20110).
-- **Edge** (`http_response_cache_settings`): die Content-Regel setzt
-  `s-maxage`/`stale-*` = 2592000 und entfernt `no-store`/`no-cache`; die
-  Catch-all-`no-store`-Regel bleibt **letzte** Regel.
-- **Purge:** beim Anlegen/Umbenennen einer Seite läuft `cms:pages:<slug>` durch
-  `edgePurgePathsForTag` → `/en/<slug>` **und** `/de/<slug>` werden gepurged.
-  Das gilt auch für die URL, die **vorher 404 war** — kein Verlass auf die
-  Route-Registry (die ist selbst gecacht und kennt den neuen Slug noch nicht).
-- **Restrisiko:** schlägt der Purge fehl (5/min-Budget, Netz, Token), bleibt
-  die neue Seite bis zu **30 Tage** als 404 am Edge stehen. Mitigation:
-  `cf-purge.mjs --everything` bzw. gezielter URL-Purge im Incident; Budget vor
-  Purge-Storms prüfen (`[cf-cache]`-Warnungen im Log).
+Heute (verifiziert 07.11.2026):
 
-**Warum die TTL lang ist:** Korrektheit kommt nicht aus kurzer TTL, sondern
-aus dem synchronen Purge bei jeder CMS-Änderung und bei jedem Deploy. Eine
-kurze TTL würde dagegen bei jedem Ablauf den Ursprung durch den Tunnel treffen.
-`stale-if-error` (7 d) hält die Seite erreichbar, während der **einzige**
-Origin-Container neu startet (passiert bei jedem Deploy = 502-Gefahr).
+- Content-Response-Rule matcht nur `http.response.code lt 400`; 404/5xx fallen
+  in die letzte `no-store`-Regel → `BYPASS`, nie gecacht.
+- Der Placeholder liefert für `mostheimer.de`/`www.mostheimer.de` **503**
+  (nicht 404), sobald die App fehlt; damit greift `stale-if-error` für
+  abgelaufene Content-Objekte und Crawler sehen kein „gelöscht".
+- Die Cache-Rule hat **keinen** 404-`status_code_ttl` mehr.
+- Test: erster Request während Ausfall → 404 `BYPASS`; zweiter → weiterhin
+  `BYPASS`; nach Restart dieselbe URL → 200 `MISS`. Kein 404 bleibt hängen.
+- Bereits gecachte Content-/Asset-Objekte überleben den Ausfall (`/de` 200
+  `HIT`, Assets `HIT`). Der `/`-Redirect ist seit dem Fix **no-store** und
+  damit nicht mehr ausfallresistent (bewusster Trade-off für korrekte
+  Sprachwahl).
 
-**Fehlermodus:** schlägt ein Purge fehl (429/Rate-Limit, Netz, Token), bleibt
-das Objekt bis zur nächsten erfolgreichen Purge bzw. höchstens
-`s-maxage` = 7 Tage veraltet. Der Fehler wird geloggt
+**Purge-Fehlermodus:** schlägt ein Purge fehl (429/Rate-Limit, Netz, Token),
+bleibt das Objekt bis zur nächsten erfolgreichen Purge bzw. höchstens
+`s-maxage`/`stale-*` = 30 Tage veraltet. Der Fehler wird geloggt
 `[cf-cache] Edge-Purge '…' fehlgeschlagen (<reason>)` — **Token wird nie
 geloggt**. Nach einem Fehler öffnet ein Circuit Breaker für 2 min, damit ein
 kaputter Token CMS-Saves nicht mit hängenden Requests ausbremst.
@@ -880,9 +883,9 @@ kaputter Token CMS-Saves nicht mit hängenden Requests ausbremst.
 
 | Tag                | Gepurgte Edge-Objekte                                                                                                         |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| `cms:all`          | `purge_everything` (alle Hosts)                                                                                               |
+| `cms:all`          | alle Content-URLs + `/sitemap.xml` (ein Request; **kein** `purge_everything`)                                                 |
 | `cms:pages`        | alle öffentlichen Routen (`/en`, `/de` + jede Seite), via Route-Registry (`getCachedRouteRegistry`, cached unter `cms:pages`) |
-| `cms:pages:<slug>` | `/en/<slug>` + `/de/<slug>` (`home` → `/en`, `/de`), immer auf allen drei Site-Hosts                                          |
+| `cms:pages:<slug>` | `/en/<slug>` + `/de/<slug>` (`home` → `/en`, `/de`), auf beiden Content-Hosts                                                 |
 | `cms:sitemap`      | `/sitemap.xml`                                                                                                                |
 | `cms:global:*`     | alle öffentlichen Routen (Layout rendert die Globals)                                                                         |
 
@@ -920,8 +923,13 @@ herausnehmen oder hinter `Suspense` verschieben.
 | `CLOUDFLARE_PURGE_ZONES`    | **Kanonisch:** `zoneId:host1,host2` je Zone; Default = nur die Content-Zone `mostheimer.de` | Fallback auf `CLOUDFLARE_ZONE_ID` + Content-Hosts |
 | `CLOUDFLARE_ZONE_ID`        | Zone-Id der Content-Zone (Default `97b8bfd76c5ddbe777f5f185631859bc`, `mostheimer.de`)      | Default-Zone greift                               |
 | `CLOUDFLARE_PURGE_ON_START` | `0` = Deploy-Purge aus                                                                      | Default: an                                       |
+| `CF_WARM`                   | `0` = Cache-Warming aus (Deploy **und** Wochen-Cron)                                        | Default: an                                       |
+| `CF_WARM_CONCURRENCY`       | Parallele Asset-Warm-Requests (Default `4`)                                                 | `4`                                               |
+| `CF_WARM_MAX_ASSETS`        | Obergrenze Assets pro Warm-Lauf (Default `500`)                                             | `500`                                             |
+| `CF_WARM_SWITCH_TIMEOUT_MS` | Max. Wartezeit, bis der Public-Host dieselbe `release` meldet (Default `120000`)            | `120 s`                                           |
 
-**Beide server-only, NIE `NEXT_PUBLIC_`.** Token-Rechte: **Zone → Cache Purge
+**Beide server-only, NIE `NEXT_PUBLIC_`.** `--warm-only` braucht **keinen**
+Token (nur HTTP-GETs durch den Edge). Token-Rechte: **Zone → Cache Purge
 → Purge für die Content-Zone** (`mostheimer.de`) — nichts anderes nötig. In
 Coolify als App-Env mit `is_buildtime: false` setzen (Secrets gehören nicht in
 den Build-ARG-Layer).
@@ -931,16 +939,18 @@ den Build-ARG-Layer).
 `mosthi.de` und `mostheimer.de` liegen in **getrennten Cloudflare-Zonen**, aber
 nur eine davon hält Content-Cache:
 
-| Zone                               | Hosts                                                | Wird gepurgt?                                    |
-| ---------------------------------- | ---------------------------------------------------- | ------------------------------------------------ |
-| `97b8bfd76c5ddbe777f5f185631859bc` | `https://mostheimer.de`, `https://www.mostheimer.de` | **ja** (beide Hosts)                             |
-| `fc81dba86a79cddf0b956eed4a25a965` | `https://mosthi.de`                                  | **nein** — 301 auf `mostheimer.de`, kein Content |
+| Zone                               | Hosts                                                | Wird gepurgt?                                     |
+| ---------------------------------- | ---------------------------------------------------- | ------------------------------------------------- |
+| `97b8bfd76c5ddbe777f5f185631859bc` | `https://mostheimer.de`, `https://www.mostheimer.de` | **ja** (beide Hosts)                              |
+| `fc81dba86a79cddf0b956eed4a25a965` | `https://mosthi.de`, `https://www.mosthi.de`         | **nein** — Zone ist `cache:false` (301 `DYNAMIC`) |
 
 **Warum die Legacy-Zone raus ist:** `mosthi.de`/`www.mosthi.de` beantworten jede
 Anfrage mit **301** auf `https://mostheimer.de` (Traefik, siehe
-„Domain-Konsolidierung"). Redirect-Antworten werden nicht als Content-Objekte
-am Edge gehalten, es gibt dort also nichts zu evicten — jeder Purge dorthin ist
-reine Budget-Verbrennung (Free-Plan: 5 Purge-Requests/min account-weit).
+„Domain-Konsolidierung"). Seit 07.11.2026 ist die Zone per **einziger**
+`cache: false`-Regel komplett gebypassed (alle anderen Zone-Rules gelöscht); die
+früher mitgecachten 301-Objekte (30 d) sind damit weg. Ein Purge dorthin
+evictet nichts — reine Budget-Verbrennung (Free-Plan: 5 Purge-Requests/min
+account-weit).
 
 Cloudflare-Purges bleiben **zonen-scoped**; es gibt keinen host-basierten Purge.
 Eine URL aus Zone B an `/zones/<A>/purge_cache` liefert weiterhin
@@ -987,49 +997,82 @@ mit genau einer harmlosen URL der Content-Zone; erwartet wird **200 +
   der App → `node /app/scripts/cf-purge.mjs --release $SOURCE_COMMIT`. Der
   Entrypoint-Weg bleibt der Standard, weil er ohne Coolify-Konfiguration und
   ohne Deploy-Loop-Risiko funktioniert.
+- **Warming nach dem Purge:** `warmCache()` läuft im selben Hintergrundprozess
+  (nur wenn alle Zonen gepurged wurden und `CF_WARM != 0`). Es wartet, bis
+  `https://mostheimer.de/api/health` **denselben `release`** wie der lokale
+  Container meldet (sonst würde es während des Traefik-Switch die alte
+  Release-Version wieder einlagern), und holt dann alle Content-Routen
+  (`/de`, `/en`, jede Seite, `/sitemap.xml`, `/robots.txt`, `/llms.txt`) plus
+  alle referenzierten Assets: `/_next/static/**` (JS/CSS), CSS-`url(...)`-
+  Fonts/Bilder, `<img src/srcset>`, `<meta og:image>` (`/og?...`) und
+  `/favicon.ico`. Bounded: `CF_WARM_CONCURRENCY=4`, max.
+  `CF_WARM_MAX_ASSETS=500`; fail-soft, jeder Fehler zählt nur.
+- **Wöchentlicher Re-Warm:** Coolify Scheduled Task auf der App
+  (`node /app/scripts/cf-purge.mjs --warm-only`, Cron `0 4 * * 1` = Montag
+  04:00) hält HTML (1 d fresh), Media/OG/Favicon (1 d) und Text (1 h) warm,
+  ohne zu purgen und ohne Token. `--warm-only` überspringt Purge/Marker/Token.
+  Kill-Switch: `CF_WARM=0` (Deploy-Warm und Cron) bzw. `--no-warm` (Deploy).
 
 ### Zone-Regeln (Rulesets, keine Page Rules)
 
 Page Rules API ist für Account-Tokens gesperrt (`1011 Page Rules endpoint does
 not support account owned tokens`) → alles über Rulesets.
 
-**Cache-Rules** (`http_request_cache_settings`, Entrypoint `default`):
+**Cache-Rules** (`http_request_cache_settings`, Entrypoint `default`; letzter
+Match gewinnt, Reihenfolge ist Teil der Korrektheit). Alle Regeln sind
+host-exakt (`mostheimer.de` / `www.mostheimer.de`):
 
-1. `0aaea1abb6284fec811c86e8545dec0b` — **eligible**: Site-Hosts (3) ohne
-   `/admin`, `/api/`, `/_next/`, `/mcp`, `/cdn-cgi/`; `cache: true`,
-   `edge_ttl: respect_origin`, `browser_ttl: respect_origin` (**kein Override-TTL**).
-2. `f9a2c1660c81498fb1b08cbf5d1b92ed` — **deny by default**: `not (...)`
-   Site-Hosts → `cache: false`. Neue Projekt-Subdomains unter `*.mosthi.de`
-   erben **nicht** von Regel 1 (sie matchen sie nicht) und sind per Default
-   gebypassed.
+1. **Site-Hosts eligible** — `cache: true`, `edge_ttl: respect_origin` +
+   `status_code_ttl` **2xx = 86400** (1 d fresh; die 30 d stehen als
+   `stale-*` im Response-Header). RSC-Header (`rsc: 1`) ist ausgeschlossen.
+2. **`/_next/static/*`** — `override_origin`, 2xx `31536000` (1 Jahr).
+3. **`/sitemap.xml`, `/robots.txt`, `/llms.txt`** — `override_origin`, 2xx `3600`.
+4. **`/og`** — `override_origin`, 2xx `86400`.
+5. **`/media/*`, `/api/media/file/*`** — `override_origin`, 2xx `86400`
+   (replaced files self-heal; Warm beim Deploy/7d).
+6. **`/favicon.ico`, `/icon*`, `/apple-icon*`** — `override_origin`, 2xx `86400`.
+7. **Site-Hosts + `RSC: 1`** — `cache: false` (Vary wird von Cloudflare
+   ignoriert; ohne diese Regel könnte ein RSC-Request das HTML-HIT bekommen).
+8. **`not (Site-Hosts)`** — `cache: false` (deny by default, z. B.
+   `home.mostheimer.de`; die Legacy-Zone `mosthi.de` hat genau diese eine
+   Bypass-Regel für `mosthi.de`/`www.mosthi.de`).
 
 **Cache-Response-Rules** (`http_response_cache_settings`) — sie **ersetzen** den
-Ursprungs-Header (Cloudflare überschreibt streamed-HTML-Header sonst nie):
+Ursprungs-Header (Cloudflare überschreibt gestreamtes HTML sonst nie). Inhaltliche
+Regeln + Catch-all, **letzte Regel gewinnt** und wird mehrfach ausgewertet:
 
-1. `a1bbaf90d2fb4a9eb93f88304a171322` — **\_next/static** (`/_next/static/*`,
-   Site-Hosts) → `public, max-age=31536000, immutable, s-maxage=31536000`,
-   `no-store`/`no-cache`/`private` entfernt.
-2. `f2123ca4d9434c82bc9adf26b42317b7` — Site-Content (`/de…`, `/en…`, `/`, ohne
-   preview/settings, ohne RSC) → `public, max-age=0, s-maxage=604800,
-stale-while-revalidate=604800, stale-if-error=604800`.
-3. `5d536ce10cf543399b3a37b372c6a363` — Content-Pfade **und** `/_next/static`:
-   entfernt `no-store`/`no-cache` (Next-Render-Default), damit die
-   Cache-Entscheidung cachebar sieht.
-4. `20ea9da823a5489c8d2ac37c47556682` — alles andere (admin/API/preview/
-   settings/OG, andere Next-Internals, andere Hosts, RSC) → `no-store`, keine
-   Proxy-TTL. **Expression MUSS `_next/static` ausnehmen** (`not (content or
-static)`), sonst setzt der zweite Auswertungs-Pass `no-store` erneut auf die
-   Assets und die sind wieder `BYPASS` — genau der Bug vom 05.11.2026.
+1. **Static 200** (`/_next/static/*`) → `public, max-age=31536000, immutable,
+s-maxage=31536000`; `no-store`/`no-cache`/`private`/`must-revalidate`
+   entfernt.
+2. **Content** (`path eq /de|/en` oder `starts_with /de/|/en/`, ohne
+   preview/settings, ohne RSC, `http.response.code lt 400`) →
+   `public, max-age=0, s-maxage=86400, stale-while-revalidate=2592000,
+stale-if-error=2592000`. **Kein `/`** (sprachabhängiger 307, no-store) und
+   **kein Prefix-Match** (`/design` darf nicht als `/de…` gelten).
+3. **Text** (`/sitemap.xml`, `/robots.txt`, `/llms.txt`, 200) → 1 h.
+4. **OG** (`/og`, 200) → 1 d.
+5. **Media** (`/media/*`, `/api/media/file/*`, 200) → 1 d.
+6. **Favicon** (`/favicon.ico`, `/icon*`, `/apple-icon*`, 200) → 1 d.
+7. **Catch-all** — `no-store`, entfernt `s-maxage`/`stale-*`/`public`/
+   `max-age`/`immutable`. **Expression MUSS alle cachebaren Bedingungen
+   negieren** (static/content/text/og/media/favicon **inkl.
+   `http.response.code`**), sonst setzt der zweite Auswertungs-Pass
+   `no-store` erneut auf cachebare Antworten — genau der Bug vom 05.11.2026.
 
-**Trailing-Slash-Redirect** (`http_request_dynamic_redirect`, Entrypoint
-`a3f28e523e3544c6a811bb18049c02ea`, Rule `37b1fa8281cf49289d35383917b8f0be`):
-`/<pfad>/` → `/<pfad>` mit **308** (methodenerhaltend, wichtig für `_next/static`
-und POST-APIs), Query bleibt. Läuft **vor** der Cache-Phase, der Origin sieht
-keine Trailing-Slash-Varianten mehr (Next würde sonst selbst 308en, ungecacht,
-durch den Tunnel). Expression:
+`http.response.code` ist in der Response-Phase verfügbar (Cache Response Rules
+laufen nach der Origin-Antwort); dadurch werden **404/5xx nie gecacht**, ohne
+dass die Content-URL-Regel sie mit `s-maxage` versieht.
+
+**Trailing-Slash-Redirect** (`http_request_dynamic_redirect`, Zone
+`mostheimer.de`): `/<pfad>/` → `/<pfad>` mit **308** (methodenerhaltend,
+wichtig für `_next/static` und POST-APIs), Query bleibt. Läuft **vor** der
+Cache-Phase, der Origin sieht keine Trailing-Slash-Varianten mehr. Die Regel
+ist host-exakt `mostheimer.de` (nicht `www`, das ohnehin 301t); die frühere
+Regel in der `mosthi.de`-Zone ist **gelöscht** (Zonen-Regeln sind zone-scoped,
+die dort zusätzlich gelisteten `mostheimer.de`-Hosts waren wirkungslos).
 
 ```
-(http.host eq "mosthi.de" or … mostheimer.de …) and
+(http.host eq "mostheimer.de") and
 http.request.uri.path ne "/" and ends_with(http.request.uri.path, "/")
 → target: concat("https://", http.host, substring(http.request.uri.path, 0, -1))
 ```
@@ -1041,13 +1084,10 @@ http.request.uri.path ne "/" and ends_with(http.request.uri.path, "/")
   identifier"); Query-String übernimmt `preserve_query_string: true`.
 - `http.request.uri.path ne "/"`-**Guard ist Pflicht**: ohne ihn würde `/`
   auf einen leeren Pfad umgeleitet und die Sprach-Route (`307 → /en`) gekillt.
-- Host-Scoping wie bei den Cache-Regeln: fremde `*.mosthi.de`-Projekte bekommen
-  **keinen** Rewrite aufgezwungen (verifiziert: `scobio2026.mosthi.de/de/` →
-  weiterhin 404 `DYNAMIC`, `coolify.mosthi.de/de/` → 302 Login).
-- Edge-Beleg (ohne Logs): die 308-Antwort trägt **kein** `cf-cache-status`,
-  **keine** CSP/HSTS-Header des Origins und antwortet in ~45 ms; derselbe Pfad
-  direkt am Origin (`127.0.0.1:3300/de/`) liefert weiterhin einen eigenen 308 —
-  der Origin wird also nicht mehr befragt.
+- Edge-Beleg (07.11.2026): `/de/` → `308 Location: https://mostheimer.de/de`
+  **ohne** `cf-cache-status` und ohne Origin-CSP; `/de/?x=1` → `/de?x=1`.
+  Direkt am Origin (`127.0.0.1:3300/de/`) antwortet weiterhin Next mit 308 —
+  der Origin wird für Edge-Treffer also nicht befragt.
 
 **Fallstricke, verifiziert (nicht wieder einbauen):**
 
@@ -1065,17 +1105,19 @@ http.request.uri.path ne "/" and ends_with(http.request.uri.path, "/")
 ### Prüfen (Live)
 
 ```bash
-curl -sI https://mostheimer.de/de      | grep -iE '^(cache-control|cf-cache-status|age)'   # MISS → HIT
-curl -sI https://mostheimer.de/admin   | grep -iE '^(cache-control|cf-cache-status)'       # DYNAMIC/BYPASS, no-store
-curl -sI https://mosthi.de/de          | grep -iE '^(http|location)'                        # 301 → mostheimer.de (kein Cache-Objekt)
-curl -sI https://scobio2026.mosthi.de/ | grep -i cf-cache-status                            # DYNAMIC (nie gecacht)
+curl -sI https://mostheimer.de/de       | grep -iE '^(cache-control|cf-cache-status|age)'   # MISS → HIT
+curl -sI https://mostheimer.de/         | grep -iE '^(http|location|cache-control|cf-cache-status|age)' # 307, BYPASS, no-store, kein Age
+curl -sI https://mostheimer.de/de/dehj  | grep -iE '^(http|cache-control|cf-cache-status|age)' # 404, BYPASS, no-store
+curl -sI https://mostheimer.de/admin    | grep -iE '^(cache-control|cf-cache-status)'       # BYPASS, no-store
+curl -sI https://mosthi.de/de           | grep -iE '^(http|location|cache-control|cf-cache-status|age)' # 301, DYNAMIC, kein Age
+curl -sI https://scobio2026.mosthi.de/  | grep -i cf-cache-status                            # DYNAMIC (nie gecacht)
 ```
 
 Statuscode-Legende: `BYPASS`/`DYNAMIC` bei Nicht-Content = korrekt (nicht
 cachebar). `HIT` auf `/de` mit `Age: 0` direkt nach einer Änderung + `Age` > 0
 ≥ 1 s später = Purge lief. Ein Purge ist nur am **Content-Host**
 (`mostheimer.de`/`www.mostheimer.de`) prüfbar — `mosthi.de` liefert einen 301
-ohne `cf-cache-status`.
+ohne Cache-Objekt (`DYNAMIC`, kein `Age`).
 
 ### INVARIANTE: statische Assets werden NIE gepurgt (Stand 05.11.2026)
 
@@ -1108,9 +1150,12 @@ Umsetzung (drei Schichten, damit es strukturell nicht wiederkommt):
 
 **Deploy-Purge (URL-Liste statt `purge_everything`):** `scripts/cf-purge.mjs`
 liest `/sitemap.xml` (unauth, kann nicht driften), baut daraus
-`{ files: [...] }` für die Content-URLs (+ `/`, `/sitemap.xml`) beider
-Content-Hosts und schickt **einen** Request an die Content-Zone.
-`/_next/static` wird per `isPurgeable` gefiltert.
+`{ files: [...] }` für die Content-URLs (+ `/`, `/sitemap.xml`,
+`/robots.txt`, `/llms.txt`) beider Content-Hosts und schickt **einen** Request
+an die Content-Zone. `/_next/static` wird per `isPurgeable` gefiltert.
+Direkt danach läuft das Warming (siehe „Deploy-Purge" oben): Routen + alle
+referenzierten Assets/Bilder, durch den Edge und erst nach
+Public-Release-Match.
 
 **Tag-Purge ist hier NICHT nutzbar (gemessen, nicht vermutet):** eine
 Cache-Response-Rule _kann_ `Cache-Tag: mosthi-html` setzen (Header erscheint in
@@ -1469,6 +1514,14 @@ Vor jedem Commit wird diese Datei auf Aktualität geprüft und bei Bedarf ergän
 
 - **[Cloudflare] Purge-by-Tag ist in diesem Setup ein stiller No-op** (05.11.2026, gemessen): Header-Transform-Rule setzt `Cache-Tag: mosthi-html` (Header ist in der Antwort sichtbar), `POST /purge_cache {"tags":[…]}` ⇒ `success: true`, aber das Objekt bleibt `HIT` mit monoton steigendem `Age` (445 → 449 → 453 s). Purge-by-tag ist damit **kein** Weg zur strukturellen Asset-Ausnahme; URL-Purge + Filter (`isPurgeablePath`) ist die funktionierende Variante. „API gibt 200" ist **kein** Beweis, dass ein Purge gewirkt hat — immer `cf-cache-status`/`Age` nachmessen.
 - **[Cloudflare/Redirect]** Trailing-Slash-Regel: Free-Plan kann **kein** `regex_replace` in `target_url` (Fehler „not entitled … Business plan or a WAF Advanced plan"), und `if()`/`len()`/`sub()` sind dort **nicht** im Sprachumfang (`unknown identifier`). Funktioniert: `ends_with(path,"/") and path ne "/"` + `concat("https://", http.host, substring(http.request.uri.path, 0, -1))` + `preserve_query_string: true`, Status 308. `substring(…, 0, -1)` schneidet genau ein Zeichen — kein Regex, plan-konform.
+- **[Cloudflare/Cache] 404-Poisoning bei Origin-Ausfall — die Content-Regel MUSS `http.response.code` prüfen** (07.11.2026, live reproduziert). Stoppt man den App-Container, verschwinden die Coolify/Traefik-Labels; der Catch-All (priority -1000) liefert den Placeholder. Die Content-Response-Rule (Host + `/de…`) überschrieb dessen `no-store` mit `s-maxage=2592000`, die Cache-Rule hatte `404 → 2592000` → der 404 wurde **30 Tage** gecacht und blieb nach dem Restart (`HIT 404`, Age 15). Plain-Restart purged nicht (`[cf-purge] … already purged — skipping`). Fix: Content-Regel nur `http.response.code lt 400`, 404/5xx fallen in die Catch-all-`no-store`-Regel, 404-`status_code_ttl` entfernt; Placeholder liefert für die Site-Hosts **503**. Verifiziert: erster Request während Ausfall → 404 `BYPASS`, zweiter → `BYPASS`, nach Restart → 200 `MISS`. **Lehre:** ein Placeholder, der 404 statt 5xx liefert, ist Gift für `stale-if-error` und für jede 404-TTL.
+- **[Cloudflare/Cache] `/` (Sprach-Redirect) darf nicht in die Content-Cache-Regel** (07.11.2026, gemessen). Der Proxy entscheidet `/` per `Accept-Language` (`de` → `/de`, sonst `/en`); Cloudflare ignoriert `Vary`. Die Content-Rule ergänzte `s-maxage=2592000` auf den 307 → der erste Besucher fror die Sprache 30 Tage ein (`en-US` bekam `location: /de`, Age 61 184). `/` ist von CMS-Hooks nicht purgbar (`edgePurgePathsForTag` kennt nur `/de`/`/en`). Fix: `path eq "/"` aus der Regel, `/` fällt in `no-store` (`BYPASS`, korrekte Sprache pro Request). Kein Cloudflare-Cache-Key-Vary auf Free.
+- **[Cloudflare/Cache] Prefix-Match `/de` fängt `/design` & Co.** (07.11.2026). `starts_with(path, "/de")` matcht auch `/design`, `/demo`, `/eng…`; der sprachabhängige 307 wurde 30 Tage gecacht. Fix: segment-exakt (`path eq "/de" or starts_with(path, "/de/")`, analog `/en`). Ein einzelner alter HIT bleibt bis zum Purge — nach dem Regelwechsel Prefix-Purge (`prefixes: ["mostheimer.de/de","mostheimer.de/en"]`) fahren.
+- **[Cloudflare/Cache] `status_code_ttl` überschreibt `s-maxage`** (07.11.2026, Doku + Messung). Die Cache-Rule `2xx = 86400` kappt **alle** 2xx, inklusive `/_next/static` (1-Jahr-Header) und Text/OG. Deshalb eigene Cache-Rules mit `override_origin`: static `31536000`, text `3600`, og/media/favicon `86400`. Der 30-d-`stale-if-error` bleibt trotzdem als Ausfall-Puffer. `s-maxage` im Response-Header ist für Besucher sichtbar, die echte Edge-TTL kommt aus `status_code_ttl`/`override_origin`.
+- **[Cloudflare/Zone] „alle Rules löschen" reicht für `mosthi.de` nicht** (07.11.2026). Zone `mosthi.de` hat jetzt **eine** Regel: `cache: false` für `mosthi.de`/`www.mosthi.de`; Response- und Dynamic-Redirect-Ruleset gelöscht. Ohne diese eine Regel cached Cloudflare per Default weiter statische Extensions und 301s (`cache_level: bypass` ist als Zone-Setting **ungültig**, API 1007). Ergebnis: `301` + `cf-cache-status: DYNAMIC`, kein `Age`. Die Trailing-Slash-Regel lebt jetzt in der `mostheimer.de`-Zone (host-exakt apex); die alte mosthi-Regel listete `mostheimer.de`-Hosts, war dort aber zone-scoped wirkungslos.
+- **[Cache/Warming] Warming erst nach Public-Release-Match** (07.11.2026). Nach dem Purge wird `https://mostheimer.de/api/health` gepollt, bis sie **dieselbe `release`** wie der lokale Container meldet; sonst würde das Warming während des Traefik-Switch die **alte** Release-Version vom noch aktiven Container wieder einlagern. Erst dann Routen + Assets durch den Edge holen. Bei fehlendem Match: Skip mit Warnung (Deploy bleibt grün). `--warm-only` (Cron/Operator) überspringt Purge/Marker/Token; Deploy-Warm läuft nur bei `failed === 0`.
+- **[Cache/Warming] Bild-Assets brauchen relative CSS-Auflösung** (07.11.2026). `next/font` referenziert Fonts in CSS als `url(../media/<hash>.woff2)`; ein naiver `/_next/static/`-Regex findet sie nicht. Der Warm-Extraktor löst `url(...)` gegen die **CSS-URL** auf (→ `/_next/static/media/…`) und sammelt aus HTML `src`/`href`/`poster`/`srcset`/`imagesrcset`, `<meta og:image|twitter:image>` sowie `/favicon.ico` (Content-Hash-Query). `/media/*` und `/api/media/file/*` sind jetzt 1 d cachebar (Response-Rule entfernt `no-store`), `/og` 1 d, Favicon 1 d; 7-Tage-Cron hält sie warm, 30-d-`stale-if-error` überbrückt längere Ausfälle.
+- **[Coolify/Scheduled Task] Wochen-Warm** (07.11.2026): App `mostheimer` (`vcfotnzye7fklxrh10i81npl`), Task `node /app/scripts/cf-purge.mjs --warm-only`, Cron `0 4 * * 1` (Montag 04:00). Kein Token nötig, kein Purge, keine Marker-Datei; läuft im App-Container. Kill-Switch `CF_WARM=0` wirkt auch hier.
 - **[Turbopack/Stale-Cache #2]** `npm run build` im frisch erzeugten Worktree panickte mit `invalid utf-8 sequence of 1 bytes from index …` (SourceMap-Asset), obwohl derselbe Commit auf `origin/main` sauber baute. Ursache: vererbter/inkrementeller `.next`-Zustand aus dem Worktree-Anlegen (Nutzer lesen `node_modules`/`.next` vom Haupt-Checkout). Fix: `rm -rf .next` und erneut bauen → grün. Merke (wie beim `@tailwindcss/turbopack`-Fall): bei „Build-Panic ohne Codebezug" **zuerst** `.next` löschen, bevor Deps/Code verdächtigt werden.
 - **[Coolify/Build-ARGs]** Coolify injiziert ALLE App-Envs als Build-ARGs (unabhängig von Compose-Refs) → Secrets landen in `docker history`-Layer. Fix: Coolify-Env-Flag `is_buildtime: false` (REST PATCH envs) + Compose-`$SECRET`-Referenzen entfernen. Nach jedem Deploy: `docker history <image> | grep -iE 'SECRET|DATABASE'` (presence-only, nie Werte drucken).
 - **[Secure-Cookie]** `cookies: { secure: true }` + Safari: Secure-Cookie wird auf `http://localhost` NICHT gesetzt → Dev-Login in Safari bricht (Chrome/FF ok, localhost gilt dort als secure context). Hinweis-Only.
