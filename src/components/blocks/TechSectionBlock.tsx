@@ -2,6 +2,7 @@ import React from 'react';
 import type { Page } from '@/payload-types';
 import { BentoTile, CardHeader, splitParagraphs } from '../ui/industrial';
 import { KeyFactActionButton } from '../ui/KeyFactActionButton';
+import { RevealGrid } from '../ui/MotionWrappers';
 
 type TechSectionBlockData = Extract<
   NonNullable<Page['layout']>[number],
@@ -34,7 +35,10 @@ export function TechSectionBlock({ block }: { block: TechSectionBlockData }) {
           </div>
 
           {block.keyFacts && block.keyFacts.length > 0 && (
-            <dl className="mt-8 grid grid-cols-1 gap-2 border-t border-border pt-6 sm:grid-cols-2 lg:grid-cols-3">
+            <RevealGrid
+              as="dl"
+              className="mt-8 grid grid-cols-1 gap-2 border-t border-border pt-6 sm:grid-cols-2 lg:grid-cols-3"
+            >
               {block.keyFacts.map((fact) => {
                 // Contact values are often several targets in one line
                 // ("github.com/mayraost · linkedin.com/in/…"): split them so each
@@ -47,6 +51,7 @@ export function TechSectionBlock({ block }: { block: TechSectionBlockData }) {
                 return (
                   <div
                     key={fact.id ?? fact.label}
+                    data-reveal=""
                     className="flex flex-col justify-between gap-2 rounded-[6px] border border-border bg-surface-raised/50 p-3"
                   >
                     <div>
@@ -76,7 +81,7 @@ export function TechSectionBlock({ block }: { block: TechSectionBlockData }) {
                   </div>
                 );
               })}
-            </dl>
+            </RevealGrid>
           )}
         </BentoTile>
       </div>

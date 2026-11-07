@@ -268,6 +268,19 @@ export const Translations: GlobalConfig = {
           defaultValue: 'Copying failed — please select the address manually',
           required: true,
         },
+        {
+          // Inline confirmation shown INSIDE the button for 2s after a copy
+          // (spec §3.4 "terminal-style feedback"). The screen-reader variant is
+          // `copiedMessage` above — this one is the visible terminal line.
+          name: 'copiedInline',
+          type: 'text',
+          defaultValue: '[ COPIED // 200 OK ]',
+          required: true,
+          admin: {
+            description:
+              'Inline button label while the copy confirmation is shown (2s). Screen readers still hear "E-mail address copied".',
+          },
+        },
       ],
     },
     {

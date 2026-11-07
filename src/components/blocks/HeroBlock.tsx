@@ -2,7 +2,9 @@ import React from 'react';
 import Image from 'next/image';
 import type { Page, Media } from '@/payload-types';
 import { TypingHeading } from '../TypingHeading';
-import { StatusDot } from '../ui/industrial';
+import { Chip, StatusDot } from '../ui/industrial';
+import { LiveDot } from '../ui/LiveDot';
+import { ctaArrowClass, ctaArrowHoverClass, ctaMotionClass } from '../ui/ActionLinkButton';
 
 type HeroBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'hero' }>;
 
@@ -92,7 +94,8 @@ export function HeroBlock({
                 eine Verfügbarkeitsaussage kann gegenüber dem aktuellen
                 Arbeitgeber falsch wirken. Der Hero behält nur neutrale
                 Rollen-/Stack-Chips. */}
-            <span className="mono-label rounded-[4px] border border-primary/50 bg-primary-muted px-2.5 py-1.5 text-primary">
+            <span className="mono-label inline-flex items-center gap-2 rounded-[4px] border border-primary/50 bg-primary-muted px-2.5 py-1.5 text-primary">
+              <LiveDot />
               web &amp; application architect
             </span>
             <span className="mono-label rounded-[4px] border border-border-strong px-2.5 py-1.5 text-muted-foreground">
@@ -137,18 +140,23 @@ export function HeroBlock({
               {block.ctaLabel && block.ctaLink && (
                 <a
                   href={block.ctaLink}
-                  className="mono-label inline-flex min-h-11 items-center gap-2 rounded-[6px] bg-primary px-5 text-primary-foreground transition-colors hover:bg-primary-hover"
+                  className={`group mono-label inline-flex min-h-11 items-center gap-2 rounded-[6px] bg-primary px-5 text-primary-foreground hover:bg-primary-hover ${ctaMotionClass}`}
                 >
                   {block.ctaLabel}
-                  <span aria-hidden="true">→</span>
+                  <span aria-hidden="true" className={`${ctaArrowClass} ${ctaArrowHoverClass}`}>
+                    →
+                  </span>
                 </a>
               )}
               {block.ctaLabel2 && block.ctaLink2 && (
                 <a
                   href={block.ctaLink2}
-                  className="mono-label inline-flex min-h-11 items-center gap-2 rounded-[6px] border border-border-strong px-5 text-foreground transition-colors hover:border-secondary hover:text-secondary"
+                  className={`group mono-label inline-flex min-h-11 items-center gap-2 rounded-[6px] border border-border-strong px-5 text-foreground hover:border-secondary hover:text-secondary ${ctaMotionClass}`}
                 >
                   {block.ctaLabel2}
+                  <span aria-hidden="true" className={`${ctaArrowClass} ${ctaArrowHoverClass}`}>
+                    →
+                  </span>
                 </a>
               )}
             </div>
@@ -171,12 +179,9 @@ export function HeroBlock({
             <div className="mt-8 flex flex-wrap items-center gap-2">
               <span className="mono-label mr-1 text-muted-foreground">stack</span>
               {STACK_ITEMS.map((item) => (
-                <span
-                  key={item}
-                  className="mono-label rounded-[4px] border border-border px-2 py-1 text-muted-foreground"
-                >
+                <Chip key={item} variant="outline" interactive>
                   {item}
-                </span>
+                </Chip>
               ))}
             </div>
           )}

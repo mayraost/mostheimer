@@ -2,6 +2,7 @@ import React from 'react';
 import type { Page } from '@/payload-types';
 import { Icon } from './Icon';
 import { BentoTile, CardHeader, CornerTicks } from '../ui/industrial';
+import { RevealGrid } from '../ui/MotionWrappers';
 
 type FeatureGridBlockData = Extract<
   NonNullable<Page['layout']>[number],
@@ -20,11 +21,12 @@ export function FeatureGridBlock({ block }: { block: FeatureGridBlockData }) {
             </h2>
           </div>
         )}
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
+        <RevealGrid className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
           {block.features?.map((feature: FeatureItem, index) => (
             <BentoTile
               key={feature.id ?? feature.title}
-              className="group p-5 transition-colors hover:border-primary/60"
+              data-reveal=""
+              className="bento-reveal group p-5 transition-colors hover:border-primary/60"
             >
               <CornerTicks />
               <div className="relative">
@@ -45,7 +47,7 @@ export function FeatureGridBlock({ block }: { block: FeatureGridBlockData }) {
               </div>
             </BentoTile>
           ))}
-        </div>
+        </RevealGrid>
       </div>
     </section>
   );
