@@ -1,4 +1,5 @@
 import type { GlobalConfig } from 'payload';
+import { protectedAuthorshipFields } from '../security/authorship';
 import { revalidateNavigationCache } from '../cache/frontend/frontendCache';
 
 export const Navigation: GlobalConfig = {
@@ -48,5 +49,7 @@ export const Navigation: GlobalConfig = {
         },
       ],
     },
+    // Authorship is admin-only metadata; public reads must not carry it.
+    ...protectedAuthorshipFields(),
   ],
 };

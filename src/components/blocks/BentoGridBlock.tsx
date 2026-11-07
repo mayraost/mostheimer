@@ -16,7 +16,16 @@ type BentoItem = NonNullable<BentoGridBlockData['items']>[number];
  * No maturity vocabulary on purpose: no "featured/core" chip and no maturity
  * gauge — emphasis is purely spatial (spanning) plus description depth.
  */
-function BentoCard({ item, index }: { item: BentoItem; index: number }) {
+function BentoCard({
+  item,
+  index,
+  locale,
+}: {
+  item: BentoItem;
+  index: number;
+  locale: 'de' | 'en';
+}) {
+  const de = locale === 'de';
   const isEmphasis = Boolean(item.featured || item.highlight) || index % 3 === 0;
 
   const card = (
@@ -34,7 +43,7 @@ function BentoCard({ item, index }: { item: BentoItem; index: number }) {
       <div className="relative flex h-full flex-col p-5">
         <div className="mb-5 flex items-start justify-between gap-3">
           <span className={`mono-label ${isEmphasis ? 'text-primary' : 'text-muted-foreground'}`}>
-            Säule {String(index + 1).padStart(2, '0')}
+            {de ? 'Säule' : 'Pillar'} {String(index + 1).padStart(2, '0')}
           </span>
           <span className="mono-label flex items-center gap-1.5 text-muted-foreground">
             <StatusDot tone={isEmphasis ? 'primary' : 'secondary'} />
@@ -115,8 +124,12 @@ export function BentoGridBlock({ block, locale }: { block: BentoGridBlockData; l
   const de = locale === 'de';
 
   return (
-    /* id="architektur": anchor target of the hero CTA. */
-    <section id="architektur" className="w-full scroll-mt-24 pt-6 pb-16 lg:py-16">
+    /* Locale-aware anchor for the hero CTA: "#architektur" (de) / "#architecture"
+       (en). The old fixed German id broke the English hero CTA target. */
+    <section
+      id={de ? 'architektur' : 'architecture'}
+      className="w-full scroll-mt-24 pt-6 pb-16 lg:py-16"
+    >
       <div className="mx-auto w-full max-w-6xl">
         <div className="mb-8 border-b border-border pb-6">
           <Eyebrow>{de ? 'Architektur-Ansatz' : 'Architecture approach'}</Eyebrow>
@@ -136,7 +149,12 @@ export function BentoGridBlock({ block, locale }: { block: BentoGridBlockData; l
 
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {items.map((item, index) => (
-            <BentoCard key={item.id ?? item.title} item={item} index={index} />
+            <BentoCard
+              key={item.id ?? item.title}
+              item={item}
+              index={index}
+              locale={de ? 'de' : 'en'}
+            />
           ))}
         </div>
       </div>

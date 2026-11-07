@@ -1,5 +1,7 @@
 import type { CollectionConfig } from 'payload';
+
 import { allBlocks } from '../blocks';
+import { protectedAuthorshipFields } from '../security/authorship';
 import { normalizeSlug } from '../cache/frontend/utils';
 import {
   revalidatePagePathCache,
@@ -80,5 +82,7 @@ export const Pages: CollectionConfig = {
       blocks: allBlocks,
       localized: true,
     },
+    // Authorship is admin-only metadata; public reads must not carry it.
+    ...protectedAuthorshipFields(),
   ],
 };
