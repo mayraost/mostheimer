@@ -1766,3 +1766,61 @@ Läuft es ohne `< /dev/null`, fragt es „No schema changes detected. Would you 
 to create a blank migration file?" und **erzeugt bei Nichtantwort gar nichts**
 (Exit 0, keine Datei). Immer `< /dev/null` anhängen oder die Frage beantworten.
 
+
+## Logo-Lockup, Header-Marke & Icon-Set (07.11.2026)
+
+Drei Ableitungen aus **einem** Artwork (dem abgetragenen MO-Mark). Wer eins davon
+ändert, muss die anderen mitziehen — sonst driften Favicon und Header auseinander.
+
+| Datei | Rolle |
+| --- | --- |
+| `src/components/LogoLockup.tsx` | Voller Lockup: Mark + `MAYRA OSTHEIMER` + Subline `// WEB & APPLICATION ARCHITECT` |
+| `src/public/logo-lockup.svg` | Dasselbe standalone, transparent, Space Grotesk als base64-woff2 eingebettet |
+| `src/components/LogoLockupMark.tsx` | **Header-Variante**: Mark + Wortmarke, **ohne** Subline |
+| `src/app/icon.svg`, `favicon.ico`, `apple-icon.png` | Favicon-Set (Next-File-Conventions) |
+| `src/public/icon-192.png`, `icon-512.png` | Manifest-Icons |
+| `src/app/manifest.ts` | Web-App-Manifest |
+
+### Warum der Header die Subline NICHT zeigt
+
+Der volle Lockup hat Aspect 3.57 (viewBox `2303 × 645`). Skaliert man ihn auf die
+Headerhöhe, wird die dritte Zeile rechnerisch **6–7 px** hoch (`56 px ÷ 645 × 70`).
+Das ist nicht „etwas klein", das ist unlesbar. `LogoLockupMark` lässt die Subline
+deshalb weg und croppt den viewBox — die Subline bleibt dem vollen Lockup auf
+großen Flächen vorbehalten. **Nicht** „nur kurz den vollen Lockup reinziehen": das
+ist der Fehler, den diese Trennung verhindert.
+
+### Light-Theme: `currentColor`, kein Fixwert
+
+Die Referenz-Wortmarke ist fast weiß (`#F2F4F5`). Im Header sitzt das Logo auf
+`bg-background/85` — im Light-Theme also auf **Weiß** → unsichtbar. `LogoLockupMark`
+nutzt deshalb `fill="currentColor"` auf der Wortmarke (Farbe kommt von der
+Textklasse am `<svg>`). Der volle Lockup behält den Fixwert, weil er auf
+dunklen Flächen sitzt.
+
+### Icon-Set: Fallstricke, teuer gelernt
+
+- **Art-Bounds messen, nicht schätzen.** Ein geratener Rahmen (`253..1278 / 443..1008`)
+  schnitt das `</>`-Akzent oben ab und setzte den Glyph sichtbar außer Mitte.
+  Korrekt (per Raster gemessen): `x 268..1277`, `y 443..1043` → `ART = {x:268,y:443,w:1009,h:600}`.
+- **Das `</>` ist ein 23 px-Stroke** um `y=443..529`; seine Tinte beginnt bei 431.5.
+  Ein Bounds-Start auf `443` clippt es.
+- **iOS ignoriert Transparenz** → `apple-icon.png` braucht eine Platte (`#121212`).
+  Gleichzeitig wendet iOS eine eigene Eckmaske an, der Radius ist kosmetisch.
+- **Maskable braucht mehr Padding als `any`.** Android beschneidet bis 20 % pro
+  Seite; deshalb `icon-512.png` mit `pad = 0.2` und im Manifest **zwei** Einträge
+  (`purpose: 'any'` und `'maskable'`) — eine Datei für beides sieht unmaskiert zu klein aus.
+- **ICO selbst gebaut:** im Projekt gibt es weder `png-to-ico` noch ImageMagick/ffmpeg.
+  Das ICO-Containern (6-Byte-Header + 16-Byte-Directory + PNG-Payloads) schreibt
+  `icons.mjs` in wenigen Zeilen; `sharp` liefert die PNGs. Format ist Vista+ (PNG im ICO).
+- **Next serviert nur `icon.svg` / `apple-icon.png` / `favicon.ico`** aus `src/app`.
+  Die Manifest-PNGs liegen in `src/public` — sonst 404 im Manifest.
+
+### React/JSX vs. SVG-Attribute
+
+`LogoLockup*.tsx` nutzt JSX-Namen (`className`, `stopColor`, `fontSize`,
+`letterSpacing`, `fillRule`, `strokeWidth`). Das ist **kein** gültiges SVG/XML —
+wer daraus eine `.svg`-Datei ableitet, muss auf `class`/`stop-color`/`font-size`/
+`fill-rule`/`stroke-width` übersetzen. Ein Regex-Strip der JSX-Wrapper erzeugt
+sonst still broken XML (und `<img src="data:image/svg+xml,...">` zeigt nur das
+Broken-Image-Icon).
