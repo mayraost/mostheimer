@@ -6,7 +6,7 @@ import { useSettings } from './SettingsProvider';
 import { useTranslations } from './TranslationsProvider';
 import { Moon, Sun, SunMoon, Settings, Menu } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { Logo } from './Logo';
+import { LogoLockupMark } from './LogoLockupMark';
 import { CommandPalette } from './ui/CommandPalette';
 import { ScrollProgressBar } from './ui/ScrollProgressBar';
 import { MobileNavPortal } from './MobileNavPortal';
@@ -110,17 +110,22 @@ export function Header({
         ].join(' ')}
       >
         {/*
-         * A11y: the visible text ("mayra ostheimer" + "// dev") must be part of
-         * the accessible name. On mobile that text is hidden, so an sr-only
-         * text supplies the name instead of a contradictory aria-label.
+         * A11y: the lockup renders the wordmark as SVG <text>, which is NOT
+         * reliably exposed as text by every screen reader. The sr-only span
+         * therefore carries the full accessible name (brand + destination),
+         * and the SVG itself is decorative (`aria-hidden`) so the name is not
+         * announced twice.
          */}
         <Link href={`/${locale}`} className="group flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-[6px] border border-border bg-surface-raised text-primary transition-colors group-hover:border-primary/60 group-hover:text-primary-hover">
-            <Logo className="h-5 w-5" />
-          </span>
-          <span className="hidden font-heading text-lg font-bold tracking-tight text-foreground sm:inline">
-            mayra ostheimer
-          </span>
+          {/*
+           * The full lockup (with subline) does not fit: at the header's
+           * 56–64px height its third line scales to 6–7px. `LogoLockupMark`
+           * carries mark + wordmark only, so both stay legible.
+           */}
+          <LogoLockupMark
+            title=""
+            className="h-7 w-auto shrink-0 text-foreground transition-opacity group-hover:opacity-80 sm:h-8"
+          />
           <span className="mono-label hidden text-primary lg:inline">{'//'} dev</span>
           <span className="sr-only">
             mayra ostheimer — {locale === 'de' ? 'Startseite' : 'home'}
