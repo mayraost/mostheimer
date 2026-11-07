@@ -319,7 +319,16 @@ async function sendPurge(
   let purgedZones = 0;
 
   for (const group of groups) {
-    const body: Record<string, unknown> = { files: group.files.slice(0, MAX_URLS_PER_REQUEST) };
+    const files = group.files.slice(0, MAX_URLS_PER_REQUEST);
+    const dropped = group.files.length - files.length;
+    if (dropped > 0) {
+      // Never drop purges silently: a larger site would otherwise keep serving
+      // stale objects while the API still reports success for the sent subset.
+      console.warn(
+        `[cf-cache] ${group.files.length} URLs exceed the ${MAX_URLS_PER_REQUEST}-URL request cap for zone ${group.zoneId.slice(0, 8)}; ${dropped} URL(s) not purged`,
+      );
+    }
+    const body: Record<string, unknown> = { files };
     try {
       const response = await fetchImpl(`${CLOUDFLARE_API_BASE}/zones/${group.zoneId}/purge_cache`, {
         method: 'POST',
@@ -334,7 +343,7 @@ async function sendPurge(
 
       if (response.ok) {
         purgedZones += 1;
-        urls += group.files.length;
+        urls += files.length;
         continue;
       }
       failures.push(
