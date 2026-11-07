@@ -4,16 +4,19 @@
 // the supported way. Also the Docker HEALTHCHECK target.
 import { connection } from 'next/server';
 
+import { getReleaseId } from '@/lib/release';
+
 /**
- * `release` is the release id of the running build, inlined from
- * `next.config.ts` (`env.NEXT_RELEASE_ID`, derived from the CI commit or the
- * build time). `ReleaseGuard` compares it and reloads an open tab once after a
- * deploy instead of letting the tab navigate with the previous build's chunks.
+ * `release` is the identity of the running **image** (Next BUILD_ID, baked into
+ * `/app/.cf-release`), NOT a per-build timestamp — see `src/lib/release.ts`.
+ * `ReleaseGuard` compares it against the id its tab loaded with and performs at
+ * most one reload per release, so an unchanged commit can never trigger a
+ * reload loop.
  */
 export async function GET() {
   await connection();
   return Response.json(
-    { status: 'ok', release: process.env.NEXT_RELEASE_ID ?? null },
+    { status: 'ok', release: getReleaseId() },
     { status: 200, headers: { 'Cache-Control': 'no-store' } },
   );
 }

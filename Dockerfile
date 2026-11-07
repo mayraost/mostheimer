@@ -40,6 +40,9 @@ COPY --from=build --chown=nextjs:nodejs /app/src/public ./public
 COPY --from=build --chown=nextjs:nodejs /app/scripts ./scripts
 # Release identity baked at build time: a restart of the same image sees the
 # same id and skips the deploy purge (no purge storm from crash loops).
+# It is ALSO the single source for /api/health `release` (src/lib/release.ts),
+# which the client ReleaseGuard compares — a per-build timestamp there made
+# open tabs reload in a loop after an unchanged-commit redeploy (07.11.2026).
 RUN chmod +x /app/scripts/entrypoint.sh \
   && printf '%s' "$(cat /app/.next/BUILD_ID)" > /app/.cf-release \
   && chown nextjs:nodejs /app/.cf-release
