@@ -121,10 +121,11 @@ export function Header({
           // sticky header in normal flow, so a shorter bar never moves it
           // (CLS stays 0) — only the header's own density changes.
           //
-          // `lg` is taller (80px) because that is where the lockup grows its
-          // third line (`// WEB & APPLICATION ARCHITECT`). A 64px bar leaves
-          // that subline at ~5px; the extra 16px buys the whole type block.
-          compact ? 'h-14' : 'h-16 lg:h-20',
+          // The bar is sized by the LOCKUP, not by the icons: type at 96/300
+          // of the mark only reaches readable sizes once the lockup gets real
+          // height. Mobile 64px → 48px lockup (wordmark ~14px); `lg` 88px →
+          // 84px lockup (wordmark ~22px, subline ~9px).
+          compact ? 'h-14' : 'h-16 lg:h-[88px]',
         ].join(' ')}
       >
         {/*
@@ -144,7 +145,7 @@ export function Header({
            */}
           <LogoLockupMark
             title=""
-            className="h-8 w-auto shrink-0 text-foreground transition-opacity group-hover:opacity-80 lg:h-[72px]"
+            className="h-12 w-auto shrink-0 text-foreground transition-opacity group-hover:opacity-80 lg:h-[84px]"
           />
           <span className="mono-label hidden text-primary lg:inline">{'//'} dev</span>
           <span className="sr-only">

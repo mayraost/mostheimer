@@ -143,16 +143,16 @@ export const MARK_PALETTE_LIGHT: MarkPalette = {
  * proportionally larger subline, which lands around 8 px at 56–64 px.
  *
  * Wordmark metrics are measured against Space Grotesk 700, not guessed:
- * OSTHEIMER at 70 units + 4 tracking has an ink width of 404 units.
+ * OSTHEIMER at 96 units + 4 tracking has an ink width of 542 units.
  */
 export const LOCKUP = {
-  wordSize: 64,
+  wordSize: 96,
   /** Divider gap between mark and type. */
   gap: 56,
   /** MAYRA baseline → OSTHEIMER baseline. */
-  lineGap: 70,
+  lineGap: 100,
   /** OSTHEIMER baseline → subline baseline. Clears the wordmark descender. */
-  subGap: 44,
+  subGap: 48,
   /** Wordmark tracking. */
   tracking: 4,
   subTracking: 2.5,
@@ -163,13 +163,13 @@ export const LOCKUP = {
 /** Subline type size per composition. */
 export const SUBLINE_SIZE = {
   /** In the 300-unit display box, where the whole lockup is large. */
-  display: 22,
+  display: 24,
   /**
    * Header composition. Deliberately oversized relative to the wordmark: the
    * subline is the smallest element in a bar that is only 80 px tall, so it
    * gets the extra units to land near 9 px instead of 5 px.
    */
-  header: 34,
+  header: 38,
 } as const;
 
 /** Left edge of the mark's 440-unit box. */
@@ -213,7 +213,7 @@ export const LOCKUP_SUBLINE_Y = LOCKUP_BASELINE_2 + LOCKUP.subGap;
  * measured ink widths (see `tests/int/brand.int.spec.ts`); the boxes add a
  * small right margin so a font fallback cannot clip either.
  */
-const SUBLINE_INK = { header: 676, display: 437 } as const;
+const SUBLINE_INK = { header: 748, display: 472 } as const;
 const BOX_RIGHT_PAD = 40;
 
 /**
@@ -226,8 +226,8 @@ const SUBLINE_BOTTOM_PAD = 1.6;
 /** Widest content per composition. */
 const CONTENT_RIGHT = LOCKUP_TEXT_X + 2 + SUBLINE_INK.header;
 
-/** OSTHEIMER at `wordSize` plus tracking measures 404 units of ink. */
-const WORDMARK_INK = 404;
+/** OSTHEIMER at `wordSize` plus tracking measures 542 units of ink. */
+const WORDMARK_INK = 542;
 
 export const LOCKUP_BOX = {
   /** No subline: the box ends where the wordmark ends, keeping the mark big. */

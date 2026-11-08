@@ -45,11 +45,11 @@ const PALETTE_SLOTS = [
 
 describe('brand mark geometry', () => {
   it('keeps the subline inside every box that renders it', () => {
-    // Header composition: 34 units of JetBrains Mono 700 measure 676 units of
+    // Header composition: 38 units of JetBrains Mono 700 measure 748 units of
     // ink, which is the widest element in the lockup.
-    const sublineRight = LOCKUP_TEXT_RIGHT + 676;
+    const sublineRight = LOCKUP_TEXT_RIGHT + 748;
     expect(LOCKUP_BOX.full.width).toBeGreaterThanOrEqual(sublineRight);
-    expect(LOCKUP_BOX.display.width).toBeGreaterThanOrEqual(LOCKUP_TEXT_RIGHT + 437);
+    expect(LOCKUP_BOX.display.width).toBeGreaterThanOrEqual(LOCKUP_TEXT_RIGHT + 472);
 
     // Vertical: descenders must fit under the baseline.
     expect(LOCKUP_BOX.full.height).toBeGreaterThan(LOCKUP_SUBLINE_Y);
@@ -57,8 +57,8 @@ describe('brand mark geometry', () => {
   });
 
   it('leaves the wordmark enough room in the compact box', () => {
-    // OSTHEIMER at wordSize + tracking is 404 units wide.
-    expect(LOCKUP_BOX.compact.width).toBeGreaterThanOrEqual(LOCKUP_TEXT_RIGHT + 404);
+    // OSTHEIMER at wordSize + tracking is 542 units wide.
+    expect(LOCKUP_BOX.compact.width).toBeGreaterThanOrEqual(LOCKUP_TEXT_RIGHT + 542);
   });
 
   it('reserves headroom so the reticle is never clipped', () => {
@@ -75,9 +75,18 @@ describe('brand mark geometry', () => {
   });
 
   it('sizes the header subline above the legibility floor', () => {
-    // Header block is ~72 px tall; anything under 7 px is unreadable.
-    const rendered = (SUBLINE_SIZE.header / LOCKUP_BOX.full.height) * 72;
+    // The `lg` header renders the lockup at 84 px; under 7 px is unreadable.
+    const rendered = (SUBLINE_SIZE.header / LOCKUP_BOX.full.height) * 84;
     expect(rendered).toBeGreaterThan(7);
+  });
+
+  it('renders the wordmark at a readable size in both headers', () => {
+    // Mobile lockup 48 px, desktop lockup 84 px. The wordmark must not shrink
+    // below the 12 px mono labels that sit next to it in the header row.
+    const mobile = (LOCKUP.wordSize / LOCKUP_BOX.compact.height) * 48;
+    const desktop = (LOCKUP.wordSize / LOCKUP_BOX.full.height) * 84;
+    expect(mobile).toBeGreaterThanOrEqual(12);
+    expect(desktop).toBeGreaterThanOrEqual(18);
   });
 
   it('uses a distinct palette per theme, never the same object', () => {
