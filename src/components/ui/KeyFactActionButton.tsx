@@ -1,9 +1,8 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
 import { ExternalLink, Phone } from 'lucide-react';
-import type { Translation } from '@/payload-types';
 import { useTranslationsOrNull } from '@/components/TranslationsProvider';
+import { getLegacyCopy } from '@/lib/translations';
 import { keyFactAction } from '@/lib/contactActions';
 import { ActionLinkButton } from './ActionLinkButton';
 import { CopyButton } from './CopyButton';
@@ -24,34 +23,12 @@ import { CopyButton } from './CopyButton';
  * profile host — a plain fact stays a plain fact.
  */
 
-type ContactCopy = Translation['contactActions'];
-type ClipboardCopy = Translation['clipboard'];
-type Locale = 'en' | 'de';
-
-/** Per-locale mirror of the CMS defaults (only for a missing group). */
-const FALLBACK: Record<Locale, Required<Omit<ContactCopy, 'id'>>> = {
-  en: {
-    callLabel: 'Call',
-    githubLabel: 'GitHub',
-    linkedinLabel: 'LinkedIn',
-    newTabHint: '(opens in a new tab)',
-  },
-  de: {
-    callLabel: 'Anrufen',
-    githubLabel: 'GitHub',
-    linkedinLabel: 'LinkedIn',
-    newTabHint: '(öffnet in einem neuen Tab)',
-  },
-};
-
-const COPY_FALLBACK: Record<Locale, string> = {
-  en: 'Copy e-mail',
-  de: 'E-Mail kopieren',
-};
-
-const pick = (value: string | null | undefined, fallback: string): string =>
-  value?.trim() || fallback;
-
+/*
+ * No per-locale fallback table (rule since 08.11.2026). Labels come from the
+ * `contactActions` / `clipboard` groups through `getTranslation`. The one
+ * exception is a PROPER NOUN: a profile whose host is unknown still needs a
+ * visible name, so the host itself is the label (data, not copy).
+ */
 const ICON = 'h-3.5 w-3.5 shrink-0';
 
 export function KeyFactActionButton({
@@ -61,25 +38,14 @@ export function KeyFactActionButton({
   value: string;
   className?: string;
 }) {
-  const pathname = usePathname();
   const translations = useTranslationsOrNull();
-  const locale: Locale = pathname.split('/')[1] === 'de' ? 'de' : 'en';
-  const fallback = FALLBACK[locale];
-  const source: ContactCopy | undefined = translations?.contactActions;
-  const clipboard: ClipboardCopy | undefined = translations?.clipboard;
 
   const action = keyFactAction(value);
   if (!action) return null;
 
   switch (action.kind) {
     case 'copy':
-      return (
-        <CopyButton
-          value={action.value}
-          label={pick(clipboard?.copyLabel, COPY_FALLBACK[locale])}
-          className={className}
-        />
-      );
+      return <CopyButton value={action.value} className={className} />;
     case 'call':
       return (
         <ActionLinkButton
@@ -87,14 +53,14 @@ export function KeyFactActionButton({
           className={className}
           icon={<Phone className={ICON} aria-hidden="true" />}
         >
-          {pick(source?.callLabel, fallback.callLabel)}
+          {getLegacyCopy(translations, 'contactActions.callLabel')}
         </ActionLinkButton>
       );
     case 'external': {
       const label: string =
         action.labelKey === null
           ? action.host
-          : pick(source?.[action.labelKey], fallback[action.labelKey]);
+          : getLegacyCopy(translations, `contactActions.${action.labelKey}`);
       return (
         <ActionLinkButton
           href={action.href}
@@ -104,7 +70,10 @@ export function KeyFactActionButton({
           icon={<ExternalLink className={ICON} aria-hidden="true" />}
         >
           {label}
-          <span className="sr-only"> {pick(source?.newTabHint, fallback.newTabHint)}</span>
+          <span className="sr-only">
+            {' '}
+            {getLegacyCopy(translations, 'contactActions.newTabHint')}
+          </span>
         </ActionLinkButton>
       );
     }

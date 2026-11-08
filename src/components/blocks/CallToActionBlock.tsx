@@ -8,8 +8,27 @@ type CallToActionBlockData = Extract<
   { blockType: 'callToAction' }
 >;
 
-export function CallToActionBlock({ block }: { block: CallToActionBlockData }) {
+/**
+ * Shell copy of the CTA card (`blocks.callToAction`): the eyebrow and the
+ * response-time note. `style` selects which eyebrow applies — that mapping is
+ * structural, the words come from the CMS.
+ */
+export type CtaCopy = {
+  eyebrowPrimary: string;
+  eyebrowSecondary: string;
+  responseNote: string;
+};
+
+export function CallToActionBlock({
+  block,
+  copy,
+}: {
+  block: CallToActionBlockData;
+  /** Shell copy (`blocks.callToAction`), read by the dispatcher. */
+  copy: CtaCopy;
+}) {
   const isPrimary = block.style !== 'secondary';
+  const eyebrow = isPrimary ? copy.eyebrowPrimary : copy.eyebrowSecondary;
 
   return (
     <section className="w-full pt-6 pb-14 lg:py-14">
@@ -33,7 +52,7 @@ export function CallToActionBlock({ block }: { block: CallToActionBlockData }) {
 
           <div className="relative flex flex-col items-start gap-6 md:flex-row md:items-center md:justify-between">
             <div className="min-w-0">
-              <Eyebrow>{isPrimary ? 'call to action' : 'next step'}</Eyebrow>
+              {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
               <h2 className="mt-3 font-heading text-2xl font-bold tracking-[-0.02em] text-foreground lg:text-4xl">
                 {block.heading}
               </h2>
@@ -63,10 +82,12 @@ export function CallToActionBlock({ block }: { block: CallToActionBlockData }) {
             )}
           </div>
 
-          <p className="mono-label relative mt-8 flex items-center gap-2 border-t border-border pt-4 text-muted-foreground">
-            <StatusDot tone={isPrimary ? 'primary' : 'secondary'} />
-            Antwort in der Regel innerhalb von 24 Stunden
-          </p>
+          {copy.responseNote && (
+            <p className="mono-label relative mt-8 flex items-center gap-2 border-t border-border pt-4 text-muted-foreground">
+              <StatusDot tone={isPrimary ? 'primary' : 'secondary'} />
+              {copy.responseNote}
+            </p>
+          )}
         </div>
       </div>
     </section>

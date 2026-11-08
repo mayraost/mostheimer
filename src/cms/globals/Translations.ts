@@ -321,6 +321,63 @@ export const Translations: GlobalConfig = {
         },
       ],
     },
+    {
+      /*
+       * UI copy as KEY/VALUE ROWS — the reason this is an array and not a
+       * group of columns:
+       *
+       * Payload's Postgres adapter aggregates a localized table with
+       * `json_build_array(<one argument per column>)`. Postgres rejects any
+       * function call with more than 100 arguments, so a localized table that
+       * grows past ~100 columns breaks EVERY read of the global at runtime
+       * (measured 08.11.2026: `translations_locales` reached 129 columns and
+       * `findGlobal('translations')` failed with "cannot pass more than 100
+       * arguments to a function").
+       *
+       * A localized `array` stores its rows in its own side table, so the
+       * column count of `translations_locales` does not change at all — new
+       * strings are new ROWS, which scales indefinitely.
+       *
+       * Consequences (deliberate):
+       * - The shape is not enforced by the database; it is enforced by
+       *   TypeScript in `src/lib/translations.ts`, where every key is derived
+       *   from the generated `Translation` type. A typo in `key` is a compile
+       *   error at the call site.
+       * - Editors see one list with `Pfad` / `Text` instead of dozens of
+       *   labelled inputs; the `Pfad` is the stable address (`chrome.brandClaim`).
+       */
+      name: 'copy',
+      type: 'array',
+      localized: true,
+      labels: { singular: 'UI-Text', plural: 'UI-Texte' },
+      admin: {
+        description:
+          'Alle UI-Texte als Pfad/Text-Paare (z. B. `chrome.brandClaim`). Die Pfade sind im Code typisiert — bitte nicht umbenennen.',
+      },
+      fields: [
+        {
+          name: 'key',
+          type: 'text',
+          required: true,
+          index: true,
+          admin: {
+            description: 'Stabiler Pfad, z. B. `routes.error.title` (nicht übersetzen)',
+          },
+        },
+        {
+          name: 'text',
+          type: 'textarea',
+          admin: { description: 'Leer = Element wird ausgelassen, nie ein erfundener Text' },
+        },
+        {
+          name: 'values',
+          type: 'textarea',
+          admin: {
+            description: 'Für Listen: Werte mit Zeilenumbruch getrennt (z. B. Stack-Chips)',
+          },
+        },
+      ],
+    },
     // Authorship is admin-only metadata; public reads must not carry it.
     ...protectedAuthorshipFields(),
   ],

@@ -2,6 +2,7 @@
 
 import { useSettings } from '@/components/SettingsProvider';
 import { useTranslations } from '@/components/TranslationsProvider';
+import { getTranslation } from '@/lib/translations';
 
 /**
  * Client settings UI, extracted from the settings route: under cacheComponents a
@@ -23,7 +24,9 @@ export function SettingsPageClient() {
   return (
     <div className="mx-auto w-full max-w-3xl py-6">
       <div className="mb-6 border-b border-border pb-4">
-        <p className="mono-label mb-2 text-primary">&gt;_ settings</p>
+        <p className="mono-label mb-2 text-primary">
+          &gt;_ {getTranslation(t, 'settings.eyebrow')}
+        </p>
         <h1 className="font-heading text-3xl font-bold tracking-tight text-foreground">
           {settings.title}
         </h1>

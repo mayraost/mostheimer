@@ -44,6 +44,7 @@ export function MobileNavPortal({
   navLinks,
   title,
   closeLabel,
+  currentPageLabel,
   statusLabel,
   settingsHref,
   settingsLabel,
@@ -56,6 +57,8 @@ export function MobileNavPortal({
   navLinks: NavLink[];
   title: string;
   closeLabel: string;
+  /** Marker text of the active entry (translations `chrome.currentPage`). */
+  currentPageLabel: string;
   statusLabel: string;
   settingsHref: string;
   settingsLabel: string;
@@ -72,7 +75,6 @@ export function MobileNavPortal({
   const drawerRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const pathname = usePathname();
-  const de = pathname?.startsWith('/de') ?? false;
 
   // Scroll lock and dialog behaviour in one effect with complete cleanup.
   useEffect(() => {
@@ -237,7 +239,7 @@ export function MobileNavPortal({
                         <span
                           className="mono-label shrink-0 text-primary"
                           aria-hidden="true"
-                          title={de ? 'Aktuelle Seite' : 'Current page'}
+                          title={currentPageLabel}
                         >
                           {'//'} now
                         </span>

@@ -4,6 +4,7 @@ import { headers } from 'next/headers';
 import { getPayload } from 'payload';
 import configPromise from '@payload-config';
 import { PreviewLive } from '@/components/preview/PreviewLive';
+import { loadPreviewCopy } from '@/lib/translationBundles.server';
 import { normalizeSlug } from '@/cms/cache/frontend/utils';
 import { PREVIEW_DEPTH } from '@/cms/preview/constants';
 import type { FrontendLocale } from '@/cms/cache/frontend/frontendCache';
@@ -63,11 +64,42 @@ async function getRequestServerURL(): Promise<string> {
   return `${proto}://${host}`;
 }
 
-async function PreviewNotice({ title, message }: { title: string; message: string }) {
+/**
+ * Notices of the preview shell (no access, draft fetch failed, unknown slug).
+ *
+ * All three are ADMIN-FACING diagnostics rendered inside the iframe, so unlike
+ * the public site they are static operator copy, deliberately kept in code and
+ * not in the editor-facing translations global (an editor must never be able
+ * to blank out "no access"). They are typed as a union so a new state cannot
+ * ship without copy.
+ */
+type PreviewNoticeState = 'unauthorized' | 'fetch-failed' | 'not-found';
+
+const NOTICES: Record<PreviewNoticeState, { title: string; message: string }> = {
+  unauthorized: {
+    title: 'Kein Zugang',
+    message: 'Live Preview erfordert eine Payload-Admin-Anmeldung (payload-token-Cookie).',
+  },
+  'fetch-failed': {
+    title: 'Vorschau nicht verfuegbar',
+    message: 'Der Draft-Fetch ist fehlgeschlagen — bitte Logs pruefen und erneut speichern.',
+  },
+  'not-found': {
+    title: 'Keine Seite gefunden',
+    message:
+      'Keine Page mit diesem Slug in dieser Locale. Speichere zuerst oder nutze einen gueltigen Slug.',
+  },
+};
+
+function PreviewNotice({ state, detail }: { state: PreviewNoticeState; detail?: string }) {
+  const copy = NOTICES[state];
   return (
     <div className="flex flex-col items-center justify-center min-h-[50vh] text-center w-full px-4">
-      <h1 className="text-3xl font-averia font-bold text-primary mb-3">{title}</h1>
-      <p className="text-lg opacity-80 max-w-xl mx-auto font-geist-mono">{message}</p>
+      <h1 className="text-3xl font-averia font-bold text-primary mb-3">{copy.title}</h1>
+      <p className="text-lg opacity-80 max-w-xl mx-auto font-geist-mono">
+        {copy.message}
+        {detail ? ` (${detail})` : ''}
+      </p>
     </div>
   );
 }
@@ -104,12 +136,7 @@ export default async function PreviewPage({ params, searchParams }: PreviewPageP
   });
 
   if (!user) {
-    return (
-      <PreviewNotice
-        title="Kein Zugang"
-        message="Live Preview erfordert eine Payload-Admin-Anmeldung (payload-token-Cookie)."
-      />
-    );
+    return <PreviewNotice state="unauthorized" />;
   }
 
   let page = null;
@@ -129,24 +156,19 @@ export default async function PreviewPage({ params, searchParams }: PreviewPageP
     page = docs?.[0] ?? null;
   } catch (error) {
     console.warn(`[live-preview] Draft-Fetch fehlgeschlagen (slug: ${slug}).`, error);
-    return (
-      <PreviewNotice
-        title="Vorschau nicht verfuegbar"
-        message="Der Draft-Fetch ist fehlgeschlagen — bitte Logs pruefen und erneut speichern."
-      />
-    );
+    return <PreviewNotice state="fetch-failed" />;
   }
 
   if (!page) {
-    return (
-      <PreviewNotice
-        title="Keine Seite gefunden"
-        message={`Keine Page mit Slug "${slug}" (Locale: ${locale}). Speichere zuerst oder nutze einen gueltigen Slug.`}
-      />
-    );
+    return <PreviewNotice state="not-found" detail={`slug: ${slug}, locale: ${locale}`} />;
   }
 
   const serverURL = await getRequestServerURL();
+
+  // Hero shell copy for the previewed blocks: same cached group reads the
+  // public page uses (the client island cannot await them itself).
+  const siteSettings = await payload.findGlobal({ slug: 'site-settings', locale });
+  const previewCopy = await loadPreviewCopy(locale, siteSettings.siteName ?? '');
 
   return (
     <>
@@ -159,6 +181,7 @@ export default async function PreviewPage({ params, searchParams }: PreviewPageP
       <PreviewLive
         initialPage={page}
         serverURL={serverURL}
+        copy={previewCopy}
         variant={slug === 'home' ? 'home' : 'compact'}
       />
     </>

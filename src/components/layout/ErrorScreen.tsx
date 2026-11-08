@@ -13,14 +13,29 @@ import { StatusScreen } from '@/components/layout/StatusScreen';
  *
  * Error details are never shown (production-safe): the digest is only logged.
  */
+/**
+ * Copy for the error card. Resolved by the CALLER (a server boundary awaits the
+ * translations global, `routes.error.*`) and passed in — this component is a
+ * client component and may not await the translations cache. There is no local
+ * copy table any more: a missing value renders an empty line, never a
+ * hardcoded sentence.
+ */
+export type ErrorScreenCopy = {
+  code: string;
+  title: string;
+  message: string;
+  home: string;
+  retry: string;
+};
+
 export function ErrorScreen({
   error,
   reset,
-  locale,
+  copy,
 }: {
   error: unknown;
   reset: () => void;
-  locale: 'de' | 'en';
+  copy: ErrorScreenCopy;
 }) {
   const [retrying, setRetrying] = useState(false);
 
@@ -28,25 +43,6 @@ export function ErrorScreen({
     // Server errors arrive with a generic message + digest in production.
     console.error('[error-boundary]', error);
   }, [error]);
-
-  const copy =
-    locale === 'de'
-      ? {
-          code: 'HTTP 500 · Fehler',
-          title: 'Etwas ist schiefgelaufen',
-          message:
-            'Diese Seite konnte gerade nicht geladen werden. Bitte versuche es erneut — die Startseite ist immer erreichbar.',
-          home: 'Zur Startseite',
-          retry: 'Erneut versuchen',
-        }
-      : {
-          code: 'HTTP 500 · Error',
-          title: 'Something went wrong',
-          message:
-            'This page could not be loaded right now. Please try again — the home page is always reachable.',
-          home: 'Back to home',
-          retry: 'Try again',
-        };
 
   return (
     <StatusScreen

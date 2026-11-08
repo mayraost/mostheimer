@@ -804,11 +804,11 @@ export interface FeatureGrid {
               | 'Backpack'
               | 'Bacon'
               | 'Badge'
-              | 'BadgeAlert'
               | 'BadgeCent'
               | 'BadgeCheck'
               | 'BadgeDollarSign'
               | 'BadgeEuro'
+              | 'BadgeExclamationPoint'
               | 'BadgeIndianRupee'
               | 'BadgeInfo'
               | 'BadgeJapaneseYen'
@@ -839,11 +839,11 @@ export interface FeatureGrid {
               | 'Bath'
               | 'Battery'
               | 'BatteryCharging'
+              | 'BatteryExclamationPoint'
               | 'BatteryFull'
               | 'BatteryLow'
               | 'BatteryMedium'
               | 'BatteryPlus'
-              | 'BatteryWarning'
               | 'Beaker'
               | 'Bean'
               | 'BeanOff'
@@ -889,13 +889,13 @@ export interface FeatureGrid {
               | 'BoneFracture'
               | 'Book'
               | 'BookA'
-              | 'BookAlert'
               | 'BookAudio'
               | 'BookBookmark'
               | 'BookCheck'
               | 'BookCopy'
               | 'BookDashed'
               | 'BookDown'
+              | 'BookExclamationPoint'
               | 'BookHeadphones'
               | 'BookHeart'
               | 'BookImage'
@@ -1075,7 +1075,6 @@ export interface FeatureGrid {
               | 'Cigarette'
               | 'CigaretteOff'
               | 'Circle'
-              | 'CircleAlert'
               | 'CircleArrowDown'
               | 'CircleArrowLeft'
               | 'CircleArrowOutDownLeft'
@@ -1103,6 +1102,7 @@ export interface FeatureGrid {
               | 'CircleEllipsis'
               | 'CircleEqual'
               | 'CircleEuro'
+              | 'CircleExclamationPoint'
               | 'CircleFadingArrowUp'
               | 'CircleFadingPlay'
               | 'CircleFadingPlus'
@@ -1183,22 +1183,22 @@ export interface FeatureGrid {
               | 'Clock7'
               | 'Clock8'
               | 'Clock9'
-              | 'ClockAlert'
               | 'ClockArrowDown'
               | 'ClockArrowLeft'
               | 'ClockArrowRight'
               | 'ClockArrowUp'
               | 'ClockCheck'
+              | 'ClockExclamationPoint'
               | 'ClockFading'
               | 'ClockPlus'
               | 'ClosedCaption'
               | 'Cloud'
-              | 'CloudAlert'
               | 'CloudBackup'
               | 'CloudCheck'
               | 'CloudCog'
               | 'CloudDownload'
               | 'CloudDrizzle'
+              | 'CloudExclamationPoint'
               | 'CloudFog'
               | 'CloudHail'
               | 'CloudLightning'
@@ -1794,16 +1794,17 @@ export interface FeatureGrid {
               | 'MailCheck'
               | 'MailClock'
               | 'MailDot'
+              | 'MailExclamationPoint'
               | 'MailMinus'
               | 'MailOpen'
               | 'MailPen'
               | 'MailPlus'
               | 'MailQuestionMark'
               | 'MailSearch'
-              | 'MailWarning'
               | 'MailX'
               | 'Mailbox'
               | 'Mails'
+              | 'Mango'
               | 'Map'
               | 'MapMinus'
               | 'MapPin'
@@ -1844,6 +1845,7 @@ export interface FeatureGrid {
               | 'MessageCircleCode'
               | 'MessageCircleDashed'
               | 'MessageCircleDashedCheck'
+              | 'MessageCircleExclamationPoint'
               | 'MessageCircleHeart'
               | 'MessageCircleMore'
               | 'MessageCircleOff'
@@ -1851,7 +1853,6 @@ export interface FeatureGrid {
               | 'MessageCircleQuestionMark'
               | 'MessageCircleReply'
               | 'MessageCircleText'
-              | 'MessageCircleWarning'
               | 'MessageCircleX'
               | 'MessageSquare'
               | 'MessageSquareCheck'
@@ -1859,6 +1860,7 @@ export interface FeatureGrid {
               | 'MessageSquareDashed'
               | 'MessageSquareDiff'
               | 'MessageSquareDot'
+              | 'MessageSquareExclamationPoint'
               | 'MessageSquareHeart'
               | 'MessageSquareLock'
               | 'MessageSquareMore'
@@ -1868,7 +1870,6 @@ export interface FeatureGrid {
               | 'MessageSquareReply'
               | 'MessageSquareShare'
               | 'MessageSquareText'
-              | 'MessageSquareWarning'
               | 'MessageSquareX'
               | 'MessagesCircle'
               | 'MessagesSquare'
@@ -1959,7 +1960,7 @@ export interface FeatureGrid {
               | 'Nut'
               | 'NutOff'
               | 'Octagon'
-              | 'OctagonAlert'
+              | 'OctagonExclamationPoint'
               | 'OctagonMinus'
               | 'OctagonPause'
               | 'OctagonX'
@@ -2195,9 +2196,9 @@ export interface FeatureGrid {
               | 'Scroll'
               | 'ScrollText'
               | 'Search'
-              | 'SearchAlert'
               | 'SearchCheck'
               | 'SearchCode'
+              | 'SearchExclamationPoint'
               | 'SearchSlash'
               | 'SearchX'
               | 'Section'
@@ -2221,12 +2222,12 @@ export interface FeatureGrid {
               | 'Shell'
               | 'ShelvingUnit'
               | 'Shield'
-              | 'ShieldAlert'
               | 'ShieldBan'
               | 'ShieldCheck'
               | 'ShieldCog'
               | 'ShieldCogCorner'
               | 'ShieldEllipsis'
+              | 'ShieldExclamationPoint'
               | 'ShieldHalf'
               | 'ShieldHouse'
               | 'ShieldKeyhole'
@@ -2556,8 +2557,8 @@ export interface FeatureGrid {
               | 'TrendingUp'
               | 'TrendingUpDown'
               | 'Triangle'
-              | 'TriangleAlert'
               | 'TriangleDashed'
+              | 'TriangleExclamationPoint'
               | 'TriangleRight'
               | 'TrianglesCenterlineDashedHorizontal'
               | 'TrianglesCenterlineDashedVertical'
@@ -3410,6 +3411,26 @@ export interface Translation {
     linkedinLabel: string;
     newTabHint: string;
   };
+  /**
+   * Alle UI-Texte als Pfad/Text-Paare (z. B. `chrome.brandClaim`). Die Pfade sind im Code typisiert — bitte nicht umbenennen.
+   */
+  copy?:
+    | {
+        /**
+         * Stabiler Pfad, z. B. `routes.error.title` (nicht übersetzen)
+         */
+        key: string;
+        /**
+         * Leer = Element wird ausgelassen, nie ein erfundener Text
+         */
+        text?: string | null;
+        /**
+         * Für Listen: Werte mit Zeilenumbruch getrennt (z. B. Stack-Chips)
+         */
+        values?: string | null;
+        id?: string | null;
+      }[]
+    | null;
   createdBy?: {
     relationTo: 'users';
     value: number | User;
@@ -3564,6 +3585,14 @@ export interface TranslationsSelect<T extends boolean = true> {
         githubLabel?: T;
         linkedinLabel?: T;
         newTabHint?: T;
+      };
+  copy?:
+    | T
+    | {
+        key?: T;
+        text?: T;
+        values?: T;
+        id?: T;
       };
   createdBy?: T;
   updatedBy?: T;

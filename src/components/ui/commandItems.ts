@@ -1,121 +1,84 @@
 import type { CommandItem } from '@/components/ui/CommandPalette';
+import { commandItemCopy } from '@/lib/translations';
+import type { TranslationSource } from '@/lib/translations';
 
 /**
- * Command palette entries per locale.
+ * Command palette entries.
  *
- * A static constant rather than CMS content on purpose: the palette mirrors the
- * site's information architecture, not editorial copy. Anchors
- * (`#architektur` / `#architecture`) only exist on the home page, where they act
- * as in-page jumps; the anchor id follows the locale (see BentoGridBlock).
+ * Split by concern (rule since 08.11.2026 — no hardcoded copy):
+ *
+ * - **Structure** (this constant): entry id, target path, group, and the
+ *   locale-aware anchor. Which pages exist and where they point is
+ *   information architecture, not editorial copy — it must not be editable in
+ *   the CMS, or a typo in a path breaks navigation.
+ * - **Copy** (translations global, `commandItems.labels`): the visible label
+ *   and the search keywords, per entry id. Until 08.11.2026 these were two
+ *   parallel tables in this file (German base + English override), i.e.
+ *   exactly the hardcoded prose the rule forbids.
+ *
+ * `keywords` are search synonyms, not display text: they legitimately mix
+ * languages (a German visitor may type "about"), which is why the CMS field is
+ * a free-text list.
+ *
+ * Anchors (`#architektur` / `#architecture`) only exist on the home page and
+ * follow the locale (see BentoGridBlock); hence the anchor lives here.
  */
-const BASE_ITEMS: CommandItem[] = [
-  {
-    id: 'home',
-    label: 'Home / Profil',
-    href: '',
-    group: 'pages',
-    keywords: ['start', 'profil', 'about', 'über'],
-  },
+
+type CommandItemDefinition = Omit<CommandItem, 'label' | 'keywords'> & {
+  /** Anchors are locale-dependent; absent = same path in both locales. */
+  anchor?: { de: string; en: string };
+};
+
+/** Ordered exactly as the palette lists the pages group. */
+const ITEMS: CommandItemDefinition[] = [
+  { id: 'home', href: '', group: 'pages' },
   {
     id: 'architektur',
-    label: 'Architektur-Philosophie',
-    href: '#architektur',
+    href: '',
+    anchor: { de: '#architektur', en: '#architecture' },
     group: 'sections',
-    keywords: ['säulen', 'systemarchitektur', 'principles', 'architektur', 'philosophie'],
   },
   {
     id: 'schaubild',
-    label: 'Interaktives Architektur-Schaubild',
-    href: '#architektur-schaubild',
+    href: '',
+    anchor: { de: '#architektur-schaubild', en: '#architektur-schaubild' },
     group: 'sections',
-    keywords: ['edge', 'bff', 'cms', 'data', 'diagramm', 'layer', 'schaubild'],
   },
-  {
-    id: 'case-studies',
-    label: 'Case Studies',
-    href: '/case-studies',
-    group: 'pages',
-    keywords: ['projekte', 'enterprise', 'impact', 'referenzen', 'hoerzu', 'bora', 'allianz'],
-  },
-  {
-    id: 'tech-radar',
-    label: 'Tech-Radar',
-    href: '/tech-radar',
-    group: 'pages',
-    keywords: ['skills', 'technologien', 'stack', 'capabilities', 'quadranten'],
-  },
-  {
-    id: 'leadership',
-    label: 'Leadership & Enablement',
-    href: '/leadership',
-    group: 'pages',
-    keywords: ['führung', 'team', 'mentoring', 'enablement'],
-  },
-  {
-    id: 'career',
-    label: 'Werdegang',
-    href: '/career',
-    group: 'pages',
-    keywords: ['lebenslauf', 'cv', 'stationen', 'referenzen', 'stimmen'],
-  },
-  {
-    id: 'contact',
-    label: 'Kontakt',
-    href: '/contact',
-    group: 'pages',
-    keywords: ['email', 'mail', 'schreiben', 'anfrage', 'hire'],
-  },
-  {
-    id: 'impressum',
-    label: 'Impressum',
-    href: '/impressum',
-    group: 'pages',
-    keywords: ['impressum', 'imprint', 'legal', 'rechtliches', 'anbieter', '§ 5 ddg'],
-  },
-  {
-    id: 'settings',
-    label: 'Einstellungen',
-    href: '/settings',
-    group: 'pages',
-    keywords: ['theme', 'dark', 'light', 'schriftgröße', 'animationen'],
-  },
+  { id: 'case-studies', href: '/case-studies', group: 'pages' },
+  { id: 'tech-radar', href: '/tech-radar', group: 'pages' },
+  { id: 'leadership', href: '/leadership', group: 'pages' },
+  { id: 'career', href: '/career', group: 'pages' },
+  { id: 'contact', href: '/contact', group: 'pages' },
+  { id: 'impressum', href: '/impressum', group: 'pages' },
+  { id: 'settings', href: '/settings', group: 'pages' },
 ];
 
-const EN_LABELS: Record<
-  string,
-  { label: string; keywords: string[]; href?: string; group?: string }
-> = {
-  home: { label: 'Home / Profile', keywords: ['start', 'about', 'profile'] },
-  architektur: {
-    label: 'Architecture philosophy',
-    // English anchor: the section id is locale-aware on the home page.
-    href: '#architecture',
-    keywords: ['pillars', 'system architecture', 'principles', 'approach', 'architektur'],
-  },
-  schaubild: {
-    label: 'Interactive architecture diagram',
-    keywords: ['edge', 'bff', 'cms', 'data', 'layers', 'diagram'],
-  },
-  'case-studies': { label: 'Case Studies', keywords: ['projects', 'enterprise', 'impact'] },
-  'tech-radar': { label: 'Tech Radar', keywords: ['skills', 'technologies', 'stack'] },
-  leadership: { label: 'Leadership & Enablement', keywords: ['team', 'mentoring'] },
-  career: { label: 'Career', keywords: ['cv', 'resume', 'stations', 'testimonials'] },
-  contact: { label: 'Contact', keywords: ['email', 'mail', 'enquiry', 'hire'] },
-  impressum: { label: 'Imprint', keywords: ['imprint', 'legal notice', 'provider', 'ddg'] },
-  settings: { label: 'Settings', keywords: ['theme', 'dark', 'light', 'font size'] },
-};
+/**
+ * Builds the palette entries for one locale from the translations global.
+ *
+ * An entry whose CMS label is empty is DROPPED instead of rendering a blank
+ * row: a palette entry without a name is unusable, and inventing a fallback
+ * string would reintroduce hardcoded copy.
+ */
+export function getCommandItems(translations: TranslationSource, locale: string): CommandItem[] {
+  const items: CommandItem[] = [];
 
-export function getCommandItems(locale: string): CommandItem[] {
-  if (locale !== 'en') return BASE_ITEMS;
+  for (const definition of ITEMS) {
+    const copy = commandItemCopy(translations, definition.id);
+    if (!copy.label) continue;
 
-  return BASE_ITEMS.map((item) => {
-    const override = EN_LABELS[item.id];
-    return {
-      ...item,
-      label: override?.label ?? item.label,
-      keywords: override?.keywords ?? item.keywords,
-      href: override?.href ?? item.href,
-      group: item.group,
-    };
-  });
+    const href = definition.anchor
+      ? definition.anchor[locale === 'de' ? 'de' : 'en']
+      : definition.href;
+
+    items.push({
+      id: definition.id,
+      label: copy.label,
+      href,
+      group: definition.group,
+      keywords: copy.keywords ?? undefined,
+    });
+  }
+
+  return items;
 }

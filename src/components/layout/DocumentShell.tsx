@@ -32,8 +32,7 @@ export const THEME_BOOTSTRAP = `(function(){try{var s=localStorage.getItem('them
  */
 export const MOTION_BOOTSTRAP = `(function(){try{var r=document.documentElement;var s=localStorage.getItem('animations');var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;var off=s==='off'||(s!=='on'&&reduce);r.classList.toggle('motion-assets',!off);if(off){(function apply(){var b=document.body;if(!b){document.addEventListener('DOMContentLoaded',apply,{once:true});return;}b.classList.add('no-animations');})();}}catch(e){}})();`;
 
-function SkipLink({ locale }: { locale: string }) {
-  const label = locale === 'de' ? 'Zum Inhalt springen' : 'Skip to content';
+function SkipLink({ label }: { label: string }) {
   return (
     <a
       href="#main-content"
@@ -58,8 +57,20 @@ function SkipLink({ locale }: { locale: string }) {
  *
  * Same head everywhere: theme bootstrap first, then the Consent Mode v2
  * defaults (they MUST be evaluated before any GTM script).
+ *
+ * `skipToContent` is a REQUIRED prop (copy from the translations global): the
+ * skip link is the first focusable element on every page, so its label must
+ * never silently disappear. The caller awaits `getCachedTranslation(...)`.
  */
-export function DocumentShell({ locale, children }: { locale: string; children: ReactNode }) {
+export function DocumentShell({
+  locale,
+  skipToContent,
+  children,
+}: {
+  locale: string;
+  skipToContent: string;
+  children: ReactNode;
+}) {
   return (
     <html lang={locale} className="dark">
       {/* App-Router-Dokument: die Bootstrap-Scripts müssen vor jedem von Next
@@ -76,7 +87,7 @@ export function DocumentShell({ locale, children }: { locale: string; children: 
         <ConsentBootstrapScript />
       </head>
       <body className={BODY_FONT_CLASS}>
-        <SkipLink locale={locale} />
+        <SkipLink label={skipToContent} />
         {children}
       </body>
     </html>

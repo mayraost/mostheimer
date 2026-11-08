@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { usePathname } from 'next/navigation';
 import type { Translation } from '@/payload-types';
 import { useTranslations } from '@/components/TranslationsProvider';
+import { getLegacyCopy } from '@/lib/translations';
 import {
   CONSENT_OPEN_EVENT,
   applyConsent,
@@ -34,59 +35,6 @@ import {
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
-/**
- * Fallback copy for first render. The source of truth is ALWAYS the
- * translations global (CMS, DE/EN); this block only applies when an instance
- * is not yet on the consent schema version or an editor cleared a field — so
- * the banner stays complete during rollout without being the primary copy.
- */
-const FALLBACK_COPY: Record<'en' | 'de', CookieConsentCopy> = {
-  en: {
-    eyebrow: 'Consent',
-    title: 'Cookie settings',
-    description:
-      'This site uses technically necessary storage only. Analytics and marketing are optional and stay disabled until you allow them.',
-    privacyLabel: 'Privacy policy',
-    privacyLink: '/en/privacy',
-    necessaryLabel: 'Necessary',
-    necessaryDescription:
-      'Theme, font size and your consent decision. Required for the site to work; cannot be disabled.',
-    necessaryBadge: 'Always on',
-    analyticsLabel: 'Analytics',
-    analyticsDescription:
-      'Google Tag Manager and Analytics: anonymous usage statistics that help improve the site.',
-    marketingLabel: 'Marketing',
-    marketingDescription:
-      'Advertising and remarketing tags. Currently unused, but reserved for future campaigns.',
-    rejectAll: 'Only necessary',
-    saveSelection: 'Save selection',
-    acceptAll: 'Accept all',
-    settingsLink: 'Cookie settings',
-  },
-  de: {
-    eyebrow: 'Einwilligung',
-    title: 'Cookie-Einstellungen',
-    description:
-      'Diese Seite setzt ausschließlich technisch notwendige Speicher. Analyse und Marketing sind optional und bleiben deaktiviert, bis du zustimmst.',
-    privacyLabel: 'Datenschutzerklärung',
-    privacyLink: '/de/privacy',
-    necessaryLabel: 'Notwendig',
-    necessaryDescription:
-      'Design, Schriftgröße und deine Einwilligung. Für den Betrieb der Seite erforderlich, nicht abwählbar.',
-    necessaryBadge: 'Immer aktiv',
-    analyticsLabel: 'Analyse',
-    analyticsDescription:
-      'Google Tag Manager und Analytics: anonyme Nutzungsstatistiken, mit denen ich die Seite verbessere.',
-    marketingLabel: 'Marketing',
-    marketingDescription:
-      'Werbe- und Remarketing-Tags. Derzeit ungenutzt, für künftige Kampagnen reserviert.',
-    rejectAll: 'Nur notwendige',
-    saveSelection: 'Auswahl speichern',
-    acceptAll: 'Alle akzeptieren',
-    settingsLink: 'Cookie-Einstellungen',
-  },
-};
 
 /**
  * Shared classes of all three actions: identical size, identical weight —
@@ -155,7 +103,6 @@ function Toggle({
 export function CookieConsent({ gtmId = '' }: CookieConsentProps) {
   const t = useTranslations();
   const pathname = usePathname();
-  const lang = pathname.split('/')[1];
   const [open, setOpen] = useState(false);
   // One storage read for the initial toggle/decision state. `localStorage` is
   // unavailable during SSR, hence the `typeof window` guard.
@@ -278,17 +225,30 @@ export function CookieConsent({ gtmId = '' }: CookieConsentProps) {
   const visible = mounted && (open || undecided);
   if (!visible) return null;
 
-  // Per-field fallback instead of `t.cookies` as a whole: instances that are
-  // not yet migrated to the consent schema (or where an editor cleared a field)
-  // would otherwise render an empty banner.
-  const fallback = FALLBACK_COPY[lang === 'de' ? 'de' : 'en'];
-  const cmsCopy = t.cookies;
-  const copy = Object.fromEntries(
-    (Object.keys(fallback) as (keyof CookieConsentCopy)[]).map((key) => {
-      const value = cmsCopy?.[key];
-      return [key, typeof value === 'string' && value.trim() !== '' ? value : fallback[key]];
-    }),
-  ) as CookieConsentCopy;
+  /*
+   * Copy comes exclusively from the `cookies` group (rule since 08.11.2026 —
+   * no hardcoded fallback table). A field an editor cleared renders empty; the
+   * banner keeps its structure, and the gap is visible in review instead of
+   * being masked by a stale English sentence.
+   */
+  const copy: CookieConsentCopy = {
+    eyebrow: getLegacyCopy(t, 'cookies.eyebrow'),
+    title: getLegacyCopy(t, 'cookies.title'),
+    description: getLegacyCopy(t, 'cookies.description'),
+    privacyLabel: getLegacyCopy(t, 'cookies.privacyLabel'),
+    privacyLink: getLegacyCopy(t, 'cookies.privacyLink'),
+    necessaryLabel: getLegacyCopy(t, 'cookies.necessaryLabel'),
+    necessaryDescription: getLegacyCopy(t, 'cookies.necessaryDescription'),
+    necessaryBadge: getLegacyCopy(t, 'cookies.necessaryBadge'),
+    analyticsLabel: getLegacyCopy(t, 'cookies.analyticsLabel'),
+    analyticsDescription: getLegacyCopy(t, 'cookies.analyticsDescription'),
+    marketingLabel: getLegacyCopy(t, 'cookies.marketingLabel'),
+    marketingDescription: getLegacyCopy(t, 'cookies.marketingDescription'),
+    rejectAll: getLegacyCopy(t, 'cookies.rejectAll'),
+    saveSelection: getLegacyCopy(t, 'cookies.saveSelection'),
+    acceptAll: getLegacyCopy(t, 'cookies.acceptAll'),
+    settingsLink: getLegacyCopy(t, 'cookies.settingsLink'),
+  } as CookieConsentCopy;
   const titleId = 'cookie-consent-title';
 
   return (

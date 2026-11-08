@@ -8,14 +8,25 @@ import { ctaArrowClass, ctaArrowHoverClass, ctaMotionClass } from '../ui/ActionL
 
 type HeroBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'hero' }>;
 
-const STACK_ITEMS = ['Node 26', 'Next.js 16', 'Tailwind 4', 'PayloadCMS 4'];
-
-const METRICS = [
-  { label: 'Experience', value: '~10 yrs' },
-  { label: 'Focus', value: 'composable' },
-  { label: 'Mode', value: 'remote (DE)' },
-  { label: 'Response', value: '< 24 h' },
-];
+/**
+ * Copy shape of the hero shell (badges, portrait label, stack + metric strip).
+ *
+ * All of it is CMS data now (rule since 08.11.2026): `chrome.*` for the
+ * identity badges, `blocks.hero.*` for the stack row and the metrics. The
+ * caller reads it through the translations cache and passes it down, so this
+ * component stays a plain renderer (also usable from the live preview).
+ */
+export type HeroCopy = {
+  roleBadge: string;
+  levelBadge: string;
+  modeBadge: string;
+  locationBadge: string;
+  portraitName: string;
+  portraitMonogram: string;
+  stackLabel: string;
+  stackItems: { item: string }[];
+  metrics: { label: string; value: string }[];
+};
 
 /**
  * Hero: oversized Space Grotesk display, mono status chips (filled + outline),
@@ -27,8 +38,11 @@ export function HeroBlock({
   block,
   variant = 'home',
   eyebrow,
+  copy,
 }: {
   block: HeroBlockData;
+  /** Shell copy from the translations global (see {@link HeroCopy}). */
+  copy: HeroCopy;
   /**
    * `home` = full hero incl. the 4-metric strip below the fold edge.
    * `compact` = subpage header: same identity, but a one-line lead paragraph
@@ -94,21 +108,27 @@ export function HeroBlock({
                 eine Verfügbarkeitsaussage kann gegenüber dem aktuellen
                 Arbeitgeber falsch wirken. Der Hero behält nur neutrale
                 Rollen-/Stack-Chips. */}
-            <span className="mono-label inline-flex items-center gap-2 rounded-[4px] border border-primary/50 bg-primary-muted px-2.5 py-1.5 text-primary">
-              <LiveDot />
-              web &amp; application architect
-            </span>
-            <span className="mono-label rounded-[4px] border border-border-strong px-2.5 py-1.5 text-muted-foreground">
-              Senior-Level FullStack
-            </span>
-            <span className="mono-label rounded-[4px] border border-secondary/60 px-2.5 py-1.5 text-secondary">
-              remote · DE
-            </span>
+            {copy.roleBadge && (
+              <span className="mono-label inline-flex items-center gap-2 rounded-[4px] border border-primary/50 bg-primary-muted px-2.5 py-1.5 text-primary">
+                <LiveDot />
+                {copy.roleBadge}
+              </span>
+            )}
+            {copy.levelBadge && (
+              <span className="mono-label rounded-[4px] border border-border-strong px-2.5 py-1.5 text-muted-foreground">
+                {copy.levelBadge}
+              </span>
+            )}
+            {copy.modeBadge && (
+              <span className="mono-label rounded-[4px] border border-secondary/60 px-2.5 py-1.5 text-secondary">
+                {copy.modeBadge}
+              </span>
+            )}
             {/* Subpages drop the badge row's third line by moving the location
                 inline: the page header must not cost a second screen. */}
-            {variant === 'compact' && (
+            {variant === 'compact' && copy.locationBadge && (
               <span className="mono-label rounded-[4px] border border-border px-2.5 py-1.5 text-muted-foreground">
-                Kiebitzreihe · Hamburg area
+                {copy.locationBadge}
               </span>
             )}
           </div>
@@ -164,7 +184,7 @@ export function HeroBlock({
 
           {variant === 'compact' && (
             <dl className="mt-6 grid max-w-2xl grid-cols-2 gap-px border-t border-border bg-border sm:grid-cols-4">
-              {METRICS.map((metric) => (
+              {copy.metrics.map((metric) => (
                 <div key={metric.label} className="bg-background px-3 py-2.5">
                   <dt className="mono-label text-muted-foreground">{metric.label}</dt>
                   <dd className="mt-0.5 font-mono text-xs font-semibold text-foreground">
@@ -175,12 +195,14 @@ export function HeroBlock({
             </dl>
           )}
 
-          {variant === 'home' && block.showStackBadge !== false && (
+          {variant === 'home' && block.showStackBadge !== false && copy.stackItems.length > 0 && (
             <div className="mt-8 flex flex-wrap items-center gap-2">
-              <span className="mono-label mr-1 text-muted-foreground">stack</span>
-              {STACK_ITEMS.map((item) => (
-                <Chip key={item} variant="outline" interactive>
-                  {item}
+              {copy.stackLabel && (
+                <span className="mono-label mr-1 text-muted-foreground">{copy.stackLabel}</span>
+              )}
+              {copy.stackItems.map((entry) => (
+                <Chip key={entry.item} variant="outline" interactive>
+                  {entry.item}
                 </Chip>
               ))}
             </div>
@@ -202,14 +224,16 @@ export function HeroBlock({
           </span>
           <div className="dot-grid flex aspect-[3/4] items-center justify-center rounded-[6px] border border-border bg-background">
             <span className="font-heading text-5xl font-bold tracking-tighter text-primary/30">
-              MO
+              {copy.portraitMonogram}
             </span>
           </div>
-          <p className="mono-label mt-3 text-foreground">Mayra Ostheimer</p>
-          <p className="mono-meta mt-1 flex items-center gap-2 text-muted-foreground">
-            <StatusDot />
-            Kiebitzreihe · Hamburg area
-          </p>
+          <p className="mono-label mt-3 text-foreground">{copy.portraitName}</p>
+          {copy.locationBadge && (
+            <p className="mono-meta mt-1 flex items-center gap-2 text-muted-foreground">
+              <StatusDot />
+              {copy.locationBadge}
+            </p>
+          )}
         </aside>
       </div>
 
@@ -219,7 +243,7 @@ export function HeroBlock({
           screens of boilerplate before reaching the actual content. */}
       {variant === 'home' && (
         <dl className="relative mx-auto grid w-full max-w-6xl grid-cols-2 gap-px border-t border-border bg-border px-0 md:grid-cols-4">
-          {METRICS.map((metric) => (
+          {copy.metrics.map((metric) => (
             <div key={metric.label} className="bg-background px-4 py-3 md:px-8">
               <dt className="mono-label text-muted-foreground">{metric.label}</dt>
               <dd className="mt-1 font-mono text-sm font-semibold text-foreground">

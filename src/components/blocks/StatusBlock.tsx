@@ -9,7 +9,14 @@ type StatusBlockData = Extract<NonNullable<Page['layout']>[number], { blockType:
  * other blocks) with emerald dots, mono metrics, hairline separators and a gauge
  * ring anchored on the right.
  */
-export function StatusBlock({ block }: { block: StatusBlockData }) {
+export function StatusBlock({
+  block,
+  copy,
+}: {
+  block: StatusBlockData;
+  /** Shell copy (`blocks.status`): gauge label. */
+  copy: { gaugeLabel: string };
+}) {
   const topics = block.networkTopics ?? [];
 
   return (
@@ -25,7 +32,7 @@ export function StatusBlock({ block }: { block: StatusBlockData }) {
             <div className="flex items-center gap-3 lg:border-r lg:border-border lg:pr-8">
               <GaugeRing
                 value={stableGaugeValue(block.title ?? 'status', 74, 98)}
-                label="signal"
+                label={copy.gaugeLabel || undefined}
                 size={72}
               />
               <div className="min-w-0">

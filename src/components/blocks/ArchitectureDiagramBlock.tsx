@@ -27,12 +27,21 @@ type ArchPrinciple = NonNullable<ArchLayer['principles']>[number];
  * - Flow pulses animate transform/opacity only and stop under
  *   prefers-reduced-motion and body.no-animations.
  */
+export type ArchitectureCopy = {
+  defaultSectionLabel: string;
+  layerSingular: string;
+  layerPlural: string;
+  tablistAria: string;
+  stackLabel: string;
+};
+
 export function ArchitectureDiagramBlock({
   block,
-  locale,
+  copy,
 }: {
   block: ArchitectureDiagramBlockData;
-  locale?: string;
+  /** Shell copy (`blocks.architecture`), read by the dispatcher. */
+  copy: ArchitectureCopy;
 }) {
   const layers = block.layers ?? [];
   const [active, setActive] = useState(0);
@@ -124,6 +133,8 @@ export function ArchitectureDiagramBlock({
 
   if (count === 0) return null;
 
+  const layerWord = count === 1 ? copy.layerSingular : copy.layerPlural;
+
   return (
     <section
       id="architektur-schaubild"
@@ -133,8 +144,8 @@ export function ArchitectureDiagramBlock({
       <div className="mx-auto w-full max-w-6xl">
         <div className="mb-8 border-b border-border pb-6">
           <CardHeader
-            label={block.sectionLabel || (locale === 'de' ? 'Architektur' : 'Architecture')}
-            meta={`${count} ${count === 1 ? 'layer' : 'layers'}`}
+            label={block.sectionLabel || copy.defaultSectionLabel || undefined}
+            meta={[count, layerWord].filter(Boolean).join(' ')}
           />
           <h2
             id="architecture-diagram-heading"
@@ -155,7 +166,7 @@ export function ArchitectureDiagramBlock({
             ref={tablistRef}
             role="tablist"
             aria-orientation="vertical"
-            aria-label="Architektur-Layer"
+            aria-label={copy.tablistAria || undefined}
             className="relative flex flex-col gap-2"
             onMouseLeave={() => setHovered(null)}
           >
@@ -272,7 +283,9 @@ export function ArchitectureDiagramBlock({
                 <>
                   <p className="mono-label mb-3 flex items-center gap-2 text-primary">
                     <StatusDot />
-                    layer {String(active + 1).padStart(2, '0')} / {String(count).padStart(2, '0')}
+                    {[layerWord, String(active + 1).padStart(2, '0')]
+                      .filter(Boolean)
+                      .join(' ')} / {String(count).padStart(2, '0')}
                   </p>
                   <h3 className="font-heading text-xl font-bold tracking-tight text-foreground lg:text-2xl">
                     {activeLayer.title}
@@ -301,7 +314,9 @@ export function ArchitectureDiagramBlock({
 
                   {activeLayer.stack && (
                     <p className="mt-5 flex flex-wrap items-center gap-2 border-t border-border pt-4">
-                      <span className="mono-label text-muted-foreground">stack</span>
+                      {copy.stackLabel && (
+                        <span className="mono-label text-muted-foreground">{copy.stackLabel}</span>
+                      )}
                       <span className="font-mono text-xs text-secondary">{activeLayer.stack}</span>
                     </p>
                   )}

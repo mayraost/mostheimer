@@ -1,10 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { usePathname } from 'next/navigation';
 import { Check, Copy } from 'lucide-react';
-import type { Translation } from '@/payload-types';
 import { useTranslationsOrNull } from '@/components/TranslationsProvider';
+import { getLegacyCopy } from '@/lib/translations';
 import { actionButtonClass } from './ActionLinkButton';
 
 /**
@@ -27,23 +26,12 @@ import { actionButtonClass } from './ActionLinkButton';
  * button adds no extra bundle to pages that do not render an e-mail address.
  */
 
-type ClipboardCopy = Translation['clipboard'];
-
-/** Per-locale fallback copy (only for an instance without the CMS group). */
-const FALLBACK: Record<'en' | 'de', Required<Omit<ClipboardCopy, 'id'>>> = {
-  en: {
-    copyLabel: 'Copy e-mail',
-    copiedMessage: 'E-mail address copied to the clipboard',
-    failedMessage: 'Copying failed — please select the address manually',
-    copiedInline: '[ COPIED // 200 OK ]',
-  },
-  de: {
-    copyLabel: 'E-Mail kopieren',
-    copiedMessage: 'E-Mail-Adresse in die Zwischenablage kopiert',
-    failedMessage: 'Kopieren nicht möglich — bitte Adresse manuell markieren',
-    copiedInline: '[ KOPIERT // 200 OK ]',
-  },
-};
+/*
+ * No per-locale fallback table (rule since 08.11.2026): every string is read
+ * from the `clipboard` group via `getTranslation`. An empty value renders an
+ * empty label — visible in review — instead of an invented sentence that could
+ * contradict the CMS copy.
+ */
 
 export function CopyButton({
   value,
@@ -57,20 +45,15 @@ export function CopyButton({
 }) {
   const [copied, setCopied] = useState(false);
   const [failed, setFailed] = useState(false);
-  const pathname = usePathname();
   // Nullable read: the block also renders on the 404 fallback chrome, where the
   // translations global may be unreachable (see SiteChrome `showConsent`).
   const translations = useTranslationsOrNull();
 
-  // Per-field fallback: an instance whose global predates the group (or where
-  // an editor cleared a field) still renders a complete button.
-  const fallback = FALLBACK[pathname.split('/')[1] === 'de' ? 'de' : 'en'];
-  const source = translations?.clipboard;
   const text = {
-    copyLabel: label?.trim() || source?.copyLabel?.trim() || fallback.copyLabel,
-    copiedMessage: source?.copiedMessage?.trim() || fallback.copiedMessage,
-    failedMessage: source?.failedMessage?.trim() || fallback.failedMessage,
-    copiedInline: source?.copiedInline?.trim() || fallback.copiedInline,
+    copyLabel: label?.trim() || getLegacyCopy(translations, 'clipboard.copyLabel'),
+    copiedMessage: getLegacyCopy(translations, 'clipboard.copiedMessage'),
+    failedMessage: getLegacyCopy(translations, 'clipboard.failedMessage'),
+    copiedInline: getLegacyCopy(translations, 'clipboard.copiedInline'),
   };
 
   const copyLegacy = (input: string): boolean => {

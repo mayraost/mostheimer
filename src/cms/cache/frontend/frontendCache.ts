@@ -4,4 +4,5 @@ export * from './purges';
 export * from './queries';
 export * from './revalidate';
 export * from './routes';
+export * from './translations';
 export * from './utils';

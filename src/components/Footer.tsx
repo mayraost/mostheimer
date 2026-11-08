@@ -5,12 +5,16 @@ import { getPathname } from '@/components/serverPathname';
 import type { Translation } from '@/payload-types';
 
 export async function Footer({
-  locale,
   navLinks,
   cookieSettingsLabel,
   rightsReserved,
+  brandName,
+  brandClaim,
+  navAria,
+  credits,
 }: {
-  locale: string;
+  /** Brand from the site-settings global (never a literal). */
+  brandName: string;
   navLinks?: {
     label: string;
     link: string;
@@ -20,15 +24,22 @@ export async function Footer({
   cookieSettingsLabel?: Translation['cookies'];
   /** Copyright-Zeile aus dem Translations-Global (DE/EN, CMS-editierbar). */
   rightsReserved?: Translation['footer'];
+  /** Subline under the name (`chrome.brandClaim`), CMS copy. */
+  brandClaim?: string;
+  /** Accessible name of the footer nav (`chrome.footerNavAria`). */
+  navAria?: string;
+  /** Tech line (`chrome.footerCredits`); segments are split on `/`. */
+  credits?: string;
 }) {
-  // Fallback nur fuer Instanzen, deren Translations-Global noch keinen
-  // `cookies`-Block hat (z. B. ungeseedete Dev-DB) — nie hart im Markup.
-  const settingsLabel =
-    cookieSettingsLabel?.settingsLink ??
-    (locale === 'de' ? 'Cookie-Einstellungen' : 'Cookie settings');
-  const rightsLabel =
-    rightsReserved?.rightsReserved ??
-    (locale === 'de' ? 'Alle Rechte vorbehalten' : 'All rights reserved');
+  /*
+   * No locale-derived fallback strings any more (rule since 08.11.2026): every
+   * visible word comes from the translations global. A missing value renders
+   * nothing instead of an invented sentence — `rightsLabel` in particular only
+   * affects the copyright tail, so an empty global degrades to
+   * "© <year> <brand>" rather than to English copy on a German page.
+   */
+  const settingsLabel = cookieSettingsLabel?.settingsLink?.trim() ?? '';
+  const rightsLabel = rightsReserved?.rightsReserved?.trim() ?? '';
   const pathname = await getPathname();
 
   return (
@@ -40,17 +51,19 @@ export async function Footer({
           </span>
           <div>
             <p className="font-heading text-base font-semibold tracking-tight text-foreground">
-              Mayra Ostheimer
+              {brandName}
             </p>
-            <p className="mono-label text-muted-foreground">
-              <span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-primary align-middle" />
-              Web &amp; Application Architect
-            </p>
+            {brandClaim ? (
+              <p className="mono-label text-muted-foreground">
+                <span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-primary align-middle" />
+                {brandClaim}
+              </p>
+            ) : null}
           </div>
         </div>
 
         {navLinks && navLinks.length > 0 && (
-          <nav aria-label="Footer">
+          <nav aria-label={navAria}>
             <ul className="flex flex-wrap items-center gap-x-5 gap-y-2">
               {navLinks.map((item, index) => {
                 const active = isActiveNavLink(item.link, pathname);
@@ -89,12 +102,20 @@ export async function Footer({
       <div className="border-t border-border">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-1 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-8">
           <p className="mono-label text-muted-foreground">
-            © {new Date().getFullYear()} Mayra Ostheimer · {rightsLabel}
+            {/* "© <year> <brand> · <rights>": the brand is data (site-settings),
+                the rights sentence is CMS copy. Empty parts are skipped. */}
+            {['© ' + new Date().getFullYear(), brandName, rightsLabel].filter(Boolean).join(' · ')}
           </p>
-          <p className="mono-label text-muted-foreground">
-            Next.js 16 <span className="text-primary">/</span> Payload 4{' '}
-            <span className="text-primary">/</span> Postgres
-          </p>
+          {credits ? (
+            <p className="mono-label text-muted-foreground">
+              {credits.split('/').map((segment, index, all) => (
+                <span key={`${segment}-${index}`}>
+                  {segment.trim()}
+                  {index < all.length - 1 && <span className="text-primary">{' / '}</span>}
+                </span>
+              ))}
+            </p>
+          ) : null}
         </div>
       </div>
     </footer>

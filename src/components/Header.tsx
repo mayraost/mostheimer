@@ -23,10 +23,28 @@ export function Header({
   locale,
   navLinks,
   commandItems = [],
+  copy,
+  brandName,
 }: {
   locale: string;
   navLinks?: NavLink[];
   commandItems?: CommandItem[];
+  /** Brand from the site-settings global (accessible name of the logo link). */
+  brandName: string;
+  /**
+   * Shell copy from the translations global (server-read, passed down as
+   * props). A client component cannot await the translations cache, and the
+   * provider context does not carry the `chrome` group per header instance —
+   * props keep the resolution explicit and typed.
+   */
+  copy: {
+    homeAria: string;
+    languageName: string;
+    languageSwitchAria: string;
+    closeMenu: string;
+    drawerStatus: string;
+    currentPage: string;
+  };
 }) {
   const { theme, currentTheme, setTheme } = useSettings();
   const translations = useTranslations();
@@ -82,13 +100,9 @@ export function Header({
 
   // A11y: the visible two-letter label must be contained in the accessible name
   // (axe `label-content-name-mismatch`), so the full language name goes into
-  // aria-label alongside it.
-  const targetLanguageName = targetLocale === 'de' ? 'Deutsch' : 'English (EN)';
-  // DE/EN routes carry the label in their own language.
-  const languageSwitchLabel =
-    locale === 'de'
-      ? `Sprache wechseln zu ${targetLanguageName}`
-      : `Switch language to ${targetLanguageName}`;
+  // aria-label alongside it. Both the name and the sentence come from the CMS;
+  // `{language}` is substituted here because the target depends on the route.
+  const languageSwitchLabel = copy.languageSwitchAria.replaceAll('{language}', copy.languageName);
 
   const iconButtonClass =
     'flex h-11 w-11 items-center justify-center rounded-[6px] border border-border bg-surface-raised/60 text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground lg:h-9 lg:w-9';
@@ -134,7 +148,7 @@ export function Header({
           />
           <span className="mono-label hidden text-primary lg:inline">{'//'} dev</span>
           <span className="sr-only">
-            mayra ostheimer — {locale === 'de' ? 'Startseite' : 'home'}
+            {brandName} — {copy.homeAria}
           </span>
         </Link>
 
@@ -207,8 +221,9 @@ export function Header({
         onClose={closeSidebar}
         navLinks={navLinks ?? []}
         title={translations.common.menu}
-        closeLabel={locale === 'de' ? 'Menü schließen' : 'Close menu'}
-        statusLabel={`Kiebitzreihe · ${locale.toUpperCase()}`}
+        closeLabel={copy.closeMenu}
+        currentPageLabel={copy.currentPage}
+        statusLabel={copy.drawerStatus}
         settingsHref={`/${locale}/settings`}
         settingsLabel={translations.common.settingsButtonAria}
         themeLabel={`${translations.common.theme}: ${theme}`}

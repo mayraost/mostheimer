@@ -7,7 +7,20 @@ import { RevealGrid } from '../ui/MotionWrappers';
 type SkillsetBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'skillset' }>;
 type SkillsetItem = NonNullable<SkillsetBlockData['items']>[number];
 
-function SkillsetCard({ item, index }: { item: SkillsetItem; index: number }) {
+export type SkillsetCopy = {
+  eyebrow: string;
+  itemPrefix: string;
+};
+
+function SkillsetCard({
+  item,
+  index,
+  copy,
+}: {
+  item: SkillsetItem;
+  index: number;
+  copy: SkillsetCopy;
+}) {
   return (
     <BentoTile
       data-reveal=""
@@ -19,7 +32,7 @@ function SkillsetCard({ item, index }: { item: SkillsetItem; index: number }) {
       ].join(' ')}
     >
       <CardHeader
-        label={`skill ${String(index + 1).padStart(2, '0')}`}
+        label={[copy.itemPrefix, String(index + 1).padStart(2, '0')].filter(Boolean).join(' ')}
         tone={item.highlight ? 'primary' : 'muted'}
       />
 
@@ -48,12 +61,19 @@ function SkillsetCard({ item, index }: { item: SkillsetItem; index: number }) {
   );
 }
 
-export function SkillsetBlock({ block }: { block: SkillsetBlockData }) {
+export function SkillsetBlock({
+  block,
+  copy,
+}: {
+  block: SkillsetBlockData;
+  /** Shell copy (`blocks.skillset`), read by the dispatcher. */
+  copy: SkillsetCopy;
+}) {
   return (
     <section className="w-full border-t border-border pt-6 pb-14 lg:py-14">
       <div className="mx-auto w-full max-w-6xl">
         <div className="mb-8">
-          <CardHeader label="skillset" meta={`${block.items?.length ?? 0} items`} />
+          <CardHeader label={copy.eyebrow} meta={String(block.items?.length ?? 0)} />
           <h2 className="font-heading text-2xl font-bold tracking-[-0.02em] text-foreground lg:text-3xl">
             {block.heading}
           </h2>
@@ -66,7 +86,7 @@ export function SkillsetBlock({ block }: { block: SkillsetBlockData }) {
 
         <RevealGrid className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
           {block.items?.map((item, index) => (
-            <SkillsetCard key={item.id ?? item.name} item={item} index={index} />
+            <SkillsetCard key={item.id ?? item.name} item={item} index={index} copy={copy} />
           ))}
         </RevealGrid>
 
