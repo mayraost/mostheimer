@@ -277,6 +277,64 @@ body {
 
   /* Scroll telemetry, written by the rAF fallback (0 → 1). */
   --scroll-progress: 0;
+
+  /* ─── Brand mark palette ────────────────────────────────────────────────
+   * The MO monogram is inline SVG, so its fills cannot use Tailwind classes.
+   * These custom properties are the bridge: `MarkArtwork.tsx` references
+   * `var(--mark-*)`, and the theme picks the values.
+   *
+   * `:root` carries the DARK palette (dark is the app default), `.light`
+   * overrides it. Values are mirrored verbatim in
+   * `src/components/brand/markGeometry.ts` (MARK_PALETTE_DARK / _LIGHT) —
+   * that pair is what the icon rasteriser uses, and a test keeps them in
+   * sync. Do not introduce a third copy.
+   */
+  --mark-m-left-0: #34d399;
+  --mark-m-left-1: #10b981;
+  --mark-m-left-2: #0d9488;
+  --mark-m-right-0: #10b981;
+  --mark-m-right-1: #0ea5e9;
+  --mark-m-right-2: #06b6d4;
+  --mark-o-top-0: #10b981;
+  --mark-o-top-1: #06b6d4;
+  --mark-o-top-2: #22d3ee;
+  --mark-o-bottom-0: #22d3ee;
+  --mark-o-bottom-1: #06b6d4;
+  --mark-o-bottom-2: #0284c7;
+  --mark-code-left: #10b981;
+  --mark-code-slash: #22d3ee;
+  --mark-code-right: #06b6d4;
+  --mark-reticle-a: #10b981;
+  --mark-reticle-b: #06b6d4;
+  --mark-fold: #071f29;
+  --mark-bridge-gap: #090a0d;
+  --mark-divider: #1e293b;
+}
+
+.light {
+  /* Light theme: the darker `.light` token pair. The neon set sits ~1.9:1 on
+     white — a smear, not a logo. These stay near 3.4:1 and keep the
+     ribbon seam readable. See MARK_PALETTE_LIGHT for the rationale. */
+  --mark-m-left-0: #34d399;
+  --mark-m-left-1: #059669;
+  --mark-m-left-2: #047857;
+  --mark-m-right-0: #0891b2;
+  --mark-m-right-1: #0e7490;
+  --mark-m-right-2: #0369a1;
+  --mark-o-top-0: #059669;
+  --mark-o-top-1: #0891b2;
+  --mark-o-top-2: #22a3b8;
+  --mark-o-bottom-0: #22a3b8;
+  --mark-o-bottom-1: #0e7490;
+  --mark-o-bottom-2: #0369a1;
+  --mark-code-left: #059669;
+  --mark-code-slash: #0e7490;
+  --mark-code-right: #0891b2;
+  --mark-reticle-a: #059669;
+  --mark-reticle-b: #0891b2;
+  --mark-fold: #062b24;
+  --mark-bridge-gap: #f8fafc;
+  --mark-divider: #cbd5e1;
 }
 
 @layer base {

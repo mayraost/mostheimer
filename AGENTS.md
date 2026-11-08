@@ -26,6 +26,7 @@ npm run lint           # ESLint prüfen
 npm run lint:fix       # ESLint-Fehler automatisch beheben
 npm run typecheck      # Fast-Typecheck mit nativem TS 7 (Advisory; Build/CI bleiben TS 6)
 npm run generate:types # Payload CMS TypeScript-Typen generieren
+npm run generate:icons # Brand-Icons (favicon/apple/PWA/logo-lockup) aus markGeometry
 ```
 
 ## Umgebungsvariablen
@@ -1846,63 +1847,91 @@ to create a blank migration file?" und **erzeugt bei Nichtantwort gar nichts**
 (Exit 0, keine Datei). Immer `< /dev/null` anhängen oder die Frage beantworten.
 
 
-## Logo-Lockup, Header-Marke & Icon-Set (07.11.2026)
+## Brand: MO-Monogramm, Lockups & Icon-Set (08.11.2026)
 
-Drei Ableitungen aus **einem** Artwork (dem abgetragenen MO-Mark). Wer eins davon
-ändert, muss die anderen mitziehen — sonst driften Favicon und Header auseinander.
+**Eine Geometrie, alle Flächen.** Das aktuelle Artwork („Precision Ribbon
+Monogram") liegt **ausschließlich** in `src/components/brand/markGeometry.ts`.
+Wer Pfade, Farben oder Boxmaße ändert, ändert sie dort — Header, 404-Chrome,
+OG-Card und sämtliche Icon-Dateien leiten daraus ab.
 
 | Datei | Rolle |
 | --- | --- |
-| `src/components/LogoLockup.tsx` | Voller Lockup: Mark + `MAYRA OSTHEIMER` + Subline `// WEB & APPLICATION ARCHITECT` |
-| `src/public/logo-lockup.svg` | Dasselbe standalone, transparent, Space Grotesk als base64-woff2 eingebettet |
-| `src/components/LogoLockupMark.tsx` | **Header-Variante**: Mark + Wortmarke, **ohne** Subline |
-| `src/app/icon.svg`, `favicon.ico`, `apple-icon.png` | Favicon-Set (Next-File-Conventions) |
-| `src/public/icon-192.png`, `icon-512.png` | Manifest-Icons |
-| `src/app/manifest.ts` | Web-App-Manifest |
+| `src/components/brand/markGeometry.ts` | **Single Source**: Pfade, Reticle, Paletten, Lockup-Typografie, ViewBoxen |
+| `src/components/brand/MarkArtwork.tsx` | Mark-Renderer; `paint()` schaltet zwischen fester Palette (Raster/OG) und `var(--mark-*)` (Inline-SVG) |
+| `src/components/brand/LogoLockupMark.tsx` | Header: zwei Kompositionen (`compact` unter `lg`, `full` ab `lg` mit Subline) |
+| `src/components/brand/LogoLockup.tsx` | Voller Lockup mit Subline für große Flächen |
+| `scripts/brand-icons.ts` | `npm run generate:icons` → `icon.svg`, `favicon.ico`, `apple-icon.png`, `icon-192/512(-maskable).png`, `logo-lockup.svg` |
+| `src/app/manifest.ts` | Web-App-Manifest (`icon-512-maskable.png` separat) |
+| `tests/int/brand.int.spec.ts` | Invarianten, ohne DB/DOM |
 
-### Warum der Header die Subline NICHT zeigt
+### Subline nur ab `lg` — und der Header wird dort höher
 
-Der volle Lockup hat Aspect 3.57 (viewBox `2303 × 645`). Skaliert man ihn auf die
-Headerhöhe, wird die dritte Zeile rechnerisch **6–7 px** hoch (`56 px ÷ 645 × 70`).
-Das ist nicht „etwas klein", das ist unlesbar. `LogoLockupMark` lässt die Subline
-deshalb weg und croppt den viewBox — die Subline bleibt dem vollen Lockup auf
-großen Flächen vorbehalten. **Nicht** „nur kurz den vollen Lockup reinziehen": das
-ist der Fehler, den diese Trennung verhindert.
+Die Subline ist eine **dritte** Zeile. In einer 64-px-Bar landet sie rechnerisch
+bei **2 px** (gemessen: Subline 2.02 px, Wortmark 6.75 px) — das ist kein „etwas
+klein", sondern unlesbar. Deshalb:
 
-### Light-Theme: `currentColor`, kein Fixwert
+- **`lg`-Header ist `lg:h-20` (80 px)** statt `h-16`; der Lockup bekommt
+  `lg:h-[72px]`. Ergebnis bei 1280 px: Wortmark **16 px**, Subline **8.5 px**.
+- Unter `lg`: nur Mark + Wortmark (`compact`-Komposition), keine Subline.
+- **Warum zwei SVGs statt CSS-Hide:** die Subline braucht eine *höhere* Box. Ein
+  `viewBox` ist ein Attribut, kein Style — keine Media-Query kann ihn tauschen,
+  und Überlaufen würde abgeschnitten. Also rendern beide Kompositionen, `lg`
+  entscheidet, welche im Layout ist. Genau eine ist sichtbar → kein doppelter
+  Tab-Stop, kein doppelter Accessible Name, kein CLS.
 
-Die Referenz-Wortmarke ist fast weiß (`#F2F4F5`). Im Header sitzt das Logo auf
-`bg-background/85` — im Light-Theme also auf **Weiß** → unsichtbar. `LogoLockupMark`
-nutzt deshalb `fill="currentColor"` auf der Wortmarke (Farbe kommt von der
-Textklasse am `<svg>`). Der volle Lockup behält den Fixwert, weil er auf
-dunklen Flächen sitzt.
+### Farben: Theme über CSS-Custom-Properties
 
-### Icon-Set: Fallstricke, teuer gelernt
+Ein Inline-SVG kann keine Tailwind-Klassen auf `fill` anwenden. Brücke sind die
+`--mark-*`-Properties in `globals.css` (`:root` = dunkel, `.light` = hell);
+`MarkArtwork.paint()` referenziert sie. **Die Werte spiegeln
+`MARK_PALETTE_DARK` / `MARK_PALETTE_LIGHT` — nicht ein drittes Mal duplizieren.**
 
-- **Art-Bounds messen, nicht schätzen.** Ein geratener Rahmen (`253..1278 / 443..1008`)
-  schnitt das `</>`-Akzent oben ab und setzte den Glyph sichtbar außer Mitte.
-  Korrekt (per Raster gemessen): `x 268..1277`, `y 443..1043` → `ART = {x:268,y:443,w:1009,h:600}`.
-- **Das `</>` ist ein 23 px-Stroke** um `y=443..529`; seine Tinte beginnt bei 431.5.
-  Ein Bounds-Start auf `443` clippt es.
-- **iOS ignoriert Transparenz** → `apple-icon.png` braucht eine Platte (`#121212`).
-  Gleichzeitig wendet iOS eine eigene Eckmaske an, der Radius ist kosmetisch.
-- **Maskable braucht mehr Padding als `any`.** Android beschneidet bis 20 % pro
-  Seite; deshalb `icon-512.png` mit `pad = 0.2` und im Manifest **zwei** Einträge
-  (`purpose: 'any'` und `'maskable'`) — eine Datei für beides sieht unmaskiert zu klein aus.
-- **ICO selbst gebaut:** im Projekt gibt es weder `png-to-ico` noch ImageMagick/ffmpeg.
-  Das ICO-Containern (6-Byte-Header + 16-Byte-Directory + PNG-Payloads) schreibt
-  `icons.mjs` in wenigen Zeilen; `sharp` liefert die PNGs. Format ist Vista+ (PNG im ICO).
-- **Next serviert nur `icon.svg` / `apple-icon.png` / `favicon.ico`** aus `src/app`.
-  Die Manifest-PNGs liegen in `src/public` — sonst 404 im Manifest.
+- Dark = Neon-Paar `#10B981` → `#06B6D4` (identisch zu den `.dark`-Tokens).
+- Light = dunkleres Token-Paar `#059669` / `#0891b2`. **Gemessen:** Neon auf
+  `#f8fafc` hat nur **2.42:1** (Schmier), das Light-Paar **3.4+:1** — der Test
+  nagelt beide Werte fest.
+- Wortmarke nutzt `currentColor` → folgt der Textfarbe in beiden Themes.
+- **Statische Icons nutzen IMMER die Dark-Palette.** Ein Favicon kennt kein Theme.
 
-### React/JSX vs. SVG-Attribute
+### Icon-Set: Fallstricke
 
-`LogoLockup*.tsx` nutzt JSX-Namen (`className`, `stopColor`, `fontSize`,
-`letterSpacing`, `fillRule`, `strokeWidth`). Das ist **kein** gültiges SVG/XML —
-wer daraus eine `.svg`-Datei ableitet, muss auf `class`/`stop-color`/`font-size`/
-`fill-rule`/`stroke-width` übersetzen. Ein Regex-Strip der JSX-Wrapper erzeugt
-sonst still broken XML (und `<img src="data:image/svg+xml,...">` zeigt nur das
-Broken-Image-Icon).
+- **16 px braucht ein einfacheres Emblem.** Reticle (2-Unit-Stroke ≈ 0.1 px) und
+  `</>` zerfallen zu Rauschen — das Favicon las sich als grüner Blob (per
+  16-px-Studie gemessen). `favicon.ico` rendert deshalb `detail: false` (nur
+  M/O-Ribbons, `pad 0.015`); ab 180 px bleibt das volle Emblem.
+- **Maskable braucht eigenes Padding.** `pad 0.2` + `icon-512-maskable.png` als
+  eigener Manifest-Eintrag; dieselbe Datei für `any` wirkt unmaskiert zu klein.
+- **iOS ignoriert Transparenz** → `apple-icon.png` mit Platte.
+- **ICO selbst gebaut** (kein `png-to-ico`/ImageMagick im Projekt): 6-Byte-Header
+  + 16-Byte-Directory + PNG-Payloads, Vista+-Format; `sharp` liefert die PNGs.
+- **Negative `pad` braucht einen breiteren viewBox**, sonst clippt der Renderer
+  still — im Generator über `bleed` gelöst.
+
+### Boxmaße messen, nicht raten
+
+Die Subline (JetBrains Mono 700 @34 Units) ist **676 Units** breit und endet bei
+x≈1238 — weit rechts der 440-Unit-Marke. Eine hartkodierte 1000er-Box schnitt sie
+zu `"WEB & APPLICATION A"` ab. `LOCKUP_BOX` leitet Breite/Höhe aus `SUBLINE_INK`
++ Padding ab, `MARK_TOP_PAD` (12) gibt dem Reticle Luft, und
+`tests/int/brand.int.spec.ts` prüft, dass Text in jeder Box Platz hat.
+
+### Gotchas
+
+- `LogoLockup*.tsx` sind **Server**-Components (kein `'use client'`): `useId()`
+  reicht, State gibt es keinen. Der 404-Chrome (Server) rendert denselben Lockup.
+- Der **Statische-404-Chrome** zeigt jetzt das echte Mark; das alte „MO"-Textbadge
+  ist entfernt.
+- Die **OG-Card** ist immer dunkel und malt flache Fills (`MARK_PALETTE_DARK`):
+  Satori löst weder `var()` noch `currentColor` verlässlich auf.
+- `src/public/logo-lockup.svg` wird mitgeneriert und nutzt einen
+  `font-family`-Stack (kein eingebettetes woff2 mehr).
+
+### Node-Modules im Worktree
+
+Ein Worktree erbt kein `node_modules`. Ein **Symlink** auf den Haupt-Checkout
+bricht `next build` („Could not find the Next.js package", Turbopack bleibt in
+der Workspace-Root). Lösung: `node_modules` real in den Worktree kopieren
+(`cp -a ../mostheimer/node_modules ./`) oder `npm ci` laufen lassen.
 
 ## Generierte Dateien: `src/404-critical.generated.ts` (08.11.2026)
 

@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 
+import { LogoLockupMark } from '@/components/brand/LogoLockupMark';
+
 /**
  * Constant navigation/footer for the 404 document — the real Header/Footer read
  * the navigation + translations globals, which would make the boundary
@@ -75,13 +77,9 @@ export function StaticHeader({ locale = 'en' }: { locale?: ChromeLocale }) {
     <header className="sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur-xl">
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-3 px-4 md:px-8">
         <Link href={`/${locale}`} className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-[6px] border border-border bg-surface-raised text-primary">
-            <span aria-hidden="true" className="mono-label">
-              MO
-            </span>
-          </span>
-          <span className="text-lg font-bold tracking-tight text-foreground">mayra ostheimer</span>
-          <span className="mono-label text-primary">{'//'} dev</span>
+          <LogoLockupMark title="" className="h-7 w-auto shrink-0 text-foreground sm:h-8" />
+          <span className="mono-label hidden text-primary lg:inline">{'//'} dev</span>
+          <span className="sr-only">mayra ostheimer</span>
         </Link>
         <nav aria-label={copy.navLabel}>
           <ul className="flex flex-wrap items-center gap-x-5 gap-y-2">

@@ -6,7 +6,7 @@ import { useSettings } from './SettingsProvider';
 import { useTranslations } from './TranslationsProvider';
 import { Moon, Sun, SunMoon, Settings, Menu } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { LogoLockupMark } from './LogoLockupMark';
+import { LogoLockupMark } from './brand/LogoLockupMark';
 import { CommandPalette } from './ui/CommandPalette';
 import { ScrollProgressBar } from './ui/ScrollProgressBar';
 import { MobileNavPortal } from './MobileNavPortal';
@@ -103,10 +103,14 @@ export function Header({
         className={[
           'mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 md:px-8',
           // Height is a real layout property, so it may NOT animate: the row
-          // snaps between 64px and 56px. The page content is laid out below the
-          // sticky header in normal flow, so the shorter bar never moves it
+          // snaps between its states. The page content is laid out below the
+          // sticky header in normal flow, so a shorter bar never moves it
           // (CLS stays 0) — only the header's own density changes.
-          compact ? 'h-14' : 'h-16',
+          //
+          // `lg` is taller (80px) because that is where the lockup grows its
+          // third line (`// WEB & APPLICATION ARCHITECT`). A 64px bar leaves
+          // that subline at ~5px; the extra 16px buys the whole type block.
+          compact ? 'h-14' : 'h-16 lg:h-20',
         ].join(' ')}
       >
         {/*
@@ -118,13 +122,15 @@ export function Header({
          */}
         <Link href={`/${locale}`} className="group flex items-center gap-3">
           {/*
-           * The full lockup (with subline) does not fit: at the header's
-           * 56–64px height its third line scales to 6–7px. `LogoLockupMark`
-           * carries mark + wordmark only, so both stay legible.
+           * The lockup carries its own breakpoint: mark + wordmark below `lg`,
+           * plus the `// WEB & APPLICATION ARCHITECT` subline from `lg` up.
+           * At header height the subline only becomes legible once there is
+           * room for it, so `LogoLockupMark` swaps composition at `lg` instead
+           * of shrinking all three lines into 6px type.
            */}
           <LogoLockupMark
             title=""
-            className="h-7 w-auto shrink-0 text-foreground transition-opacity group-hover:opacity-80 sm:h-8"
+            className="h-8 w-auto shrink-0 text-foreground transition-opacity group-hover:opacity-80 lg:h-[72px]"
           />
           <span className="mono-label hidden text-primary lg:inline">{'//'} dev</span>
           <span className="sr-only">

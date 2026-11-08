@@ -1,56 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-
-<g transform="translate(-88.953 -75.780) scale(0.44654)"><g>
-  <title>Mayra Ostheimer</title>
-  <defs>
-    <linearGradient id="gM" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#45E39C"/>
-      <stop offset="0.4" stop-color="#28CFAB"/>
-      <stop offset="0.75" stop-color="#1AC2BE"/>
-      <stop offset="1" stop-color="#16B2CE"/>
-    </linearGradient>
-    <radialGradient id="gO" cx="0.18" cy="0.1" r="1.0">
-      <stop offset="0" stop-color="#23D3B6"/>
-      <stop offset="0.4" stop-color="#23CDB2"/>
-      <stop offset="0.75" stop-color="#17BCD7"/>
-      <stop offset="1" stop-color="#1ABCD5"/>
-    </radialGradient>
-    <linearGradient id="gW" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#8CFFD9"/>
-      <stop offset="0.45" stop-color="#5CFFE2"/>
-      <stop offset="1" stop-color="#79F0FF"/>
-    </linearGradient>
-    <filter id="bloom" x="-25%" y="-25%" width="150%" height="150%" color-interpolation-filters="sRGB">
-      <feGaussianBlur stdDeviation="26" result="wide"/>
-      <feColorMatrix in="wide" type="matrix" result="glow"
-        values="0 0 0 0 0.12  0 0 0 0 0.88  0 0 0 0 0.74  0 0 0 0.5 0"/>
-      <feGaussianBlur stdDeviation="10" result="mid"/>
-      <feColorMatrix in="mid" type="matrix" result="glow2"
-        values="0 0 0 0 0.28  0 0 0 0 0.97  0 0 0 0 0.88  0 0 0 0.28 0"/>
-      <feMerge>
-        <feMergeNode in="glow"/>
-        <feMergeNode in="glow2"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-  </defs>
-
-  <g fill="none" stroke="url(#gW)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M287 493 L287 1000 L304 1000"/>
-    <path d="M287 493 L304 493"/>
-    <path d="M811 493 L811 1000 L794 1000"/>
-    <path d="M811 493 L794 493"/>
-    <path d="M794 766 L860 766"/>
-  </g>
-
-  <g filter="url(#bloom)">
-    <path fill="url(#gM)" d="M302 493L302 497L400 497L394 493ZM706 493L699 497L797 497L797 493ZM456 493L456 502L458 504L507 540L509 540L509 522L475 496L474 495L476 493ZM623 493L625 495L624 496L589 522L589 540L592 540L640 504L643 501L643 493ZM542 493L521 556L538 556L559 493ZM304 527L304 557L406 557L384 530L379 527ZM720 527L716 529L693 557L795 557L794 527ZM743 565L738 570L738 576L743 581L750 581L755 575L755 571L750 565ZM350 565L345 569L344 574L346 579L351 582L354 582L361 576L361 570L356 565ZM698 498L558 664L566 664L699 505L705 499L709 498ZM393 498L535 665L542 665L400 498ZM549 661L549 663L535 666L538 669L536 672L536 682L541 689L546 691L552 691L558 688L563 681L563 674L561 670L565 665L551 663L551 661ZM738 587L640 701L743 701L743 588L741 587ZM357 588L356 701L459 701L361 588ZM358 558L362 560L368 568L369 575L366 581L367 585L489 727L549 727L407 558ZM692 558L550 727L610 727L733 584L734 582L731 577L731 568L736 561L742 558ZM750 558L755 560L760 565L761 577L756 585L749 588L748 751L795 751L795 630L797 628L797 622L795 621L795 558ZM699 702L699 751L743 751L743 702ZM699 752L699 764L795 764L795 752ZM699 765L699 771L770 771L761 770L763 767L762 766L774 765ZM795 765L795 770L793 771L795 771L797 770L797 765ZM699 772L699 773L795 773L795 772ZM699 774L699 775L759 775L759 774ZM760 774L760 775L795 775L795 774ZM699 777L699 781L754 781L758 777ZM742 782L747 783L749 783L745 782ZM403 702L472 784L531 784L460 702ZM490 728L534 779L536 782L533 784L562 784L571 771L609 728ZM639 702L565 788L624 788L697 702ZM473 785L475 788L564 788L565 787L562 785ZM476 789L548 874L551 874L623 789ZM668 781L556 912L564 912L662 795L670 793L670 781ZM437 795L535 912L543 912L444 795ZM546 911L544 912L555 912L552 911ZM536 913L538 916L536 920L536 928L542 936L547 938L553 938L559 935L563 929L564 922L561 915L563 913ZM759 777L748 785L749 999L797 999L795 777ZM699 782L699 999L743 999L743 784L738 782ZM304 558L304 1000L350 1000L349 589L340 583L337 576L340 564L348 558ZM356 702L355 1000L401 1000L401 702ZM430 781L430 1004L435 1004L435 795L443 794L432 781ZM665 794L665 1004L670 1004L670 794ZM699 1000L698 1004L797 1004L797 1000ZM304 1001L304 1004L401 1004L401 1001Z"/>
-    <path fill="url(#gO)" fill-rule="evenodd" d="M922 527 L1214 527 L1262 575 L1262 960 L1214 1008 L922 1008 L874 960 L874 575Z M980 659 L1103 659 L1136 692 L1136 845 L1103 878 L980 878 L947 845 L947 692Z"/>
-    <g fill="none" stroke="url(#gM)" stroke-width="23" stroke-linejoin="miter" stroke-linecap="butt">
-      <path d="M500 443 L455 486 L500 529"/>
-      <path d="M637 443 L682 486 L637 529"/>
-      <path d="M604 443 L571 577"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" preserveAspectRatio="xMidYMid meet">
+    
+    <g transform="translate(30.72, 102.4) scale(1.024)">
+    <g fill="none" stroke-width="2">
+      <polyline points="12,52 12,20 44,20" stroke="#10B981" stroke-opacity="0.55"/><polyline points="12,256 12,288 44,288" stroke="#10B981" stroke-opacity="0.55"/><polyline points="376,20 408,20 408,52" stroke="#06B6D4" stroke-opacity="0.55"/><polyline points="376,288 408,288 408,256" stroke="#06B6D4" stroke-opacity="0.55"/>
     </g>
-  </g>
-</g></g>
-</svg>
+    <rect x="9" y="17" width="6" height="6" fill="#10B981"/><rect x="9" y="285" width="6" height="6" fill="#10B981"/><rect x="405" y="17" width="6" height="6" fill="#06B6D4"/><rect x="405" y="285" width="6" height="6" fill="#06B6D4"/>
+    <path d="M 34,232 L 54,252 L 68,252 L 68,120 L 126,184 L 126,134 L 56,56 L 34,56 Z" fill="#10B981"/>
+    <path d="M 126,134 L 126,184 L 184,120 L 184,232 L 204,252 L 218,252 L 218,56 L 196,56 Z" fill="#10B981"/>
+    <polygon points="126,134 126,184 154,153" fill="#071F29" fill-opacity="0.45"/>
+    <g fill="none" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="105,48 93,60 105,72" stroke="#10B981"/>
+      <line x1="131" y1="45" x2="121" y2="75" stroke="#22D3EE"/>
+      <polyline points="147,48 159,60 147,72" stroke="#06B6D4"/>
+    </g>
+    <path d="M 248,230 L 230,212 L 230,96 L 270,56 L 346,56 L 368,78 L 344,102 L 332,90 L 284,90 L 264,110 L 264,198 L 272,206 Z" fill="#10B981"/>
+    <path d="M 373,83 L 386,96 L 386,212 L 346,252 L 270,252 L 253,235 L 277,211 L 284,218 L 332,218 L 352,198 L 352,110 L 349,107 Z" fill="#06B6D4"/>
+    <polygon points="204,146 244,146 238,162 198,162" fill="#00000000"/>
+    <polygon points="206,149 242,149 238,159 202,159" fill="#10B981"/></g>
+  </svg>

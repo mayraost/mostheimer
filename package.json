@@ -12,6 +12,7 @@
     "generate:importmap": "payload generate:importmap",
     "generate:types": "payload generate:types",
     "generate:css": "tsx scripts/build-404-critical-css.ts",
+    "generate:icons": "tsx scripts/brand-icons.ts",
     "prebuild": "npm run generate:css",
     "predev": "npm run generate:css",
     "pretypecheck": "npm run generate:css",
