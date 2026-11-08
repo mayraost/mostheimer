@@ -1838,3 +1838,29 @@ wer daraus eine `.svg`-Datei ableitet, muss auf `class`/`stop-color`/`font-size`
 `fill-rule`/`stroke-width` übersetzen. Ein Regex-Strip der JSX-Wrapper erzeugt
 sonst still broken XML (und `<img src="data:image/svg+xml,...">` zeigt nur das
 Broken-Image-Icon).
+
+## Generierte Dateien: `src/404-critical.generated.ts` (08.11.2026)
+
+`src/404-critical.generated.ts` (Tailwind-Subset + Content-Hash für die 404-Chrome) ist
+**gitignored** und wird zur Laufzeit des Toolings erzeugt — nicht mehr committen.
+Grund für den Rauswurf: die Datei änderte sich bei jedem CSS-Edit (Churn), trug veraltete
+Hashes, wenn jemand `generate:css` vergaß, und blockierte lokal jeden Branch-Wechsel
+(„local changes would be overwritten").
+
+**Wichtig — sie wird importiert, ist also kein optionales Artefakt:**
+`src/app/(frontend)/not-found.tsx` (`CRITICAL_404_HASH`) und
+`src/app/404-critical.css/route.ts` (`CRITICAL_404_CSS`). Fehlt sie, bricht beides hart:
+
+| Fehlt die Datei … | Symptom |
+| --- | --- |
+| `npm run dev` | **HTTP 500 auf ALLEN Routen** (`Module not found: '@/404-critical.generated'`) |
+| `npm run typecheck` | 2× `TS2307` |
+
+Deshalb regeneriert **jeder** Einstiegspunkt, der die Datei importieren kann, sie zuerst
+über npm-Hooks: `prebuild`, `predev`, `pretypecheck`, `pretest`. Zusätzlich ruft
+`npm run ci` jetzt `npm run build` statt `next build` — sonst wäre `prebuild` umgangen
+worden und der CI-Build hätte ohne die Datei dagestanden.
+
+Merke: Bei einer neuen, importierten Generated-Datei reicht es **nicht**, sie zu
+gitignorieren — jeder Pfad, der sie lädt (dev, typecheck, test, CI), braucht einen
+`pre*`-Hook. Sonst ist der Repo-Zustand nach dem Clone kaputt, obwohl lokal alles läuft.

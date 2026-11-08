@@ -70,3 +70,6 @@ payload.db
 /.visual-test/
 /.playwright-mcp/
 /.tmp-agent/
+
+# generated at build/dev/typecheck time (scripts/build-404-critical-css.ts)
+/src/404-critical.generated.ts
