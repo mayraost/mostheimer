@@ -2,6 +2,7 @@ import { headers } from 'next/headers';
 import { StatusScreen } from '@/components/layout/StatusScreen';
 import { mergeNotFoundTexts } from '@/components/layout/notFoundTexts';
 import { getCachedNotFound } from '@/cms/cache/frontend/frontendCache';
+import { getCachedTranslation } from '@/lib/translations.server';
 import type { FrontendLocale } from '@/cms/cache/frontend/frontendCache';
 import type { NotFound } from '@/payload-types';
 
@@ -45,10 +46,18 @@ export default async function SlugNotFound() {
   }
 
   const data = mergeNotFoundTexts(texts, locale);
+  // Mono label above the card: `chrome.notFoundCode` (cached read). A failure
+  // here must not escalate, so an unreachable cache degrades to no label.
+  let code = '';
+  try {
+    code = await getCachedTranslation(locale, 'chrome.notFoundCode');
+  } catch {
+    code = '';
+  }
 
   return (
     <StatusScreen
-      code="HTTP 404 · Not Found"
+      code={code}
       title={data.title}
       message={data.message}
       primary={{ label: data.buttonLabel, href: data.buttonLink || `/${locale}` }}

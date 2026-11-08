@@ -8,6 +8,20 @@ import { LogoLockupMark } from '@/components/brand/LogoLockupMark';
  * the navigation + translations globals, which would make the boundary
  * DB-dependent, and a 404 has to survive exactly those failures.
  *
+ * ---------------------------------------------------------------------------
+ * DOCUMENTED EXCEPTION to the "no hardcoded copy" rule (AGENTS.md, 08.11.2026)
+ * ---------------------------------------------------------------------------
+ * This module is the only place where visible strings stay in code, and it is
+ * deliberate: it renders the LAST-RESORT 404 documents
+ * (`src/app/(frontend)/not-found.tsx` and `src/app/global-not-found.tsx`),
+ * which Next emits when the app shell failed. Reading the translations global
+ * here would turn "route not found" into "500 when the DB is down" — exactly
+ * the scenario this file exists for.
+ *
+ * Consequence: the two locale tables below must be kept in sync by hand with
+ * the `navigation` and `chrome` globals. Everyday chrome never renders from
+ * here; the live site uses `Header`/`Footer` (CMS-driven).
+ *
  * Copy exists in EN and DE; the route slugs are the same in both locales, so one
  * table serves both. Styling uses the same Tailwind classes/design tokens as the
  * real chrome, so the critical subset generated from globals.css covers it.

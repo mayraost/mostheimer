@@ -7,6 +7,7 @@ import { BlockRenderer } from '@/components/blocks';
 import { HeroBlock } from '@/components/blocks/HeroBlock';
 import { envConfig } from '@/envConfig';
 import { getCachedPageBySlug, getCachedSiteSettings } from '@/cms/cache/frontend/frontendCache';
+import { loadChromeCopy, loadHeroCopy } from '@/lib/translationBundles.server';
 import {
   JsonLdScript,
   buildCareerJsonLd,
@@ -116,7 +117,10 @@ export async function generateMetadata({
 }: PageProps<'/[locale]/[[...slug]]'>): Promise<Metadata> {
   const { locale, slug, page } = await resolvePage(params);
   if (!page) notFound();
-  return buildPageMetadata(locale, slug, page);
+  // Brand from the CMS (site-settings), never a literal: title suffix and
+  // `og:site_name` are public brand copy.
+  const siteSettings = await getCachedSiteSettings(locale);
+  return buildPageMetadata(locale, slug, page, siteSettings.siteName ?? '');
 }
 
 export default async function Page({ params }: PageProps<'/[locale]/[[...slug]]'>) {
@@ -133,13 +137,19 @@ export default async function Page({ params }: PageProps<'/[locale]/[[...slug]]'
     notFound();
   }
 
-  const siteSettings = await getCachedSiteSettings(locale);
+  const [siteSettings, chrome] = await Promise.all([
+    getCachedSiteSettings(locale),
+    loadChromeCopy(locale),
+  ]);
+  // Hero shell copy carries the brand name from site-settings (it is the same
+  // entity name the metadata uses, so it is data, not copy).
+  const heroCopy = await loadHeroCopy(locale, siteSettings.siteName ?? '');
   const jsonLd = buildPageJsonLd(
     slug,
     locale,
     page,
     derivePageDescription(page),
-    siteSettings.siteName || 'Mayra Ostheimer',
+    siteSettings.siteName ?? '',
   );
 
   // Semantic <h1> guarantee: case-studies / tech-radar / career have no block
@@ -154,10 +164,12 @@ export default async function Page({ params }: PageProps<'/[locale]/[[...slug]]'
   const isHome = slug === 'home';
   const heroIndex = layout.findIndex((block) => block.blockType === 'hero');
   const heroVariant: 'home' | 'compact' = isHome ? 'home' : 'compact';
-  // Breadcrumb eyebrow for subpage heroes: `Start // Werdegang`. Uses the page
-  // title (already localized in the CMS) so no extra copy table can drift.
-  const homeLabel = locale === 'de' ? 'Start' : 'Home';
-  const heroEyebrow = isHome || heroIndex === -1 ? undefined : `${homeLabel} // ${page.title}`;
+  // Breadcrumb eyebrow for subpage heroes: `Start // Werdegang`. The leading
+  // label is CMS copy (`chrome.breadcrumbHome`), the page title is CMS content.
+  const heroEyebrow =
+    isHome || heroIndex === -1
+      ? undefined
+      : [chrome.breadcrumbHome, page.title].filter(Boolean).join(' // ');
 
   return (
     <>
@@ -172,7 +184,13 @@ export default async function Page({ params }: PageProps<'/[locale]/[[...slug]]'
         )}
         {layout.map((block, index: number) =>
           block.blockType === 'hero' ? (
-            <HeroBlock key={index} block={block} variant={heroVariant} eyebrow={heroEyebrow} />
+            <HeroBlock
+              key={index}
+              block={block}
+              variant={heroVariant}
+              eyebrow={heroEyebrow}
+              copy={heroCopy}
+            />
           ) : (
             <BlockRenderer key={index} block={block} locale={locale} />
           ),
@@ -194,7 +212,12 @@ async function resolvePage(
 }
 
 /** Page metadata: title, description, OG card, canonicals and hreflang. */
-function buildPageMetadata(locale: FrontendLocale, slug: string, page: CmsPage): Metadata {
+function buildPageMetadata(
+  locale: FrontendLocale,
+  slug: string,
+  page: CmsPage,
+  siteName: string,
+): Metadata {
   const baseUrl = envConfig.serverUrl;
   const canonical = baseUrl + pagePath(locale, slug);
   const description = derivePageDescription(page);
@@ -202,12 +225,12 @@ function buildPageMetadata(locale: FrontendLocale, slug: string, page: CmsPage):
   const deUrl = baseUrl + '/de' + (slug === 'home' ? '' : '/' + slug);
 
   return {
-    title: { absolute: page.title + ' - Mayra Ostheimer' },
+    title: siteName ? { absolute: `${page.title} - ${siteName}` } : page.title,
     ...(description ? { description } : {}),
     openGraph: {
       title: page.title,
       type: 'website',
-      siteName: 'Mayra Ostheimer',
+      siteName,
       url: canonical,
       locale: locale === 'de' ? 'de_DE' : 'en_US',
       ...(description ? { description } : {}),

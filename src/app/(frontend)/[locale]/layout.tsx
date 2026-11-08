@@ -8,7 +8,13 @@ import { Footer } from '@/components/Footer';
 import { TranslationsProvider } from '@/components/TranslationsProvider';
 import { DocumentShell } from '@/components/layout/DocumentShell';
 import { SiteChrome } from '@/components/layout/SiteChrome';
-import { getCachedNavigation, getCachedTranslations } from '@/cms/cache/frontend/frontendCache';
+import {
+  getCachedNavigation,
+  getCachedSiteSettings,
+  getCachedTranslations,
+} from '@/cms/cache/frontend/frontendCache';
+import { getCachedTranslation, getCachedTranslationsGlobal } from '@/lib/translations.server';
+import { loadChromeCopy, loadErrorCopy } from '@/lib/translationBundles.server';
 import type { FrontendLocale } from '@/cms/cache/frontend/frontendCache';
 import { envConfig } from '@/envConfig';
 import { CookieConsent } from '@/components/consent/CookieConsent';
@@ -55,10 +61,25 @@ export default async function RootLayout({ children, params }: LayoutProps<'/[lo
   const resolvedParams = await params;
   const locale = (resolvedParams.locale as FrontendLocale) || 'en';
 
+  // Skip link copy comes from the translations cache (own `'use cache'` entry
+  // under the translations tag), not from a literal: it is the first focusable
+  // element of every page. Outside the Suspense boundary on purpose — it is a
+  // cached read, not a request-time one, and it must exist on the first paint.
+  //
+  // DB-less build guard (same pattern as `getCachedPageBySlug`): the Coolify
+  // build container cannot reach Postgres, and this await renders OUTSIDE the
+  // Suspense boundary, so an unguarded read would abort the prerender. During
+  // the build the shell is only a skeleton anyway; the real request resolves
+  // the copy.
+  const skipToContent =
+    process.env.NEXT_PHASE === 'phase-production-build'
+      ? ''
+      : await getCachedTranslation(locale, 'chrome.skipToContent');
+
   return (
     // Document shell (html/body, fonts, theme + consent bootstrap, skip link)
     // lives HERE and only here — see src/components/layout/DocumentShell.tsx.
-    <DocumentShell locale={locale}>
+    <DocumentShell locale={locale} skipToContent={skipToContent}>
       <Suspense fallback={<LayoutSkeleton />}>
         <LayoutShell locale={locale}>{children}</LayoutShell>
       </Suspense>
@@ -104,17 +125,24 @@ async function LayoutShell({
   //
   // No await may run inside this component BEFORE a notFound() throw from a
   // child page: the first await flushes the stream (status 200).
-  const [translations, navigation] = await Promise.all([
-    getCachedTranslations(locale),
-    getCachedNavigation(locale),
-  ]);
+  const [translations, navigation, siteSettings, chrome, errorCopy, commandItems] =
+    await Promise.all([
+      getCachedTranslations(locale),
+      getCachedNavigation(locale),
+      // Brand name for the accessible names of the logo/footer links.
+      getCachedSiteSettings(locale),
+      // One typed bundle: the header/footer labels in a single cached read set.
+      loadChromeCopy(locale),
+      // Error-card copy for the client boundaries (they cannot await the cache).
+      loadErrorCopy(locale),
+      // Structure (id → href/anchor) is static; labels + keywords are CMS copy.
+      getCachedTranslationsGlobal(locale).then((global) => getCommandItems(global, locale)),
+    ]);
 
-  // Command-palette entries are static information architecture (no CMS read),
-  // shared here with the header and the mobile drawer.
-  const commandItems = getCommandItems(locale);
+  const brandName = siteSettings.siteName?.trim() ?? '';
 
   return (
-    <TranslationsProvider translations={translations}>
+    <TranslationsProvider translations={translations} errorCopy={errorCopy}>
       <SettingsProvider>
         <SiteChrome
           header={
@@ -122,14 +150,26 @@ async function LayoutShell({
               locale={locale}
               navLinks={navigation.headerLinks ?? []}
               commandItems={commandItems}
+              brandName={brandName}
+              copy={{
+                homeAria: chrome.homeAria,
+                languageName: chrome.languageName,
+                languageSwitchAria: chrome.languageSwitchAria,
+                closeMenu: chrome.closeMenu,
+                drawerStatus: chrome.drawerStatus,
+                currentPage: chrome.currentPage,
+              }}
             />
           }
           footer={
             <Footer
-              locale={locale}
               navLinks={navigation.footerLinks ?? []}
               cookieSettingsLabel={translations.cookies}
               rightsReserved={translations.footer}
+              brandName={brandName}
+              brandClaim={chrome.brandClaim}
+              navAria={chrome.footerNavAria}
+              credits={chrome.footerCredits}
             />
           }
         >

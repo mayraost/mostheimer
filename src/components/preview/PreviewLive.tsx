@@ -48,6 +48,7 @@ import { useLivePreview } from '@payloadcms/live-preview-react';
 import type { Page } from '@/payload-types';
 import { PREVIEW_DEPTH } from '@/cms/preview/constants';
 import { PreviewBlockRenderer } from './PreviewBlocks';
+import type { PreviewCopy } from './PreviewBlocks';
 
 /**
  * A page without a layout has nothing to preview (fresh draft, all blocks
@@ -63,11 +64,14 @@ function isRenderableBlock(block: unknown): boolean {
 export function PreviewLive({
   initialPage,
   serverURL,
+  copy,
   /** Cosmetic only (deadlines, count chips): the preview mimics the public route. */
   variant = 'compact',
 }: {
   initialPage: Page;
   serverURL: string;
+  /** Shell copy for every block type, resolved server-side from the cache. */
+  copy: PreviewCopy;
   variant?: 'home' | 'compact';
 }) {
   const { data } = useLivePreview<Page>({
@@ -82,7 +86,14 @@ export function PreviewLive({
         // Merged documents are form data: a block that is still being added can
         // arrive without `blockType`. Skip it instead of crashing the frame.
         if (!isRenderableBlock(block)) return null;
-        return <PreviewBlockRenderer key={block.id ?? index} block={block} locale={variant} />;
+        return (
+          <PreviewBlockRenderer
+            key={block.id ?? index}
+            block={block}
+            locale={variant}
+            copy={copy}
+          />
+        );
       })}
     </article>
   );

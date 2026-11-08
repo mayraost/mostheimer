@@ -4,7 +4,9 @@ import { envConfig } from '@/envConfig';
 import { ogImageUrl } from '@/components/og/ogCard';
 import { BentoTile, CardHeader, splitParagraphs } from '@/components/ui/industrial';
 import { KeyFactActionButton } from '@/components/ui/KeyFactActionButton';
-import { getCachedPageBySlug } from '@/cms/cache/frontend/frontendCache';
+import { getCachedPageBySlug, getCachedSiteSettings } from '@/cms/cache/frontend/frontendCache';
+import { loadImprintCopy } from '@/lib/translationBundles.server';
+import { derivePageDescription } from '@/cms/aeo/pageMetadata';
 import type { FrontendLocale } from '@/cms/cache/frontend/frontendCache';
 
 // Requires a root param at build time; locales are build-static, no DB lookup.
@@ -26,42 +28,38 @@ export function generateStaticParams() {
 
 const IMPRINT_SLUG = 'imprint';
 
-/** Only the frame is code; every word of the legal copy lives in the CMS. */
-const FRAME = {
-  de: {
-    eyebrow: 'Start // Impressum',
-    title: 'Impressum',
-    empty:
-      'Der Impressumstext wird gerade gepflegt. Anfragen richten Sie bitte direkt an mail@mostheimer.de.',
-  },
-  en: {
-    eyebrow: 'Home // Imprint',
-    title: 'Imprint',
-    empty: 'The imprint content is being updated. Please direct any enquiry to mail@mostheimer.de.',
-  },
-} as const;
-
 export async function generateMetadata({
   params,
 }: PageProps<'/[locale]/impressum'>): Promise<Metadata> {
   const baseUrl = envConfig.serverUrl;
   const { locale: rawLocale } = await params;
   const locale: FrontendLocale = rawLocale === 'en' ? 'en' : 'de';
-  const title = FRAME[locale].title;
-  const description =
-    locale === 'de'
-      ? 'Impressum und rechtliche Angaben gemäß § 5 DDG: Anbieter, Kontakt, E-Mail und Telefonnummer von Mayra Ostheimer.'
-      : 'Legal notice under § 5 DDG (German law): provider, contact, email and phone number of Mayra Ostheimer.';
+  // Frame copy lives in the translations global (`routes.imprint`), so the
+  // legal page is editable like the rest of the site. Falls back to the CMS
+  // page title when the global has no title yet.
+  //
+  // DB-less build guard: metadata resolves BEFORE `connection()`, so during the
+  // prerender attempt (no DB in the Coolify build container) every read must be
+  // skipped instead of throwing — see `getCachedPageBySlug`.
+  const isBuild = process.env.NEXT_PHASE === 'phase-production-build';
+  const frame = isBuild
+    ? { title: '', eyebrow: '', empty: '', metaDescription: '' }
+    : await loadImprintCopy(locale);
+  const page = await getCachedPageBySlug(IMPRINT_SLUG, locale);
+  const siteSettings = isBuild ? null : await getCachedSiteSettings(locale);
+  const siteName = siteSettings?.siteName ?? '';
+  const title = frame.title || page?.title || '';
+  const description = frame.metaDescription || (page ? derivePageDescription(page) : '') || '';
   const canonical = `${baseUrl}/${locale}/impressum`;
 
   return {
-    title: { absolute: `${title} - Mayra Ostheimer` },
+    title: siteName && title ? { absolute: `${title} - ${siteName}` } : title,
     description,
     openGraph: {
       title,
       description,
       type: 'website',
-      siteName: 'Mayra Ostheimer',
+      siteName,
       url: canonical,
       locale: locale === 'de' ? 'de_DE' : 'en_US',
       images: [ogImageUrl(title, locale)],
@@ -85,7 +83,7 @@ export default async function ImpressumPage({ params }: PageProps<'/[locale]/imp
 
   const { locale: rawLocale } = await params;
   const locale: FrontendLocale = rawLocale === 'en' ? 'en' : 'de';
-  const frame = FRAME[locale];
+  const frame = await loadImprintCopy(locale);
   const page = await getCachedPageBySlug(IMPRINT_SLUG, locale);
   const sections = (page?.layout ?? []).filter((block) => block.blockType === 'techSection');
 

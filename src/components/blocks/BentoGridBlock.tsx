@@ -23,15 +23,7 @@ type BentoItem = NonNullable<BentoGridBlockData['items']>[number];
  * catalog the frame must NOT render — an empty emerald/dashed ring reads as
  * broken ("Säule 02/03/05 look weird"), worse than having no icon at all.
  */
-function BentoCard({
-  item,
-  index,
-  locale,
-}: {
-  item: BentoItem;
-  index: number;
-  locale: 'de' | 'en';
-}) {
+function BentoCard({ item, index, copy }: { item: BentoItem; index: number; copy: BentoCopy }) {
   /*
    * Emphasis is the CMS `featured` flag — nothing else. Two earlier sources of
    * noise are gone on purpose:
@@ -44,8 +36,10 @@ function BentoCard({
    */
   const isEmphasis = Boolean(item.featured);
   const hasIcon = isKnownIcon(item.iconName);
-  const de = locale === 'de';
-  const pillarLabel = `${de ? 'Säule' : 'Pillar'} ${String(index + 1).padStart(2, '0')}`;
+  // "Pillar 01" / "Säule 01" — prefix from the CMS, number from position.
+  const pillarLabel = [copy.pillarPrefix, String(index + 1).padStart(2, '0')]
+    .filter(Boolean)
+    .join(' ');
 
   const card = (
     <BentoTile
@@ -69,10 +63,10 @@ function BentoCard({
             text={pillarLabel}
             className={`mono-label ${isEmphasis ? 'text-primary' : 'text-muted-foreground'}`}
           />
-          {item.featured && (
+          {item.featured && copy.featuredLabel && (
             <span className="mono-label flex items-center gap-1.5 text-primary">
               <StatusDot tone="primary" />
-              Featured
+              {copy.featuredLabel}
             </span>
           )}
         </div>
@@ -149,7 +143,26 @@ function BentoCard({
   return <div className={spanClass}>{card}</div>;
 }
 
-export function BentoGridBlock({ block, locale }: { block: BentoGridBlockData; locale?: string }) {
+export type BentoCopy = {
+  pillarPrefix: string;
+  featuredLabel: string;
+  eyebrow: string;
+  pillarSingular: string;
+  pillarPlural: string;
+  architectureChip: string;
+  composableChip: string;
+};
+
+export function BentoGridBlock({
+  block,
+  locale,
+  copy,
+}: {
+  block: BentoGridBlockData;
+  locale?: string;
+  /** Shell copy (`blocks.bento`), read by the dispatcher. */
+  copy: BentoCopy;
+}) {
   const items = block.items ?? [];
   const de = locale === 'de';
 
@@ -162,7 +175,7 @@ export function BentoGridBlock({ block, locale }: { block: BentoGridBlockData; l
     >
       <div className="mx-auto w-full max-w-6xl">
         <div className="mb-8 border-b border-border pb-6">
-          <Eyebrow>{de ? 'Architektur-Ansatz' : 'Architecture approach'}</Eyebrow>
+          {copy.eyebrow && <Eyebrow>{copy.eyebrow}</Eyebrow>}
           {block.heading && (
             <h2 className="mt-3 font-heading text-3xl font-bold tracking-[-0.02em] text-foreground lg:text-4xl">
               {block.heading}
@@ -170,21 +183,16 @@ export function BentoGridBlock({ block, locale }: { block: BentoGridBlockData; l
           )}
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <Chip variant="fill">
-              {items.length} {de ? 'Säulen' : items.length === 1 ? 'pillar' : 'pillars'}
+              {items.length} {items.length === 1 ? copy.pillarSingular : copy.pillarPlural}
             </Chip>
-            <Chip variant="outline">{de ? 'Systemarchitektur' : 'System architecture'}</Chip>
-            <Chip variant="solid">composable</Chip>
+            {copy.architectureChip && <Chip variant="outline">{copy.architectureChip}</Chip>}
+            {copy.composableChip && <Chip variant="solid">{copy.composableChip}</Chip>}
           </div>
         </div>
 
         <SpotlightGrid className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {items.map((item, index) => (
-            <BentoCard
-              key={item.id ?? item.title}
-              item={item}
-              index={index}
-              locale={de ? 'de' : 'en'}
-            />
+            <BentoCard key={item.id ?? item.title} item={item} index={index} copy={copy} />
           ))}
         </SpotlightGrid>
       </div>

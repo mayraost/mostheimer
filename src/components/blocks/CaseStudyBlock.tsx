@@ -7,33 +7,26 @@ type CaseStudyBlockData = Extract<NonNullable<Page['layout']>[number], { blockTy
 
 type SectionKey = 'context' | 'solution' | 'contribution';
 
-/** Narrative column labels + meta-column keys, per locale (the block itself is not localized). */
-const CASE_COPY = {
-  en: {
-    sections: {
-      context: { label: 'Context', index: '01' },
-      solution: { label: 'Architecture', index: '02' },
-      contribution: { label: 'Impact', index: '03' },
-    },
-    eyebrow: 'case study',
-    period: 'period',
-    role: 'role',
-    tags: 'context',
-    linkSrLabel: 'Reference link',
-  },
-  de: {
-    sections: {
-      context: { label: 'Kontext', index: '01' },
-      solution: { label: 'Architektur', index: '02' },
-      contribution: { label: 'Impact', index: '03' },
-    },
-    eyebrow: 'case study',
-    period: 'Zeitraum',
-    role: 'Rolle',
-    tags: 'Kontext',
-    linkSrLabel: 'Referenz-Link',
-  },
-} as const;
+/**
+ * Shell copy of the case study card (`blocks.caseStudy` in the translations
+ * global). The narrative CONTENT is CMS block data; these are the column
+ * labels and meta keys around it.
+ */
+export type CaseStudyCopy = {
+  eyebrow: string;
+  periodLabel: string;
+  roleLabel: string;
+  contextLabel: string;
+  solutionLabel: string;
+  impactLabel: string;
+  tagsLabel: string;
+  linkSrLabel: string;
+  linkFallbackLabel: string;
+  impactEyebrow: string;
+};
+
+/** Narrative columns in render order; numbering is positional (01/02/03). */
+const SECTIONS = ['context', 'solution', 'contribution'] as const;
 
 /**
  * Accent per narrative column. Emerald (primary) is reserved for the impact
@@ -46,8 +39,6 @@ const SECTION_ACCENT: Record<SectionKey, string> = {
   contribution: 'text-primary',
 };
 
-type CaseCopy = (typeof CASE_COPY)[keyof typeof CASE_COPY];
-
 function NarrativeColumn({
   sectionKey,
   body,
@@ -55,11 +46,17 @@ function NarrativeColumn({
 }: {
   sectionKey: SectionKey;
   body?: string | null;
-  copy: CaseCopy;
+  copy: CaseStudyCopy;
 }) {
   const paragraphs = splitParagraphs(body);
   if (paragraphs.length === 0) return null;
-  const meta = copy.sections[sectionKey];
+  const label = {
+    context: copy.contextLabel,
+    solution: copy.solutionLabel,
+    contribution: copy.impactLabel,
+  }[sectionKey];
+  const index = String(SECTIONS.indexOf(sectionKey) + 1).padStart(2, '0');
+  const meta = { label, index };
 
   return (
     <div className="relative min-w-0 border-t border-border pt-4 first:border-t-0 first:pt-0 md:border-t-0 md:border-l md:pl-6 md:pt-0 md:first:border-l-0 md:first:pl-0">
@@ -89,13 +86,19 @@ function NarrativeColumn({
  *   h3 would skip a heading level.
  * - Body text uses full `text-foreground`; reduced opacity drops below AA.
  */
-export function CaseStudyBlock({ block, locale }: { block: CaseStudyBlockData; locale?: string }) {
-  const copy = CASE_COPY[locale === 'de' ? 'de' : 'en'];
+export function CaseStudyBlock({
+  block,
+  copy,
+}: {
+  block: CaseStudyBlockData;
+  /** Shell copy (`blocks.caseStudy`), read by the dispatcher. */
+  copy: CaseStudyCopy;
+}) {
   return (
     <section className="w-full pt-6 pb-4 lg:py-4">
       <div className="mx-auto w-full max-w-6xl">
         <BentoTile as="article" className="p-5 lg:p-8">
-          <CardHeader label={copy.eyebrow} meta={block.period || '—'} />
+          <CardHeader label={copy.eyebrow} meta={block.period || undefined} />
 
           <h2 className="mb-6 max-w-4xl font-heading text-2xl font-bold tracking-[-0.025em] text-foreground lg:text-3xl">
             {block.client}
@@ -105,19 +108,19 @@ export function CaseStudyBlock({ block, locale }: { block: CaseStudyBlockData; l
             <dl className="grid gap-4 rounded-[6px] border border-border bg-surface-raised/40 p-4">
               {block.period && (
                 <>
-                  <dt className="mono-label text-muted-foreground">{copy.period}</dt>
+                  <dt className="mono-label text-muted-foreground">{copy.periodLabel}</dt>
                   <dd className="-mt-2 font-mono text-sm text-foreground">{block.period}</dd>
                 </>
               )}
               {block.role && (
                 <>
-                  <dt className="mono-label text-muted-foreground">{copy.role}</dt>
+                  <dt className="mono-label text-muted-foreground">{copy.roleLabel}</dt>
                   <dd className="-mt-2 text-sm leading-snug text-primary">{block.role}</dd>
                 </>
               )}
               {block.tags && block.tags.length > 0 && (
                 <>
-                  <dt className="mono-label text-muted-foreground">{copy.tags}</dt>
+                  <dt className="mono-label text-muted-foreground">{copy.tagsLabel}</dt>
                   <dd className="-mt-2 flex flex-wrap gap-1.5">
                     {block.tags.map((tag) => (
                       <Chip key={tag} variant="outline">
@@ -135,7 +138,7 @@ export function CaseStudyBlock({ block, locale }: { block: CaseStudyBlockData; l
                       href={block.link}
                       className="mono-label inline-flex items-center gap-2 text-primary transition-colors hover:text-primary-hover"
                     >
-                      {block.linkLabel || 'Link'} <span aria-hidden="true">→</span>
+                      {block.linkLabel || copy.linkFallbackLabel} <span aria-hidden="true">→</span>
                     </a>
                   </dd>
                 </>
@@ -155,7 +158,7 @@ export function CaseStudyBlock({ block, locale }: { block: CaseStudyBlockData; l
                       aria-hidden="true"
                       className="inline-block h-1.5 w-1.5 rounded-full bg-primary"
                     />
-                    03 · impact
+                    {['03', copy.impactEyebrow].filter(Boolean).join(' · ')}
                   </p>
                   <div className="space-y-2">
                     {splitParagraphs(block.contribution).map((para, i) => (

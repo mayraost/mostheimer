@@ -8,44 +8,62 @@ type TechRadarBlockData = Extract<NonNullable<Page['layout']>[number], { blockTy
 type Quadrant = NonNullable<TechRadarBlockData['quadrants']>[number];
 type RadarItem = NonNullable<Quadrant['items']>[number];
 
+/** Shell copy of the radar (`blocks.techRadar`): tier words + count labels. */
+export type TechRadarCopy = {
+  tierCore: string;
+  tierProven: string;
+  tierFocus: string;
+  entriesSingular: string;
+  entriesPlural: string;
+  quadrantPrefix: string;
+};
+
 /**
- * Tier vocabulary:
- * - core   = emerald FILLED pill
- * - proven = emerald OUTLINE pill
- * - focus  = cyan OUTLINE pill
+ * Tier STYLING stays in code (it is design, not copy): core = emerald FILLED
+ * pill, proven = emerald OUTLINE, focus = cyan OUTLINE. Only the words come
+ * from the CMS.
  */
-const TIER_META: Record<
+const TIER_STYLE: Record<
   'core' | 'proven' | 'focus',
-  { short: string; className: string; tone: 'primary' | 'secondary' }
+  { className: string; tone: 'primary' | 'secondary' }
 > = {
   core: {
-    short: 'core',
     className: 'border border-primary bg-primary text-primary-foreground',
     tone: 'primary',
   },
   proven: {
-    short: 'proven',
     className: 'border border-primary/60 bg-transparent text-primary',
     tone: 'primary',
   },
   focus: {
-    short: 'focus',
     className: 'border border-secondary/60 bg-transparent text-secondary',
     tone: 'secondary',
   },
 };
 
-function TierChip({ tier }: { tier: 'core' | 'proven' | 'focus' }) {
-  const meta = TIER_META[tier];
+function TierChip({ tier, label }: { tier: 'core' | 'proven' | 'focus'; label: string }) {
+  const style = TIER_STYLE[tier];
   return (
-    <span className={`mono-label rounded-[4px] px-2 py-0.5 text-[10px] ${meta.className}`}>
-      {meta.short}
+    <span className={`mono-label rounded-[4px] px-2 py-0.5 text-[10px] ${style.className}`}>
+      {label}
     </span>
   );
 }
 
-export function TechRadarBlock({ block }: { block: TechRadarBlockData; locale?: string }) {
+export function TechRadarBlock({
+  block,
+  copy,
+}: {
+  block: TechRadarBlockData;
+  /** Shell copy (`blocks.techRadar`), read by the dispatcher. */
+  copy: TechRadarCopy;
+}) {
   const quadrants = block.quadrants ?? [];
+  const tierLabel = {
+    core: copy.tierCore,
+    proven: copy.tierProven,
+    focus: copy.tierFocus,
+  } as const;
 
   return (
     <section className="w-full border-t border-border pt-6 pb-14 lg:py-14">
@@ -59,9 +77,9 @@ export function TechRadarBlock({ block }: { block: TechRadarBlockData; locale?: 
             )}
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
-            <Chip variant="fill">core</Chip>
-            <Chip variant="solid">proven</Chip>
-            <Chip variant="cyan">focus</Chip>
+            {copy.tierCore && <Chip variant="fill">{copy.tierCore}</Chip>}
+            {copy.tierProven && <Chip variant="solid">{copy.tierProven}</Chip>}
+            {copy.tierFocus && <Chip variant="cyan">{copy.tierFocus}</Chip>}
           </div>
         </div>
 
@@ -79,8 +97,13 @@ export function TechRadarBlock({ block }: { block: TechRadarBlockData; locale?: 
                 }
               >
                 <CardHeader
-                  label={`q${qIndex + 1}`}
-                  meta={`${items.length} entries`}
+                  label={[copy.quadrantPrefix, qIndex + 1].filter(Boolean).join('')}
+                  meta={[
+                    items.length,
+                    items.length === 1 ? copy.entriesSingular : copy.entriesPlural,
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
                   tone={qIndex % 2 === 0 ? 'primary' : 'secondary'}
                 />
                 <h3 className="mb-4 font-heading text-lg font-semibold tracking-tight text-foreground">
@@ -89,7 +112,7 @@ export function TechRadarBlock({ block }: { block: TechRadarBlockData; locale?: 
 
                 <ul className="divide-y divide-border">
                   {items.map((item: RadarItem) => {
-                    const meta = TIER_META[item.tier];
+                    const style = TIER_STYLE[item.tier];
 
                     return (
                       <li key={item.id ?? item.name} className="py-2.5 first:pt-0 last:pb-0">
@@ -98,14 +121,14 @@ export function TechRadarBlock({ block }: { block: TechRadarBlockData; locale?: 
                             <span
                               aria-hidden="true"
                               className={`inline-block h-1.5 w-1.5 rounded-full ${
-                                meta.tone === 'primary' ? 'bg-primary' : 'bg-secondary'
+                                style.tone === 'primary' ? 'bg-primary' : 'bg-secondary'
                               }`}
                             />
                             <span className="font-mono text-sm font-medium text-foreground">
                               {item.name}
                             </span>
                           </span>
-                          <TierChip tier={item.tier} />
+                          <TierChip tier={item.tier} label={tierLabel[item.tier]} />
                         </div>
                         {item.description && (
                           <p className="mt-1 pl-3.5 text-sm leading-relaxed text-muted-foreground">

@@ -6,7 +6,14 @@ import { CardHeader } from '../ui/industrial';
 
 type ImageTextBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'imageText' }>;
 
-export function ImageTextBlock({ block }: { block: ImageTextBlockData }) {
+export function ImageTextBlock({
+  block,
+  copy,
+}: {
+  block: ImageTextBlockData;
+  /** Shell copy (`blocks.imageText`): optional eyebrow + missing-image marker. */
+  copy: { eyebrow: string; imagePlaceholder: string };
+}) {
   const isImageRight = block.imagePosition === 'right';
   const image = typeof block.image === 'object' ? (block.image as Media) : null;
 
@@ -29,7 +36,9 @@ export function ImageTextBlock({ block }: { block: ImageTextBlockData }) {
               />
             ) : (
               <div className="dot-grid flex h-full min-h-[240px] items-center justify-center">
-                <span className="mono-label text-muted-foreground">[ image ]</span>
+                {copy.imagePlaceholder && (
+                  <span className="mono-label text-muted-foreground">{copy.imagePlaceholder}</span>
+                )}
               </div>
             )}
             <span
@@ -44,7 +53,7 @@ export function ImageTextBlock({ block }: { block: ImageTextBlockData }) {
               isImageRight ? 'md:order-1' : 'md:order-2',
             ].join(' ')}
           >
-            <CardHeader label="content" tone="secondary" />
+            <CardHeader label={copy.eyebrow || undefined} tone="secondary" />
             <h2 className="mb-4 font-heading text-2xl font-bold tracking-[-0.02em] text-foreground lg:text-3xl">
               {block.heading}
             </h2>

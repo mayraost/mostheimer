@@ -17,9 +17,22 @@ type TimelineEntry = NonNullable<TimelineBlockData['entries']>[number];
  * `locale` only formats the count chip ("5 Stationen" / "5 stations"); the
  * station copy itself comes from the CMS and is already localized there.
  */
-export function TimelineBlock({ block, locale }: { block: TimelineBlockData; locale?: string }) {
+export type TimelineCopy = {
+  stationSingular: string;
+  stationPlural: string;
+  emptyPeriod: string;
+};
+
+export function TimelineBlock({
+  block,
+  copy,
+}: {
+  block: TimelineBlockData;
+  /** Shell copy (`blocks.timeline`), read by the dispatcher. */
+  copy: TimelineCopy;
+}) {
   const entries = block.entries ?? [];
-  const stationWord = locale === 'de' ? 'Stationen' : entries.length === 1 ? 'station' : 'stations';
+  const stationWord = entries.length === 1 ? copy.stationSingular : copy.stationPlural;
 
   return (
     <section className="w-full border-t border-border pt-6 pb-14 lg:py-14">
@@ -29,9 +42,7 @@ export function TimelineBlock({ block, locale }: { block: TimelineBlockData; loc
             <h2 className="font-heading text-2xl font-bold tracking-[-0.02em] text-foreground lg:text-3xl">
               {block.heading}
             </h2>
-            <Chip variant="outline">
-              {entries.length} {stationWord}
-            </Chip>
+            <Chip variant="outline">{[entries.length, stationWord].filter(Boolean).join(' ')}</Chip>
           </div>
         )}
 
@@ -56,7 +67,7 @@ export function TimelineBlock({ block, locale }: { block: TimelineBlockData; loc
               {/* Period column: fixed width, right-aligned, mono. */}
               <div className="hidden shrink-0 pt-4 pr-4 md:block md:w-[148px] md:text-right">
                 <p className="mono-label leading-relaxed text-muted-foreground">
-                  {entry.period || '—'}
+                  {entry.period || copy.emptyPeriod}
                 </p>
                 <p className="mono-label mt-1 text-primary">{String(index + 1).padStart(2, '0')}</p>
               </div>
@@ -65,7 +76,9 @@ export function TimelineBlock({ block, locale }: { block: TimelineBlockData; loc
                   never read as one continuous paragraph block. */}
               <BentoTile className="min-w-0 flex-1 p-4 transition-colors duration-200 group-data-[active]/station:border-primary/60 md:ml-4 lg:p-5">
                 <div className="mb-2 flex flex-wrap items-baseline gap-x-3 gap-y-1 md:hidden">
-                  <p className="mono-label text-muted-foreground">{entry.period || '—'}</p>
+                  <p className="mono-label text-muted-foreground">
+                    {entry.period || copy.emptyPeriod}
+                  </p>
                   <p className="mono-label text-primary">{String(index + 1).padStart(2, '0')}</p>
                 </div>
                 <h3 className="font-heading text-lg font-semibold tracking-tight text-foreground">

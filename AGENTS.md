@@ -1958,3 +1958,92 @@ worden und der CI-Build hätte ohne die Datei dagestanden.
 Merke: Bei einer neuen, importierten Generated-Datei reicht es **nicht**, sie zu
 gitignorieren — jeder Pfad, der sie lädt (dev, typecheck, test, CI), braucht einen
 `pre*`-Hook. Sonst ist der Repo-Zustand nach dem Clone kaputt, obwohl lokal alles läuft.
+
+## Keine hartkodierten UI-Texte — Copy-Architektur (08.11.2026)
+
+**Regel: kein sichtbarer Text im Code.** Kein Label, keine ARIA-Beschriftung, kein Chip,
+kein Status-Satz. Alles kommt aus dem `translations`-Global, gecacht gelesen, serverseitig
+gerendert. Einzige dokumentierte Ausnahme: `src/components/layout/StaticNotFoundChrome.tsx`
+(der letzte 404-Dokument-Rand muss ohne DB funktionieren — siehe dortiger Datei-Header).
+
+### Warum `copy` ein KEY/VALUE-Array ist (und keine Gruppen)
+
+Payloads Postgres-Adapter aggregiert eine lokalisierte Tabelle mit
+`json_build_array(<ein Argument pro Spalte>)`. Postgres limitiert Funktionsargumente auf
+**100**. Gemessen am 08.11.2026: mit den neuen Feldern erreichte `translations_locales`
+**129 Spalten** → **jeder** `findGlobal('translations')` brach ab mit
+`cannot pass more than 100 arguments to a function`. Nicht nur Schreiben — auch Lesen.
+
+Ein lokalisiertes `array` legt seine Zeilen in eine **eigene Tabelle**
+(`translations_copy`), die Spaltenzahl von `translations_locales` bleibt unverändert (59).
+Neue Strings sind neue **Zeilen** → unbegrenzt skalierbar.
+**Nie wieder Gruppen (=Spalten) ins `translations`-Global legen.** Alte Gruppen
+(`cookies`, `common`, `clipboard`, `commandPalette`, `footer`, `settings`,
+`contactActions`) bleiben als Spalten bestehen und werden weiter gelesen.
+
+### Schichten
+
+| Datei | Rolle |
+| --- | --- |
+| `src/lib/translations.ts` | **CLIENT-SAFE**: `COPY_KEYS`-Registry, `getTranslation`, `isLegacyName`/`getLegacyCopy`, `getTranslationList`, `commandItemCopy`, `interpolate`. Kein `next/cache`-Import! |
+| `src/lib/translations.server.ts` | Server-Reader (`getCachedTranslation`, `getCachedTranslationList`, `commandItemCopy`…) — `'use cache'`-Wrapper, nur aus Server Components importierbar |
+| `src/lib/translationBundles.server.ts` | Typisierte Bundles: `loadChromeCopy`, `loadHeroCopy`, `loadBentoCopy`, … `loadPreviewCopy` |
+| `src/cms/cache/frontend/translations.ts` | Die eigentliche `'use cache'`-Schicht (Tag `CACHE_TAGS.translations` = `cms:global:translations`) |
+
+**Kritisch:** `src/lib/translations.ts` darf **nie** `next/cache` oder eine
+`'use cache'`-Datei importieren. Client Components (`CopyButton`, `CookieConsent`,
+`SettingsPageClient`) importieren daraus — sonst Build-Fehler
+`It is not allowed to define inline "use cache" annotated functions in Client Components.`
+
+### Cache-Vertrag
+
+Alle Reader teilen **denselben Tag** wie der API-Read der Translations
+(`CACHE_TAGS.translations`, geflusht vom Payload-Hook `revalidateTranslationsCache`).
+Nie einen eigenen Tag einführen — er überlebt einen Publish und liefert alten Text.
+Profil identisch zu `queries.ts` (5 min Refresh, 30 d stale). Korrektheit kommt vom
+**blocking flush**, nicht von der TTL.
+
+### Typed Keys
+
+`COPY_KEYS` ist die **einzige** Quelle der Adressen. `TranslationKey = keyof typeof COPY_KEYS`
+→ Tippfehler = Compile-Fehler, gelöschter Key = alle Verbraucher brechen. Werte sind
+gleichzeitig der Fallback (identisch zum Migration-Seed), damit eine frische DB echten Text
+zeigt statt leerer Flächen. `getTranslation` löst auf: **CMS-Zeile → Legacy-Spalte →
+Registry-Fallback**; leerer Editor-Wert fällt durch (kein versehentliches Leeren der UI).
+
+### Neue Copy hinzufügen (Checkliste)
+
+1. Key in `COPY_KEYS` (bzw. `COPY_LIST_KEYS`) eintragen, mit Seed-Text.
+2. Zeile in einer **neuen** Datenmigration einfügen (Muster:
+   `20261108_150000_seed_ui_copy_translations.ts` — `INSERT … SELECT … WHERE NOT EXISTS`,
+   `en` + `de` in einem Statement, idempotent).
+3. Konsumieren: Server → `getCachedTranslation` / Bundle-Loader; Client →
+   `getTranslation(useTranslationsOrNull(), …)`.
+4. **Nie** Text als Literal daneben schreiben, auch nicht „nur als Fallback".
+
+### Block-Copy als Props
+
+Blöcke bleiben **synchrone** Renderer und bekommen `copy` als Prop. Der Dispatcher
+(`src/components/blocks.tsx`) ist deshalb **async** und lädt die Bundles; die Live-Preview
+(`PreviewBlocks.tsx`) ist eine Client-Insel und bekommt **alle** Bundles als ein
+`PreviewCopy`-Objekt von `preview/page.tsx`. Neuer Blocktyp mit Copy → in **beiden**
+Dispatchern ergänzen.
+
+### Gotchas, teuer gelernt
+
+- **`error.tsx` kann nicht awaiten** und bekommt keine Custom-Props von Next. Lösung:
+  `TranslationsProvider` trägt zusätzlich `errorCopy` (`routes.error.*`), das Layout löst es
+  auf; `useErrorCopy()` liest es. Fehlt es, rendert die Karte strukturell ohne Worte — nie
+  erneut werfen (der CMS-Read ist oft *die* Fehlerursache).
+- **Zwei 404-Boundaries:** `[locale]/not-found.tsx` und `[locale]/[[...slug]]/not-found.tsx`
+  — Letztere ist die, die für Page-`notFound()` tatsächlich rendert. Beide patchen.
+- **Build-Guard:** `generateMetadata` (impressum) und der Skip-Link im RootLayout laufen
+  **vor/nach** `connection()` außerhalb von Suspense. Ohne
+  `process.env.NEXT_PHASE === 'phase-production-build'`-Guard bricht der Prerender
+  (Build-Container hat keine DB).
+- **Migration mit `/* */`-Kommentar:** Backticks in SQL-Kommentaren (z. B. `` `de` ``)
+  beenden das `sql`-Tagged-Template → esbuild `Expected ")"`. Keine Backticks in
+  Migrations-Kommentaren.
+- **`migrate:create` nimmt Fremd-Diffs mit** (hier: icon_name-Enum-Churn). Entweder
+  mitnehmen + Snapshot konsistent lassen, oder es bleibt Drift beim nächsten Lauf. Snapshot
+  (`*.json`) und TS müssen zusammenpassen.
