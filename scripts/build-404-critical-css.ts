@@ -7,8 +7,11 @@ import { generateCritical404Css } from './generate-404-critical-css';
  * global 404 boundary, compiled from `src/app/globals.css` by Tailwind itself
  * (plus its content hash for cache-busting in the <link> href).
  *
- * Runs via `prebuild` and `npm run generate:css`. The output is committed, so
- * dev server and `next build` never depend on this script.
+ * Runs via `prebuild`, `predev`, `pretypecheck` and `pretest`, so every entry
+ * point that can import the module regenerates it first. The output is
+ * GITIGNORED (`/src/404-critical.generated.ts`): it is derived entirely from
+ * `src/app/globals.css`, so committing it only produced churn on every CSS
+ * edit and stale hashes whenever someone forgot to run the generator.
  */
 const root = process.cwd();
 const { css, hash } = await generateCritical404Css(root);
