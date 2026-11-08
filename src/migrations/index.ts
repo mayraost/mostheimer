@@ -17,7 +17,7 @@ import * as migration_20261105_214053_add_contact_action_translations from './20
 import * as migration_20261106_095612_add_footer_translations from './20261106_095612_add_footer_translations';
 import * as migration_20261107_112826_add_session_refresh_columns from './20261107_112826_add_session_refresh_columns';
 import * as migration_20261107_221931_add_clipboard_copied_inline from './20261107_221931_add_clipboard_copied_inline';
-import * as migration_20261108_144338_add_ui_copy_translations from './20261108_144338_add_ui_copy_translations';
+import * as migration_20261108_144000_add_ui_copy_translations from './20261108_144000_add_ui_copy_translations';
 import * as migration_20261108_150000_seed_ui_copy_translations from './20261108_150000_seed_ui_copy_translations';
 import * as migration_20261108_151500_de_command_palette_copy from './20261108_151500_de_command_palette_copy';
 
@@ -118,9 +118,9 @@ export const migrations = [
     name: '20261107_221931_add_clipboard_copied_inline',
   },
   {
-    up: migration_20261108_144338_add_ui_copy_translations.up,
-    down: migration_20261108_144338_add_ui_copy_translations.down,
-    name: '20261108_144338_add_ui_copy_translations',
+    up: migration_20261108_144000_add_ui_copy_translations.up,
+    down: migration_20261108_144000_add_ui_copy_translations.down,
+    name: '20261108_144000_add_ui_copy_translations',
   },
   {
     up: migration_20261108_150000_seed_ui_copy_translations.up,

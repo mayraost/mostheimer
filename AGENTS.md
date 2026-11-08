@@ -2047,3 +2047,50 @@ Dispatchern ergänzen.
 - **`migrate:create` nimmt Fremd-Diffs mit** (hier: icon_name-Enum-Churn). Entweder
   mitnehmen + Snapshot konsistent lassen, oder es bleibt Drift beim nächsten Lauf. Snapshot
   (`*.json`) und TS müssen zusammenpassen.
+
+### Migrationen auf Prod: Enum-Churn und Reihenfolge (08.11.2026, Vorfall)
+
+Zwei Fehler, die den Deploy von PR #86 auf Prod gestoppt haben (Payload-Init 500, **jeder**
+CMS-Read tot, Frontend lief nur noch aus dem Edge-Cache):
+
+**1. `migrate:create` nimmt fremden Enum-Churn mit und bricht an Produktionsdaten.**
+
+Die generierte Migration enthielt sechs `DROP TYPE`/`CREATE TYPE`-Blöcke für
+`*_icon_name`. Prod trägt dort den **historisch vollen** Lucide-Satz (2019/2020 Werte,
+inkl. `Braces`), der aktuelle `ICON_CATALOG` ist viel kleiner. Ergebnis bei jedem
+Payload-Init:
+
+```
+error: invalid input value for enum enum__pages_v_blocks_skillset_items_icon_name: "Braces"
+```
+
+Daten waren **nicht** beschädigt (Migration bricht vor dem ersten Schreibvorgang ab, die
+`payload_migrations`-Zeile fehlt). Regeln:
+
+- **Bei einem Feature-Deploy die generierte Migration lesen** und alles, was nicht zum
+  Thema gehört (Enums, fremde Spalten), **entfernen**. Der Snapshot bleibt trotzdem
+  konsistent, indem man den **Vorgänger-Snapshot** als Basis nimmt und nur die neuen
+  Tabellen ergänzt — nicht den frisch generierten (der trägt den lokalen, abweichenden
+  Enum-Stand).
+- **Enums niemals neu erzeugen, solange Daten sie benutzen.** `DROP TYPE` + `CREATE TYPE`
+  ist ein Datenverlust-Pfad (Werte, die nicht in der neuen Liste stehen, sind unschreibbar).
+- Prod-Enum-Stand prüfen: `pg_enum` zählen (`2020`), nicht dem Snapshot vertrauen.
+
+**2. Payload sortiert Migrationen nach `name`, nicht nach der `index.ts`-Reihenfolge.**
+
+`20261108_150000_seed_…` lief vor `20261108_162507_add_…` → `relation "translations_copy"
+does not exist`. Datenmigrationen müssen einen **kleineren** Zeitstempel als ihr
+Schema-Pendant im selben Lauf haben (hier: `144000_add` → `150000_seed` → `151500_copy`).
+
+**Verifikation vor dem Deploy** (nicht nur gegen die lokale Dev-DB, die den Drift schon
+„verloren" hat):
+
+```bash
+# Prod-Zustand auf der lokalen DB simulieren: fremde Enums erweitern,
+# Ziel-Tabellen + payload_migrations-Zeilen löschen, dann migrieren.
+ALTER TYPE enum_pages_blocks_skillset_items_icon_name ADD VALUE IF NOT EXISTS 'Braces';
+SELECT count(*) FROM pg_enum …  -- vor UND nach dem Lauf vergleichen (muss >= vorher sein)
+```
+
+Merke: Eine „grüne" lokale Migration beweist für Prod **nichts**, wenn die lokale DB den
+Schema-Stand nie erreicht hat (SQLite-Historie, Downgrades, nie angewendete Drifts).
