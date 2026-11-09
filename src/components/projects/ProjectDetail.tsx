@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import Image from 'next/image';
 import { RichText as LexicalRichText } from '@payloadcms/richtext-lexical/react';
 import { BentoTile, CardHeader, Chip, CornerTicks, Eyebrow } from '../ui/industrial';
@@ -108,13 +109,13 @@ export function ProjectDetail({
     <article className="mx-auto w-full max-w-6xl pb-16">
       <header className="border-b border-border pb-8 pt-2 lg:pt-6">
         <nav aria-label={copy.eyebrow} className="mb-4">
-          <a
+          <Link
             href={project.listingPath}
             className="mono-label inline-flex min-h-11 items-center gap-2 text-muted-foreground transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
             <span aria-hidden="true">←</span>
             {copy.backToList}
-          </a>
+          </Link>
         </nav>
 
         <Eyebrow>

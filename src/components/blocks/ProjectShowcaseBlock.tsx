@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import Image from 'next/image';
 import type { Page } from '@/payload-types';
 import { BentoTile, Chip, CornerTicks, Eyebrow, StatusDot } from '../ui/industrial';
@@ -161,12 +162,12 @@ function ShowcaseTile({ item, copy }: { item: ProjectShowcaseItem; copy: Project
         </div>
 
         <h3 className="mb-2 font-heading text-lg font-semibold leading-snug tracking-tight text-foreground">
-          <a
+          <Link
             href={item.href}
             className="rounded-[2px] outline-none after:absolute after:inset-0 after:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary group-hover:text-primary"
           >
             {item.title}
-          </a>
+          </Link>
         </h3>
 
         {item.teaser && (
@@ -256,9 +257,9 @@ function FilterChip({
   }
   return (
     <li>
-      <a href={href} className={[CHIP_BASE, CHIP_IDLE].join(' ')}>
+      <Link href={href} className={[CHIP_BASE, CHIP_IDLE].join(' ')}>
         {content}
-      </a>
+      </Link>
     </li>
   );
 }
@@ -317,7 +318,8 @@ function ResultCount({ view, copy }: { view: ProjectShowcaseView; copy: ProjectS
 /**
  * Numbered pagination.
  *
- * Every entry is a real `<a href>` (works without JS, crawlable); the current
+ * Every entry is a `next/link` (renders a real `<a href>` — works without JS,
+ * crawlable — but navigates client-side instead of reloading the page); the current
  * page is a `<span aria-current="page">`, NOT a link to itself. Prev/next are
  * `<span>`s when there is nowhere to go (`aria-disabled` + visually muted, kept
  * `aria-hidden` so a screen reader does not announce a dead control), and real
@@ -355,14 +357,14 @@ function Pagination({
       <ul className="flex flex-wrap items-center justify-center gap-1">
         <li>
           {currentPage > 1 ? (
-            <a
+            <Link
               href={href(currentPage - 1)}
               rel="prev"
               aria-label={copy.prevLabel}
               className={`${stepClass} rounded-[4px] border border-border-strong text-foreground transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary`}
             >
               <span aria-hidden="true">←</span>
-            </a>
+            </Link>
           ) : (
             <span
               aria-hidden="true"
@@ -376,12 +378,12 @@ function Pagination({
         {showFirstEllipsis && (
           <>
             <li>
-              <a
+              <Link
                 href={href(1)}
                 className={`${stepClass} rounded-[4px] border border-border-strong tabular-nums text-foreground transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary`}
               >
                 1
-              </a>
+              </Link>
             </li>
             <li>
               <span aria-hidden="true" className="mono-label px-1 text-muted-foreground">
@@ -406,12 +408,12 @@ function Pagination({
             </li>
           ) : (
             <li key={page}>
-              <a
+              <Link
                 href={href(page)}
                 className={`${stepClass} rounded-[4px] border border-border-strong tabular-nums text-foreground transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary`}
               >
                 {page}
-              </a>
+              </Link>
             </li>
           ),
         )}
@@ -427,26 +429,26 @@ function Pagination({
               </span>
             </li>
             <li>
-              <a
+              <Link
                 href={href(totalPages)}
                 className={`${stepClass} rounded-[4px] border border-border-strong tabular-nums text-foreground transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary`}
               >
                 {totalPages}
-              </a>
+              </Link>
             </li>
           </>
         )}
 
         <li>
           {currentPage < totalPages ? (
-            <a
+            <Link
               href={href(currentPage + 1)}
               rel="next"
               aria-label={copy.nextLabel}
               className={`${stepClass} rounded-[4px] border border-border-strong text-foreground transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary`}
             >
               <span aria-hidden="true">→</span>
-            </a>
+            </Link>
           ) : (
             <span
               aria-hidden="true"
