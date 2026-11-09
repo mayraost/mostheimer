@@ -600,55 +600,25 @@ className="[text-shadow:0_0_10px_rgba(194,24,91,0.25)]"        // Light
 - **Build-ARG-Secret-Leak-Schutz (01.11.2026):** Coolify injiziert ALLE App-Envs als Build-ARGs (unabhängig von Compose-Refs) → Secrets lesenbar via `docker history`. Secret-Envs (`PAYLOAD_SECRET`, `DATABASE_URL`) in Coolify mit `is_buildtime: false` (REST `PATCH /applications/{uuid}/envs`) gesetzt; Compose-`${...}`-Referenzen darauf entfernt (Compose-Headerlinien 18–19). Deployment healthy. Presence-Check nach jedem Deploy: `docker history <image> | grep -i 'SECRET\|DATABASE'` — Status/Ja-Nein only, nie Werte (Details „Gelernte Fehler").
 - **Migration-Schema-Snapshots:** `payload migrate:create` diffed gegen die neueste `*.json`-Datei in `src/migrations/` (Fallback: Adapter-Default-Schema) und schreibt pro Migration einen eigenen Snapshot (`<name>.ts` + `<name>.json`). Beide committen — fehlt der Snapshot, generiert `migrate:create` dieselben Diffs erneut (bekannter Fall: SiteSettings-lokalisierte Felder → `site_settings_locales`/`_site_settings_v_locales`, Migration `20261101_103630_fix_site_settings_locales`). Handgeschriebene Migrationen zusätzlich mit Guards (IF NOT EXISTS, FK-Check via pg_constraint, Daten-Kopie vor Spalten-Drop).
 
-## Wording-Guardrail: Senior-Positionierung & Markenname (Stand 05.11.2026)
+## Wording-Guardrail: entfernt (09.11.2026)
 
-**Eine Quelle** für verbotene/pflichtige Formulierungen: `src/cms/aeo/constraints.ts`.
+Der `beforeValidate`-Guardrail (`src/cms/wording/beforeValidateWordingCheck.ts`,
+`src/cms/aeo/constraints.ts`, `tests/int/wording.int.spec.ts`) ist **komplett
+ausgebaut** — auf Wunsch des Owners. Es gibt keine Blockliste mehr, keine
+Pflichtformulierung („Senior"), keinen Hook in `pages`, `projects`,
+`projectTags`, `translations`, `site-settings` oder `not-found`.
 
-- `BANNED_WORDING_PATTERNS` — `staff`/`principal` als eigenständige Wörter
-  (Word-Boundary, case-insensitive; fängt `Staff-Level`, `staff engineer`,
-  `Principal`) plus der alte Markenname **als sichtbares Label**.
-- `REQUIRED_WORDING` = `['Senior']`; `hasRequiredWording(text)` prüft ihn.
-- `findWordingViolations(text): string[]` — pure, gibt nur die Treffer zurück
-  (kein Satz-Kontext), nutzbar aus Hook **und** Test.
+Konsequenzen, die man kennen muss:
 
-**Marken-Ausnahmen sind Absicht, nicht Schlamperei** (stehen als Lookahead/
-Lookbehind im Regex und sind in `tests/int/wording.int.spec.ts` festgenagelt):
-
-| Ausnahme                                             | Warum bleibt sie                                                                                                                                                                                          |
-| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `mosthi.consent.v1`                                  | **Legacy**-Storage-Key (nur noch Cleanup): live ist `mayraostheimer.consent.v1`; der alte Key wird nie geparst, nur beim ersten Read gelöscht (`LEGACY_CONSENT_STORAGE_KEYS`) — Literal muss also bleiben |
-| `mosthi:consent:open`                                | DOM-Event-Name (Footer-Trigger ↔ Banner) — Identifikator, keine Copy; Umbenennen wäre Event-Drift, kein Consent-Verlust                                                                                   |
-| `https://mosthi.de`, `https://mostheimer.de`, `www.` | Domain/Infrastruktur (Canonical-Host, Purge-Origins der Content-Zone)                                                                                                                                     |
-| `mail@mostheimer.de`                                 | echte Mailbox im Impressum                                                                                                                                                                                |
-
-### `beforeValidate`-Hook (Editor-Feedback)
-
-`src/cms/wording/beforeValidateWordingCheck.ts` → als
-`hooks.beforeValidate: [wordingBeforeValidate]` in **`pages`**,
-**`translations`**, **`site-settings`** und **`not-found`** registriert (die
-Collections/Globals mit sichtbarem Text). Verhalten:
-
-- läuft **vor** Paylods Feld-Validierung, wirft `APIError(msg, 400, null, true)`
-  → Meldung erscheint deutsch+englisch im Admin-Toast / REST-Body.
-- billig: walkt nur String-Leaves (max. Tiefe 12, Strings ≥ 5 Zeichen), **kein**
-  DB-Zugriff, max. 6 Treffer in der Meldung.
-- **`autosave` wird übersprungen** — Live Preview schreibt pro Tastendruck; ein
-  Blocken mitten im Wort wäre unbrauchbar.
-- Hook-Args sind lokal als `WordingHookArgs` deklariert (Payloads `BeforeValidateHook`-
-  Default-Generic ist `any` → vermeiden).
-
-Rein Hook-Änderung: **keine** Migration, **kein** `generate:types` nötig.
-
-### Test
-
-`tests/int/wording.int.spec.ts` (vitest, keine DB): matcher inkl. Ausnahmen,
-Hook-Verhalten (reject/accept/autosave) und die code-seitigen Identity-Strings —
-`PERSON` (`src/components/StructuredData.tsx`, exportiert),
-`LLMS_TXT` (`src/cms/aeo/llmsTxt.ts`) und `layoutMetadata`
-(`src/app/(frontend)/[locale]/layoutMetadata.ts`, neu ausgelagert aus
-`layout.tsx`, **weil** `next/font` unter vitest nicht konstruierbar ist:
-`TypeError: Space_Grotesk is not a function`). Jeder dieser Strings: keine
-Banned-Wording-Treffer **und** enthält „Senior".
+- **Copy wird nicht mehr automatisch geprüft.** Ein versehentlich eingetragener
+  Markenname oder eine überzogene Positionsbezeichnung landet direkt im CMS.
+  Prüfung ist ab jetzt redaktionell.
+- Der Guard hat in der Praxis **Projekt-Dokumente blockiert**, deren Repo-URL
+  den alten Markennamen enthält (`github.com/<owner>/<repo>`). Die
+  Lookbehind-Ausnahme dafür existierte nur kurz und ist mit dem Ausbau
+  entfallen.
+- `COPY_KEYS['seo.title']` etc. bleiben die Quelle für die Layout-Metadaten;
+  der Hinweis auf einen „Guardrail-Test" in `layoutMetadata.ts` ist entfernt.
 
 ## Domain-Konsolidierung (Stand 05.11.2026)
 

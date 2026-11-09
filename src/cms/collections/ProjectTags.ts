@@ -3,7 +3,6 @@ import type { CollectionConfig, FieldHook } from 'payload';
 import { protectedAuthorshipFields } from '../security/authorship';
 import { revalidateProjectTagsCache } from '../cache/frontend/frontendCache';
 import { toUrlSlug } from '../slugField';
-import { wordingBeforeValidate } from '../wording/beforeValidateWordingCheck';
 
 /**
  * Filter tags for the projects showcase (`projects.tags`, design doc § 10).
@@ -29,8 +28,6 @@ export const ProjectTags: CollectionConfig = {
   // the label is site copy.
   access: { read: () => true },
   hooks: {
-    // Wording guardrail (same hook as pages/translations/site-settings).
-    beforeValidate: [wordingBeforeValidate],
     // A rename or delete changes every `?tag=<slug>` variant and the chip row
     // itself, so the listing projection is flushed as well. The previous slug
     // is the one whose URLs exist on the edge after a rename.

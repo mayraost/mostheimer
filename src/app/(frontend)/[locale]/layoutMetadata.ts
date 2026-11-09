@@ -8,13 +8,9 @@ import { COPY_KEYS } from '@/lib/translations';
  * COPY SOURCE (rule since 08.11.2026): the title/description/`og:site_name`
  * strings come from the `translations` registry (`COPY_KEYS`), not from
  * literals. The object stays a STATIC export because `generateMetadata` of a
- * layout is not awaited by every consumer and the wording guardrail test
- * imports it directly — so the values are the REGISTRY SEEDS, which are the
- * same strings the CMS is seeded with. `perPageMetadata()` overrides them with
- * the live CMS values wherever a request context exists.
- *
- * The wording guardrail (`tests/int/wording.int.spec.ts`) therefore validates
- * exactly the copy that ships.
+ * layout is not awaited by every consumer, so the values are the REGISTRY
+ * SEEDS — the same strings the CMS is seeded with. `perPageMetadata()` overrides
+ * them with the live CMS values wherever a request context exists.
  */
 export const layoutMetadata: Metadata = {
   title: COPY_KEYS['seo.title'],
