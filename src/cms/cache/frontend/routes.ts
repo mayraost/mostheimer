@@ -24,17 +24,17 @@ export function pagePath(locale: FrontendLocale, slug: string): string {
   return `/${locale}${slugToPath(slug)}`;
 }
 
-// -- Vibe-Coding showcase -----------------------------------------------------
+// -- Project showcase --------------------------------------------------------
 
 /**
- * Listing root of the vibe-coding showcase (`/[locale]/vibe-coding`). The
+ * Listing root of the projects showcase (`/[locale]/projects`). The
  * listing page itself is a `pages` document with this slug; the details are
- * `vibeProjects` documents below it (`/[locale]/vibe-coding/<project>`).
+ * `projects` documents below it (`/[locale]/projects/<project>`).
  */
-export const VIBE_SHOWCASE_SLUG = 'vibe-coding';
+export const PROJECT_SHOWCASE_SLUG = 'projects';
 
 /** Listing slug without a path segment — never a generic page slug value. */
-export const LISTING_ROUTE = VIBE_SHOWCASE_SLUG;
+export const LISTING_ROUTE = PROJECT_SHOWCASE_SLUG;
 
 /**
  * Routes whose page-1 HTML carries query-string VARIANTS that are separate
@@ -44,17 +44,17 @@ export const LISTING_ROUTE = VIBE_SHOWCASE_SLUG;
  * prefix purge (`host/path`, no scheme, no query — see `./cloudflare.ts`).
  *
  * The prefix is the bare route path on purpose: Cloudflare prefix purges match
- * "starts with", so `de/vibe-coding` also covers `/de/vibe-coding/<project>`.
+ * "starts with", so `de/projects` also covers `/de/projects/<project>`.
  * That is exactly what a project *set* change (publish, unpublish, tag rename)
  * needs — detail pages are additionally purged by their own exact URLs when
  * only one project changed.
  */
-export const PAGINATED_ROUTES: readonly string[] = [`/${VIBE_SHOWCASE_SLUG}`];
+export const PAGINATED_ROUTES: readonly string[] = [`/${PROJECT_SHOWCASE_SLUG}`];
 
 /**
- * True when a bare route path (no locale, e.g. `/vibe-coding`) addresses a
+ * True when a bare route path (no locale, e.g. `/projects`) addresses a
  * paginated route. Exact match or a child segment — never a string prefix, so
- * `/vibe-coding-old` stays a normal route.
+ * `/projects-old` stays a normal route.
  */
 export function isPaginatedRoute(pathname: string): boolean {
   const normalized = pathname.startsWith('/') ? pathname : `/${pathname}`;
@@ -65,7 +65,7 @@ export function isPaginatedRoute(pathname: string): boolean {
 
 /**
  * True when a purge prefix currently ends with `/` — such an entry would evict
- * `/de/vibe-coding-dark` as well as `/de/vibe-coding`. Always `false` for the
+ * `/de/projects-dark` as well as `/de/projects`. Always `false` for the
  * routes this module produces; kept as the explicit guard `toPurgePrefixes`
  * applies to arbitrary input.
  */
@@ -75,8 +75,8 @@ export function isSloppyPrefix(pathname: string): boolean {
 }
 
 /**
- * Locale-relative paths of every paginated route (`/de/vibe-coding`,
- * `/en/vibe-coding`). These are the paths a purge hands to the API as
+ * Locale-relative paths of every paginated route (`/de/projects`,
+ * `/en/projects`). These are the paths a purge hands to the API as
  * `prefixes` (see `toPurgePrefixes` in ./cloudflare.ts), and the paths the
  * deploy script derives from `/api/purge-manifest`.
  *
@@ -124,22 +124,22 @@ export function paginatedRoutePrefixes(
  * Listing route of one locale (page 1, no query). Declared before the detail
  * route below because the detail route is built from it.
  */
-export function vibeListingPath(locale: FrontendLocale): string {
-  return `/${locale}/${VIBE_SHOWCASE_SLUG}`;
+export function projectListingPath(locale: FrontendLocale): string {
+  return `/${locale}/${PROJECT_SHOWCASE_SLUG}`;
 }
 
-/** Detail route of one vibe project in one locale. */
-export function vibeProjectPath(locale: FrontendLocale, slug: string): string {
+/** Detail route of one project in one locale. */
+export function projectPath(locale: FrontendLocale, slug: string): string {
   const normalized = normalizeRouteSlug(slug);
-  return normalized ? `${vibeListingPath(locale)}/${normalized}` : vibeListingPath(locale);
+  return normalized ? `${projectListingPath(locale)}/${normalized}` : projectListingPath(locale);
 }
 
 /**
  * Lowercase, `[a-z0-9-]` only — the URL contract of a project/tag slug.
  *
  * Exported because the purge layer MUST derive a detail URL exactly the way the
- * route builder does: `vibeProjectPath('de', 'Audit Scanner')` is
- * `/de/vibe-coding/audit-scanner`, and a purge of `/de/vibe-coding/Audit%20...`
+ * route builder does: `projectPath('de', 'Audit Scanner')` is
+ * `/de/projects/audit-scanner`, and a purge of `/de/projects/Audit%20...`
  * would miss that object.
  */
 export function normalizeRouteSlug(slug: string): string {

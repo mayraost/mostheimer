@@ -12,9 +12,9 @@ import {
   edgePurgePathsForTag,
   pageWindowUrls,
   registerPageSlugs,
-  registerVibeProjectSlugs,
-  registerVibeShowcasePageCount,
-  revalidateVibeProjectCache,
+  registerProjectSlugs,
+  registerProjectShowcasePageCount,
+  revalidateProjectCache,
 } from '@/cms/cache/frontend/revalidate';
 import { runPendingCloudflarePurges } from '@/cms/cache/frontend/purges';
 import {
@@ -63,8 +63,8 @@ describe('edge purge routes', () => {
       '/de',
       // The listing is a `pages` document and part of every page-set flush —
       // even when the caller passes a slug list that predates it.
-      '/en/vibe-coding',
-      '/de/vibe-coding',
+      '/en/projects',
+      '/de/projects',
       '/en/imprint',
       '/de/imprint',
     ]);
@@ -392,13 +392,13 @@ describe('prefix purge for paginated routes', () => {
     vi.restoreAllMocks();
   });
 
-  it('declares the vibe-coding listing as the only paginated route', () => {
-    expect(PAGINATED_ROUTES).toEqual(['/vibe-coding']);
-    expect(isPaginatedRoute('/vibe-coding')).toBe(true);
-    expect(isPaginatedRoute('vibe-coding')).toBe(true);
-    expect(isPaginatedRoute('/vibe-coding/audit-scanner')).toBe(true);
+  it('declares the projects listing as the only paginated route', () => {
+    expect(PAGINATED_ROUTES).toEqual(['/projects']);
+    expect(isPaginatedRoute('/projects')).toBe(true);
+    expect(isPaginatedRoute('projects')).toBe(true);
+    expect(isPaginatedRoute('/projects/audit-scanner')).toBe(true);
     // No string-prefix false positive.
-    expect(isPaginatedRoute('/vibe-coding-old')).toBe(false);
+    expect(isPaginatedRoute('/projects-old')).toBe(false);
     expect(isPaginatedRoute('/career')).toBe(false);
   });
 
@@ -406,7 +406,7 @@ describe('prefix purge for paginated routes', () => {
     const fetchSpy = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
     setCloudflareFetchForTests(fetchSpy);
 
-    const result = await purgeCloudflareCache({ type: 'prefixes', paths: ['/de/vibe-coding'] });
+    const result = await purgeCloudflareCache({ type: 'prefixes', paths: ['/de/projects'] });
     // One op per route and host — NOT one per `?page=N` variant.
     expect(result).toEqual({ status: 'purged', urls: 0, prefixes: 2, zones: 1 });
 
@@ -414,10 +414,7 @@ describe('prefix purge for paginated routes', () => {
     expect(url).toContain(`/zones/${'a'.repeat(32)}/purge_cache`);
     const body = JSON.parse(String(init.body)) as { files?: string[]; prefixes: string[] };
     expect(body.files).toBeUndefined();
-    expect(body.prefixes).toEqual([
-      'mostheimer.de/de/vibe-coding',
-      'www.mostheimer.de/de/vibe-coding',
-    ]);
+    expect(body.prefixes).toEqual(['mostheimer.de/de/projects', 'www.mostheimer.de/de/projects']);
     for (const prefix of body.prefixes) {
       expect(prefix.startsWith('http')).toBe(false);
       expect(prefix).not.toContain('?');
@@ -427,10 +424,10 @@ describe('prefix purge for paginated routes', () => {
   });
 
   it('keeps both locale prefixes for a two-op listing flush', () => {
-    const prefixes = toPurgePrefixes(['/de/vibe-coding', '/en/vibe-coding']);
+    const prefixes = toPurgePrefixes(['/de/projects', '/en/projects']);
     expect(prefixes).toHaveLength(4);
-    expect(prefixes).toContain('mostheimer.de/de/vibe-coding');
-    expect(prefixes).toContain('www.mostheimer.de/en/vibe-coding');
+    expect(prefixes).toContain('mostheimer.de/de/projects');
+    expect(prefixes).toContain('www.mostheimer.de/en/projects');
   });
 
   it('never derives a prefix from a static asset path', async () => {
@@ -442,9 +439,9 @@ describe('prefix purge for paginated routes', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
 
     // Mixed input: the asset prefix is dropped, the route prefix survives.
-    expect(toPurgePrefixes(['/_next/static', '/de/vibe-coding'])).toEqual([
-      'mostheimer.de/de/vibe-coding',
-      'www.mostheimer.de/de/vibe-coding',
+    expect(toPurgePrefixes(['/_next/static', '/de/projects'])).toEqual([
+      'mostheimer.de/de/projects',
+      'www.mostheimer.de/de/projects',
     ]);
   });
 
@@ -472,8 +469,8 @@ describe('prefix purge for paginated routes', () => {
 
     const result = await purgeCloudflareCache({
       type: 'mixed',
-      paths: ['/de/vibe-coding/audit-scanner'],
-      prefixes: ['/de/vibe-coding'],
+      paths: ['/de/projects/audit-scanner'],
+      prefixes: ['/de/projects'],
     });
     expect(result).toEqual({ status: 'purged', urls: 2, prefixes: 2, zones: 1 });
     expect(fetchSpy).toHaveBeenCalledTimes(1);
@@ -514,11 +511,11 @@ describe('prefix purge for paginated routes', () => {
 });
 
 /**
- * Tag → route mapping of the vibe-coding showcase. A project edit purges the
+ * Tag → route mapping of the projects showcase. A project edit purges the
  * detail URLs AND the listing (a publish changes the listing); the listing
  * itself is purged by prefix, which the queue merges into ONE request.
  */
-describe('vibe-coding purge mapping', () => {
+describe('projects purge mapping', () => {
   const env = process.env;
 
   beforeEach(() => {
@@ -530,7 +527,7 @@ describe('vibe-coding purge mapping', () => {
     delete process.env.CLOUDFLARE_PURGE_ZONES;
     delete process.env.NEXT_PUBLIC_SERVER_URL;
     resetCloudflareCircuitForTests();
-    registerVibeProjectSlugs(['audit-scanner', 'halloween-counter']);
+    registerProjectSlugs(['audit-scanner', 'halloween-counter']);
     registerPageSlugs(['home', 'imprint']);
   });
 
@@ -541,31 +538,28 @@ describe('vibe-coding purge mapping', () => {
   });
 
   it('maps one project tag to exactly its two detail URLs', () => {
-    expect(edgePurgePathsForTag(CACHE_TAGS.vibeProject('audit-scanner'))).toEqual([
-      '/en/vibe-coding/audit-scanner',
-      '/de/vibe-coding/audit-scanner',
+    expect(edgePurgePathsForTag(CACHE_TAGS.project('audit-scanner'))).toEqual([
+      '/en/projects/audit-scanner',
+      '/de/projects/audit-scanner',
     ]);
     // A blank slug must never fall back to every detail URL.
-    expect(edgePurgePathsForTag(CACHE_TAGS.vibeProject(''))).toEqual([]);
+    expect(edgePurgePathsForTag(CACHE_TAGS.project(''))).toEqual([]);
   });
 
   it('maps the listing tags to page 1 of both locales', () => {
-    expect(edgePurgePathsForTag(CACHE_TAGS.vibeShowcase)).toEqual([
-      '/en/vibe-coding',
-      '/de/vibe-coding',
+    expect(edgePurgePathsForTag(CACHE_TAGS.projectShowcase)).toEqual([
+      '/en/projects',
+      '/de/projects',
     ]);
-    expect(edgePurgePathsForTag(CACHE_TAGS.vibeTags)).toEqual([
-      '/en/vibe-coding',
-      '/de/vibe-coding',
-    ]);
+    expect(edgePurgePathsForTag(CACHE_TAGS.projectTags)).toEqual(['/en/projects', '/de/projects']);
   });
 
   it('maps the project-set tag to every known detail plus the listing', () => {
-    const paths = edgePurgePathsForTag(CACHE_TAGS.vibeProjects);
-    expect(paths).toContain('/de/vibe-coding');
-    expect(paths).toContain('/en/vibe-coding/audit-scanner');
-    expect(paths).toContain('/de/vibe-coding/halloween-counter');
-    expect(paths).not.toContain('/de/vibe-coding?page=2');
+    const paths = edgePurgePathsForTag(CACHE_TAGS.projects);
+    expect(paths).toContain('/de/projects');
+    expect(paths).toContain('/en/projects/audit-scanner');
+    expect(paths).toContain('/de/projects/halloween-counter');
+    expect(paths).not.toContain('/de/projects?page=2');
   });
 
   it('keeps the listing slug in the page-slug registry', () => {
@@ -573,30 +567,30 @@ describe('vibe-coding purge mapping', () => {
     // and a page-set / global flush always contains it. The registry entry is
     // module-level (`LISTING_SLUGS`), so it survives a bare `registerPageSlugs([])`
     // and the very first flush of a cold process already purges the listing.
-    expect(edgePurgePathsForTag(CACHE_TAGS.pageByPath('vibe-coding'))).toEqual([
-      '/en/vibe-coding',
-      '/de/vibe-coding',
+    expect(edgePurgePathsForTag(CACHE_TAGS.pageByPath('projects'))).toEqual([
+      '/en/projects',
+      '/de/projects',
     ]);
     registerPageSlugs([]);
-    expect(edgePurgePathsForTag(CACHE_TAGS.pages, ['home'])).toContain('/de/vibe-coding');
-    expect(edgePurgePathsForTag(CACHE_TAGS.pages, ['home'])).toContain('/en/vibe-coding');
+    expect(edgePurgePathsForTag(CACHE_TAGS.pages, ['home'])).toContain('/de/projects');
+    expect(edgePurgePathsForTag(CACHE_TAGS.pages, ['home'])).toContain('/en/projects');
     // The eager entry is exactly one slug per locale, not a wildcard.
     expect(edgePurgePathsForTag(CACHE_TAGS.pages, ['home'])).toEqual([
       '/en',
       '/de',
-      '/en/vibe-coding',
-      '/de/vibe-coding',
+      '/en/projects',
+      '/de/projects',
     ]);
   });
 
-  it('never maps a vibe tag onto an asset path', () => {
+  it('never maps a project tag onto an asset path', () => {
     for (const tag of [
       CACHE_TAGS.ALL,
-      CACHE_TAGS.vibeProjects,
-      CACHE_TAGS.vibeShowcase,
-      CACHE_TAGS.vibeTags,
-      CACHE_TAGS.vibeProject('audit-scanner'),
-      CACHE_TAGS.pageByPath('vibe-coding'),
+      CACHE_TAGS.projects,
+      CACHE_TAGS.projectShowcase,
+      CACHE_TAGS.projectTags,
+      CACHE_TAGS.project('audit-scanner'),
+      CACHE_TAGS.pageByPath('projects'),
     ]) {
       for (const path of edgePurgePathsForTag(tag)) {
         expect(path.startsWith('/_next/static/')).toBe(false);
@@ -608,34 +602,34 @@ describe('vibe-coding purge mapping', () => {
     const fetchSpy = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
     setCloudflareFetchForTests(fetchSpy);
 
-    revalidateVibeProjectCache('audit-scanner');
+    revalidateProjectCache('audit-scanner');
     const summary = await runPendingCloudflarePurges();
 
     expect(summary.status).toBe('purged');
     expect(summary.prefixes).toBeGreaterThan(0);
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     const body = JSON.parse(String((fetchSpy.mock.calls[0] as [string, RequestInit])[1].body));
-    expect(body.files).toContain('https://mostheimer.de/de/vibe-coding/audit-scanner');
-    expect(body.prefixes).toContain('mostheimer.de/de/vibe-coding');
+    expect(body.files).toContain('https://mostheimer.de/de/projects/audit-scanner');
+    expect(body.prefixes).toContain('mostheimer.de/de/projects');
   });
 
   it('builds the exact ?page=N window without ever emitting ?page=1', () => {
-    expect(pageWindowUrls(1, 6)).toEqual(['/en/vibe-coding', '/de/vibe-coding']);
+    expect(pageWindowUrls(1, 6)).toEqual(['/en/projects', '/de/projects']);
     expect(pageWindowUrls(13, 6)).toEqual([
-      '/en/vibe-coding',
-      '/en/vibe-coding?page=2',
-      '/en/vibe-coding?page=3',
-      '/de/vibe-coding',
-      '/de/vibe-coding?page=2',
-      '/de/vibe-coding?page=3',
+      '/en/projects',
+      '/en/projects?page=2',
+      '/en/projects?page=3',
+      '/de/projects',
+      '/de/projects?page=2',
+      '/de/projects?page=3',
     ]);
     expect(pageWindowUrls(13, 6).some((url) => url.includes('page=1'))).toBe(false);
     // Degenerate input degrades to the bare listing, never to an empty map.
-    expect(pageWindowUrls(0, 6)).toEqual(['/en/vibe-coding', '/de/vibe-coding']);
+    expect(pageWindowUrls(0, 6)).toEqual(['/en/projects', '/de/projects']);
     // The observed page count is a fallback for the prefix-less callers only:
     // it must never invent a page for an empty set.
-    registerVibeShowcasePageCount('/en/vibe-coding', 4);
-    expect(pageWindowUrls(1, 6)).toEqual(['/en/vibe-coding', '/de/vibe-coding']);
+    registerProjectShowcasePageCount('/en/projects', 4);
+    expect(pageWindowUrls(1, 6)).toEqual(['/en/projects', '/de/projects']);
   });
 });
 
@@ -644,7 +638,7 @@ describe('vibe-coding purge mapping', () => {
  * one publish shifts every project after it onto another page, so a detail-only
  * purge would leave `?page=2` serving the previous order.
  */
-describe('vibe-coding publish purges detail AND listing', () => {
+describe('projects publish purges detail AND listing', () => {
   const env = process.env;
 
   beforeEach(() => {
@@ -656,7 +650,7 @@ describe('vibe-coding publish purges detail AND listing', () => {
     delete process.env.CLOUDFLARE_PURGE_ZONES;
     delete process.env.NEXT_PUBLIC_SERVER_URL;
     resetCloudflareCircuitForTests();
-    registerVibeProjectSlugs(['audit-scanner']);
+    registerProjectSlugs(['audit-scanner']);
     registerPageSlugs(['home', 'imprint']);
   });
 
@@ -670,7 +664,7 @@ describe('vibe-coding publish purges detail AND listing', () => {
     const fetchSpy = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
     setCloudflareFetchForTests(fetchSpy);
 
-    revalidateVibeProjectCache('audit-scanner');
+    revalidateProjectCache('audit-scanner');
     const summary = await runPendingCloudflarePurges();
 
     expect(summary.status).toBe('purged');
@@ -681,15 +675,15 @@ describe('vibe-coding publish purges detail AND listing', () => {
     };
     // The detail URLs are present …
     for (const locale of ['de', 'en']) {
-      expect(body.files).toContain(`https://mostheimer.de/${locale}/vibe-coding/audit-scanner`);
-      expect(body.files).toContain(`https://www.mostheimer.de/${locale}/vibe-coding/audit-scanner`);
+      expect(body.files).toContain(`https://mostheimer.de/${locale}/projects/audit-scanner`);
+      expect(body.files).toContain(`https://www.mostheimer.de/${locale}/projects/audit-scanner`);
     }
     // … next to the sitemap (a project changes it) — in the SAME request.
     expect(body.files).toContain('https://mostheimer.de/sitemap.xml');
     expect(body.prefixes).toHaveLength(4);
     for (const locale of ['de', 'en']) {
-      expect(body.prefixes).toContain(`mostheimer.de/${locale}/vibe-coding`);
-      expect(body.prefixes).toContain(`www.mostheimer.de/${locale}/vibe-coding`);
+      expect(body.prefixes).toContain(`mostheimer.de/${locale}/projects`);
+      expect(body.prefixes).toContain(`www.mostheimer.de/${locale}/projects`);
     }
     // The prefix covers `?page=N` / `?tag=`, so no variant URL is enumerated.
     expect(body.prefixes.every((prefix) => !prefix.includes('?page='))).toBe(true);
@@ -701,12 +695,12 @@ describe('vibe-coding publish purges detail AND listing', () => {
   });
 
   it('keeps the detail route spelling identical to the renderer', () => {
-    // `vibeProjectPath` normalizes the segment; a purge built from a raw admin
+    // `projectPath` normalizes the segment; a purge built from a raw admin
     // value must hit the SAME object the page renders.
-    registerVibeProjectSlugs(['Audit Scanner']);
-    expect(edgePurgePathsForTag(CACHE_TAGS.vibeProject('Audit Scanner'))).toEqual([
-      '/en/vibe-coding/audit-scanner',
-      '/de/vibe-coding/audit-scanner',
+    registerProjectSlugs(['Audit Scanner']);
+    expect(edgePurgePathsForTag(CACHE_TAGS.project('Audit Scanner'))).toEqual([
+      '/en/projects/audit-scanner',
+      '/de/projects/audit-scanner',
     ]);
   });
 });
@@ -718,8 +712,8 @@ describe('vibe-coding publish purges detail AND listing', () => {
  */
 describe('deploy purge route model', () => {
   it('derives one path per locale from PAGINATED_ROUTES', () => {
-    expect(paginatedRoutePaths()).toEqual(['/en/vibe-coding', '/de/vibe-coding']);
-    expect(PAGINATED_ROUTES).toEqual(['/vibe-coding']);
+    expect(paginatedRoutePaths()).toEqual(['/en/projects', '/de/projects']);
+    expect(PAGINATED_ROUTES).toEqual(['/projects']);
   });
 
   it('never turns an asset path into a purge or a prefix', () => {

@@ -3,15 +3,15 @@ import { lexicalEditor } from '@payloadcms/richtext-lexical';
 
 import { protectedAuthorshipFields } from '../security/authorship';
 import {
-  revalidatePreviousVibeProjectCache,
-  revalidateVibeProjectCache,
+  revalidatePreviousProjectCache,
+  revalidateProjectCache,
 } from '../cache/frontend/frontendCache';
 import { toUrlSlug } from '../slugField';
 import { wordingBeforeValidate } from '../wording/beforeValidateWordingCheck';
 
 /**
- * Vibe-coding showcase projects — one document per detail route
- * `/[locale]/vibe-coding/<slug>` (design doc § 2).
+ * Project-Showcase projects — one document per detail route
+ * `/[locale]/projects/<slug>` (design doc § 2).
  *
  * Why a collection instead of a block/array on the listing page: drafts and
  * versions belong to a PROJECT (a block shares the page's draft), the proxy 404
@@ -32,9 +32,9 @@ function makeSlugHook(source: (data: Record<string, unknown>) => unknown): Field
   return ({ value, data }) => toUrlSlug(value ?? source(data ?? {}));
 }
 
-export const VibeProjects: CollectionConfig = {
-  slug: 'vibeProjects',
-  labels: { singular: 'Vibe-Projekt', plural: 'Vibe-Projekte' },
+export const Projects: CollectionConfig = {
+  slug: 'projects',
+  labels: { singular: 'Project-Projekt', plural: 'Project-Projekte' },
   admin: {
     useAsTitle: 'title',
     defaultColumns: ['title', 'slug', 'kind', 'order', 'featured', 'updatedAt'],
@@ -72,12 +72,12 @@ export const VibeProjects: CollectionConfig = {
     // forwards the documents.
     afterChange: [
       ({ doc, previousDoc }) => {
-        revalidateVibeProjectCache(doc.slug);
-        revalidatePreviousVibeProjectCache(previousDoc?.slug, doc.slug);
+        revalidateProjectCache(doc.slug);
+        revalidatePreviousProjectCache(previousDoc?.slug, doc.slug);
       },
     ],
     // A delete empties a listing slot and removes a detail route.
-    afterDelete: [({ doc }) => revalidateVibeProjectCache(doc.slug)],
+    afterDelete: [({ doc }) => revalidateProjectCache(doc.slug)],
   },
   fields: [
     {
@@ -94,7 +94,7 @@ export const VibeProjects: CollectionConfig = {
       index: true,
       admin: {
         position: 'sidebar',
-        description: 'URL-Segment /de/vibe-coding/<slug> (nicht übersetzen)',
+        description: 'URL-Segment /de/projects/<slug> (nicht übersetzen)',
       },
       hooks: {
         beforeValidate: [makeSlugHook((data) => data.title)],
@@ -126,7 +126,7 @@ export const VibeProjects: CollectionConfig = {
       required: true,
       admin: {
         description:
-          'Tile-Preview (16:9 — Varianten vibeTile / vibeTileWide / vibeHero); Alt-Text ist im Media-Dokument Pflicht',
+          'Tile-Preview (16:9 — Varianten tile / tileWide / hero); Alt-Text ist im Media-Dokument Pflicht',
       },
     },
     { name: 'gallery', type: 'upload', relationTo: 'media', hasMany: true },
@@ -144,7 +144,7 @@ export const VibeProjects: CollectionConfig = {
     {
       name: 'tags',
       type: 'relationship',
-      relationTo: 'vibeTags',
+      relationTo: 'projectTags',
       hasMany: true,
       index: true,
     },
@@ -169,7 +169,7 @@ export const VibeProjects: CollectionConfig = {
       type: 'richText',
       localized: true,
       editor: lexicalEditor({}),
-      admin: { description: 'Wie gebaut / vibe-coded: Schleifen, Prompts, Werkzeuge' },
+      admin: { description: 'Wie gebaut / AI-assisted: Schleifen, Prompts, Werkzeuge' },
     },
     {
       name: 'learnings',

@@ -1,11 +1,11 @@
 import type { FrontendLocale } from '@/cms/cache/frontend/frontendCache';
-import type { VibeListingPage, VibeProject, VibeTagDoc } from '@/cms/cache/frontend/queries';
-import { normalizeTagSlug, vibeProjectPath } from '@/cms/cache/frontend/routes';
-import type { VibeImage } from './pickImage';
-import { pickVibeImage } from './pickImage';
+import type { ProjectListingPage, Project, ProjectTagDoc } from '@/cms/cache/frontend/queries';
+import { normalizeTagSlug, projectPath } from '@/cms/cache/frontend/routes';
+import type { ProjectImage } from './pickImage';
+import { pickProjectImage } from './pickImage';
 
 /**
- * View model of the vibe-coding listing — the ONE mapping from documents to the
+ * View model of the projects listing — the ONE mapping from documents to the
  * tiles the renderers draw.
  *
  * Why a mapper and not inline JSX reads: the same list is rendered by three
@@ -18,36 +18,36 @@ import { pickVibeImage } from './pickImage';
  * preview.
  */
 
-export type VibeKind = 'experiment' | 'tool' | 'product';
+export type ProjectKind = 'experiment' | 'tool' | 'product';
 
 /** One tile. Every optional field is already normalized to `null`, never `''`. */
-export type VibeShowcaseItem = {
+export type ProjectShowcaseItem = {
   id: number | null;
   slug: string;
   title: string;
   teaser: string;
-  kind: VibeKind;
+  kind: ProjectKind;
   /** Link target of the detail route (locale-prefixed, absolute path). */
   href: string;
   featured: boolean;
   /** Cover in the tile crop; `null` when the upload has no renderable URL. */
-  cover: VibeImage | null;
+  cover: ProjectImage | null;
   stack: string[];
   liveUrl: string | null;
   githubUrl: string | null;
 };
 
 /** One filter chip: tag slug, visible label (locale-resolved), published count. */
-export type VibeShowcaseTag = { slug: string; label: string; count: number };
+export type ProjectShowcaseTag = { slug: string; label: string; count: number };
 
-const KIND_VALUES: readonly VibeKind[] = ['experiment', 'tool', 'product'];
+const KIND_VALUES: readonly ProjectKind[] = ['experiment', 'tool', 'product'];
 
 /**
  * A `kind` outside the three known values is coerced to `experiment` instead of
  * being dropped: the tile still renders, and the label lookup cannot fall
  * through to an unlabeled chip.
  */
-export function toVibeKind(value: string | null | undefined): VibeKind {
+export function toProjectKind(value: string | null | undefined): ProjectKind {
   return KIND_VALUES.find((kind) => kind === value) ?? 'experiment';
 }
 
@@ -61,13 +61,13 @@ function safeUrl(value: string | null | undefined): string | null {
 /**
  * Document → tile.
  *
- * `locale` decides the href only (`/de/vibe-coding/<slug>`). The project's own
+ * `locale` decides the href only (`/de/projects/<slug>`). The project's own
  * fields are already locale-resolved by the cached read.
  */
 export function toShowcaseItem(
-  project: VibeProject,
+  project: Project,
   locale: FrontendLocale,
-): VibeShowcaseItem | null {
+): ProjectShowcaseItem | null {
   if (!project) return null;
   const slug = project.slug?.trim();
   if (!slug) return null;
@@ -76,10 +76,10 @@ export function toShowcaseItem(
     slug,
     title: project.title ?? '',
     teaser: project.teaser ?? '',
-    kind: toVibeKind(project.kind),
-    href: vibeProjectPath(locale, slug),
+    kind: toProjectKind(project.kind),
+    href: projectPath(locale, slug),
     featured: Boolean(project.featured),
-    cover: pickVibeImage(project.coverImage, 'tile'),
+    cover: pickProjectImage(project.coverImage, 'tile'),
     stack: (project.stack ?? []).map((entry) => entry.trim()).filter(Boolean),
     liveUrl: safeUrl(project.liveUrl),
     githubUrl: safeUrl(project.githubUrl),
@@ -95,11 +95,11 @@ export function toShowcaseItem(
  * state is noise, and a tag created before its first project appears with it.
  */
 export function toShowcaseTags(
-  tags: readonly VibeTagDoc[],
+  tags: readonly ProjectTagDoc[],
   counts: ReadonlyMap<string, number>,
-): VibeShowcaseTag[] {
+): ProjectShowcaseTag[] {
   const seen = new Set<string>();
-  const result: VibeShowcaseTag[] = [];
+  const result: ProjectShowcaseTag[] = [];
   for (const tag of tags) {
     if (!tag) continue;
     const slug = normalizeTagSlug(tag.slug);
@@ -121,7 +121,7 @@ export function toShowcaseTags(
  */
 export function resolveActiveTag(
   requested: string | null | undefined,
-  tags: readonly VibeShowcaseTag[],
+  tags: readonly ProjectShowcaseTag[],
 ): string | null {
   const slug = normalizeTagSlug(requested ?? null);
   if (!slug) return null;
@@ -132,23 +132,23 @@ export function resolveActiveTag(
  * Listing view model handed to the block: the tiles of the rendered page plus
  * the request state the chrome needs.
  */
-export type VibeShowcaseView = {
-  items: VibeShowcaseItem[];
+export type ProjectShowcaseView = {
+  items: ProjectShowcaseItem[];
   /** Published projects in the whole (unfiltered) set. */
   totalDocs: number;
   /** Pages for the active filter — the pagination chrome. */
   totalPages: number;
   currentPage: number;
-  tags: VibeShowcaseTag[];
+  tags: ProjectShowcaseTag[];
   activeTag: string | null;
 };
 
 /** Maps one cached listing page + chip row onto the view model. */
 export function toShowcaseView(
   locale: FrontendLocale,
-  listing: VibeListingPage,
-  tags: readonly VibeShowcaseTag[],
-): VibeShowcaseView {
+  listing: ProjectListingPage,
+  tags: readonly ProjectShowcaseTag[],
+): ProjectShowcaseView {
   return {
     items: listing.docs.flatMap((doc) => {
       const item = toShowcaseItem(doc, locale);

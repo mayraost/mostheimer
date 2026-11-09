@@ -12,8 +12,8 @@ import type { TimelineCopy } from '@/components/blocks/TimelineBlock';
 import type { TechRadarCopy } from '@/components/blocks/TechRadarBlock';
 import type { CtaCopy } from '@/components/blocks/CallToActionBlock';
 import type { ArchitectureCopy } from '@/components/blocks/ArchitectureDiagramBlock';
-import type { VibeShowcaseCopy } from '@/components/blocks/VibeShowcaseBlock';
-import type { VibeDetailCopy } from '@/components/vibe/VibeProjectDetail';
+import type { ProjectShowcaseCopy } from '@/components/blocks/ProjectShowcaseBlock';
+import type { ProjectDetailCopy } from '@/components/projects/ProjectDetail';
 import type { PreviewCopy } from '@/components/preview/PreviewBlocks';
 
 /**
@@ -293,14 +293,16 @@ export async function loadArchitectureCopy(locale: FrontendLocale): Promise<Arch
 }
 
 /**
- * Vibe-showcase listing copy (`blocks.vibeShowcase.*`): tiles, filter row,
+ * Project-showcase listing copy (`blocks.projectShowcase.*`): tiles, filter row,
  * pagination, empty and count labels.
  *
- * The DETAIL labels are a separate bundle (`loadVibeDetailCopy`): the listing
+ * The DETAIL labels are a separate bundle (`loadProjectDetailCopy`): the listing
  * never renders a detail page, and the detail route renders no pagination. Both
  * are still part of `PreviewCopy`, because a preview iframe can show either.
  */
-export async function loadVibeShowcaseCopy(locale: FrontendLocale): Promise<VibeShowcaseCopy> {
+export async function loadProjectShowcaseCopy(
+  locale: FrontendLocale,
+): Promise<ProjectShowcaseCopy> {
   const [
     eyebrow,
     countSingular,
@@ -326,29 +328,29 @@ export async function loadVibeShowcaseCopy(locale: FrontendLocale): Promise<Vibe
     filterResultCountSingular,
     filterResultCountPlural,
   ] = await Promise.all([
-    getCachedTranslation(locale, 'blocks.vibeShowcase.eyebrow'),
-    getCachedTranslation(locale, 'blocks.vibeShowcase.countSingular'),
-    getCachedTranslation(locale, 'blocks.vibeShowcase.countPlural'),
-    getCachedTranslation(locale, 'blocks.vibeShowcase.featuredLabel'),
-    getCachedTranslation(locale, 'blocks.vibeShowcase.detailLabel'),
-    getCachedTranslation(locale, 'blocks.vibeShowcase.liveLabel'),
-    getCachedTranslation(locale, 'blocks.vibeShowcase.githubLabel'),
-    getCachedTranslation(locale, 'blocks.vibeShowcase.stackLabel'),
-    getCachedTranslation(locale, 'blocks.vibeShowcase.newTabHint'),
-    getCachedTranslation(locale, 'blocks.vibeShowcase.emptyLabel'),
-    getCachedTranslation(locale, 'blocks.vibeShowcase.paginationAria'),
-    getCachedTranslation(locale, 'blocks.vibeShowcase.prevLabel'),
-    getCachedTranslation(locale, 'blocks.vibeShowcase.nextLabel'),
-    getCachedTranslation(locale, 'blocks.vibeShowcase.pageLabel'),
-    getCachedTranslation(locale, 'blocks.vibeShowcase.ofLabel'),
-    getCachedTranslation(locale, 'blocks.vibeShowcase.kindExperiment'),
-    getCachedTranslation(locale, 'blocks.vibeShowcase.kindTool'),
-    getCachedTranslation(locale, 'blocks.vibeShowcase.kindProduct'),
-    getCachedTranslation(locale, 'blocks.vibeShowcase.filterLabel'),
-    getCachedTranslation(locale, 'blocks.vibeShowcase.filterAll'),
-    getCachedTranslation(locale, 'blocks.vibeShowcase.filterEmpty'),
-    getCachedTranslation(locale, 'blocks.vibeShowcase.filterResultCount'),
-    getCachedTranslation(locale, 'blocks.vibeShowcase.filterResultCountPlural'),
+    getCachedTranslation(locale, 'blocks.projectShowcase.eyebrow'),
+    getCachedTranslation(locale, 'blocks.projectShowcase.countSingular'),
+    getCachedTranslation(locale, 'blocks.projectShowcase.countPlural'),
+    getCachedTranslation(locale, 'blocks.projectShowcase.featuredLabel'),
+    getCachedTranslation(locale, 'blocks.projectShowcase.detailLabel'),
+    getCachedTranslation(locale, 'blocks.projectShowcase.liveLabel'),
+    getCachedTranslation(locale, 'blocks.projectShowcase.githubLabel'),
+    getCachedTranslation(locale, 'blocks.projectShowcase.stackLabel'),
+    getCachedTranslation(locale, 'blocks.projectShowcase.newTabHint'),
+    getCachedTranslation(locale, 'blocks.projectShowcase.emptyLabel'),
+    getCachedTranslation(locale, 'blocks.projectShowcase.paginationAria'),
+    getCachedTranslation(locale, 'blocks.projectShowcase.prevLabel'),
+    getCachedTranslation(locale, 'blocks.projectShowcase.nextLabel'),
+    getCachedTranslation(locale, 'blocks.projectShowcase.pageLabel'),
+    getCachedTranslation(locale, 'blocks.projectShowcase.ofLabel'),
+    getCachedTranslation(locale, 'blocks.projectShowcase.kindExperiment'),
+    getCachedTranslation(locale, 'blocks.projectShowcase.kindTool'),
+    getCachedTranslation(locale, 'blocks.projectShowcase.kindProduct'),
+    getCachedTranslation(locale, 'blocks.projectShowcase.filterLabel'),
+    getCachedTranslation(locale, 'blocks.projectShowcase.filterAll'),
+    getCachedTranslation(locale, 'blocks.projectShowcase.filterEmpty'),
+    getCachedTranslation(locale, 'blocks.projectShowcase.filterResultCount'),
+    getCachedTranslation(locale, 'blocks.projectShowcase.filterResultCountPlural'),
   ]);
   return {
     eyebrow,
@@ -375,8 +377,8 @@ export async function loadVibeShowcaseCopy(locale: FrontendLocale): Promise<Vibe
   };
 }
 
-/** Vibe-project detail copy (`routes.vibeProject.*`). */
-export async function loadVibeDetailCopy(locale: FrontendLocale): Promise<VibeDetailCopy> {
+/** Project-project detail copy (`routes.project.*`). */
+export async function loadProjectDetailCopy(locale: FrontendLocale): Promise<ProjectDetailCopy> {
   const [
     eyebrow,
     contextLabel,
@@ -395,22 +397,22 @@ export async function loadVibeDetailCopy(locale: FrontendLocale): Promise<VibeDe
     kindTool,
     kindProduct,
   ] = await Promise.all([
-    getCachedTranslation(locale, 'routes.vibeProject.eyebrow'),
-    getCachedTranslation(locale, 'routes.vibeProject.contextLabel'),
-    getCachedTranslation(locale, 'routes.vibeProject.approachLabel'),
-    getCachedTranslation(locale, 'routes.vibeProject.learningsLabel'),
-    getCachedTranslation(locale, 'routes.vibeProject.outcomeLabel'),
-    getCachedTranslation(locale, 'routes.vibeProject.stackLabel'),
-    getCachedTranslation(locale, 'routes.vibeProject.tagsLabel'),
-    getCachedTranslation(locale, 'routes.vibeProject.liveCta'),
-    getCachedTranslation(locale, 'routes.vibeProject.githubCta'),
-    getCachedTranslation(locale, 'routes.vibeProject.backToList'),
-    getCachedTranslation(locale, 'routes.vibeProject.noCover'),
-    getCachedTranslation(locale, 'routes.vibeProject.empty'),
-    getCachedTranslation(locale, 'blocks.vibeShowcase.newTabHint'),
-    getCachedTranslation(locale, 'blocks.vibeShowcase.kindExperiment'),
-    getCachedTranslation(locale, 'blocks.vibeShowcase.kindTool'),
-    getCachedTranslation(locale, 'blocks.vibeShowcase.kindProduct'),
+    getCachedTranslation(locale, 'routes.project.eyebrow'),
+    getCachedTranslation(locale, 'routes.project.contextLabel'),
+    getCachedTranslation(locale, 'routes.project.approachLabel'),
+    getCachedTranslation(locale, 'routes.project.learningsLabel'),
+    getCachedTranslation(locale, 'routes.project.outcomeLabel'),
+    getCachedTranslation(locale, 'routes.project.stackLabel'),
+    getCachedTranslation(locale, 'routes.project.tagsLabel'),
+    getCachedTranslation(locale, 'routes.project.liveCta'),
+    getCachedTranslation(locale, 'routes.project.githubCta'),
+    getCachedTranslation(locale, 'routes.project.backToList'),
+    getCachedTranslation(locale, 'routes.project.noCover'),
+    getCachedTranslation(locale, 'routes.project.empty'),
+    getCachedTranslation(locale, 'blocks.projectShowcase.newTabHint'),
+    getCachedTranslation(locale, 'blocks.projectShowcase.kindExperiment'),
+    getCachedTranslation(locale, 'blocks.projectShowcase.kindTool'),
+    getCachedTranslation(locale, 'blocks.projectShowcase.kindProduct'),
   ]);
   return {
     eyebrow,
@@ -466,9 +468,9 @@ export async function loadPreviewCopy(
       imagePlaceholder: await getCachedTranslation(locale, 'blocks.imageText.imagePlaceholder'),
     },
     // The preview can frame either the listing page (it renders the
-    // `vibeShowcase` block) or a project document, so both bundles ship.
-    vibeShowcase: await loadVibeShowcaseCopy(locale),
-    vibeDetail: await loadVibeDetailCopy(locale),
+    // `projectShowcase` block) or a project document, so both bundles ship.
+    projectShowcase: await loadProjectShowcaseCopy(locale),
+    projectDetail: await loadProjectDetailCopy(locale),
   };
 }
 

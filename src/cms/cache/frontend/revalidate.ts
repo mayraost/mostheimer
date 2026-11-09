@@ -5,8 +5,8 @@ import {
   FRONTEND_LOCALES,
   LISTING_ROUTE,
   pagePath,
-  vibeListingPath,
-  vibeProjectPath,
+  projectListingPath,
+  projectPath,
 } from './routes';
 import { normalizeSlug } from './utils';
 
@@ -36,15 +36,15 @@ import { normalizeSlug } from './utils';
  * | `cms:pages:<slug>`        | `/en/<slug>` + `/de/<slug>` (`home` → `/en`, `/de`)   |
  * | `cms:sitemap`             | `/sitemap.xml`                                        |
  * | `cms:global:*`            | every public content route (layout-level global)      |
- * | `cms:vibeprojects`        | listing subtree + every known project detail          |
- * | `cms:vibeshowcase`        | listing subtree (`/de/vibe-coding`, `/en/vibe-coding`) |
- * | `cms:vibetags`            | listing subtree (a tag rename/delete changes `?tag=`)  |
- * | `cms:vibeprojects:<slug>` | that project's detail URLs (both locales)             |
+ * | `cms:projects`        | listing subtree + every known project detail          |
+ * | `cms:project-showcase`        | listing subtree (`/de/projects`, `/en/projects`) |
+ * | `cms:project-tags`            | listing subtree (a tag rename/delete changes `?tag=`)  |
+ * | `cms:projects:<slug>` | that project's detail URLs (both locales)             |
  *
  * PAGINATED / FILTERED ROUTES (`PAGINATED_ROUTES` in ./routes.ts): a `?page=N`
  * or `?tag=<slug>` response is a SEPARATE edge object and the purge API has no
  * wildcard URL purge. The listing subtree is evicted with ONE prefix op per
- * locale (`de/vibe-coding` — host+path, no scheme/query), which is also why a
+ * locale (`de/projects` — host+path, no scheme/query), which is also why a
  * project publish purges the listing: publishing changes the listing.
  *
  * `/_next/static/**` is never part of any mapping — static assets are immutable
@@ -60,14 +60,14 @@ type RevalidateMode = 'blocking' | 'swr';
 
 /**
  * Listing routes that are themselves `pages` documents. Registered eagerly so
- * the bare `/de/vibe-coding` path is purgeable on a cold start too — including
+ * the bare `/de/projects` path is purgeable on a cold start too — including
  * the very first `cms:pages` / `cms:global:*` / `cms:all` flush of a process
  * that has not rendered a page yet.
  */
 export const LISTING_SLUGS: ReadonlySet<string> = new Set<string>([LISTING_ROUTE]);
 
-/** Tag prefix of `CACHE_TAGS.vibeProject(slug)`. */
-const VIBE_PROJECT_TAG_PREFIX = `${CACHE_TAGS.vibeProjects}:`;
+/** Tag prefix of `CACHE_TAGS.project(slug)` (`cms:projects:`). */
+const PROJECT_DETAIL_TAG_PREFIX = `${CACHE_TAGS.projects}:`;
 
 /**
  * The page-slug registry, lazily created behind a `globalThis` key.
@@ -77,10 +77,10 @@ const VIBE_PROJECT_TAG_PREFIX = `${CACHE_TAGS.vibeProjects}:`;
  * the module re-declares can be left uninitialized — `registerPageSlugs` then
  * throws "Cannot access 'KNOWN_SLUGS' before initialization" while the direct
  * importer works fine. One lazily initialized record keeps `pages` and
- * `vibeProjects` identical for every import path (bug surfaced 09.11.2026 by the
+ * `projects` identical for every import path (bug surfaced 09.11.2026 by the
  * listing-registry test).
  */
-type RouteRegistries = { pages: Set<string>; vibeProjects: Set<string> };
+type RouteRegistries = { pages: Set<string>; projects: Set<string> };
 
 const REGISTRY_KEY = Symbol.for('mostheimer.cms-route-registry');
 
@@ -91,18 +91,18 @@ function registries(): RouteRegistries {
   const store = globalThis as GlobalWithRegistry;
   store[REGISTRY_KEY] ??= {
     pages: new Set<string>(['home', ...LISTING_SLUGS]),
-    vibeProjects: new Set<string>(),
+    projects: new Set<string>(),
   };
   return store[REGISTRY_KEY];
 }
 
 /**
- * Last page count observed per listing path (`/de/vibe-coding` → pages).
+ * Last page count observed per listing path (`/de/projects` → pages).
  */
-const VIBE_SHOWN_PAGES = new Map<string, number>();
+const PROJECT_SHOWN_PAGES = new Map<string, number>();
 
-/** `pageSize` default of the `vibeShowcase` block (schema default). */
-const VIBE_PAGE_SIZE = 6;
+/** `pageSize` default of the `projectShowcase` block (schema default). */
+const PROJECT_PAGE_SIZE = 6;
 
 /**
  * Publish the slugs the cached page reads have produced. Called from
@@ -119,9 +119,9 @@ export function registerPageSlugs(slugs: readonly string[]): void {
   for (const slug of LISTING_SLUGS) pages.add(slug);
 }
 
-/** Registers published vibe-project slugs (purge URL mapping only). */
-export function registerVibeProjectSlugs(slugs: readonly string[]): void {
-  const known = registries().vibeProjects;
+/** Registers published project slugs (purge URL mapping only). */
+export function registerProjectSlugs(slugs: readonly string[]): void {
+  const known = registries().projects;
   for (const slug of slugs) {
     const normalized = normalizeSlug(slug);
     if (normalized && normalized !== 'home') known.add(normalized);
@@ -129,9 +129,9 @@ export function registerVibeProjectSlugs(slugs: readonly string[]): void {
 }
 
 /** Registers the page count a listing render observed (purge fallback). */
-export function registerVibeShowcasePageCount(listingPath: string, totalPages: number): void {
+export function registerProjectShowcasePageCount(listingPath: string, totalPages: number): void {
   if (!Number.isFinite(totalPages)) return;
-  VIBE_SHOWN_PAGES.set(listingPath, Math.max(1, Math.trunc(totalPages)));
+  PROJECT_SHOWN_PAGES.set(listingPath, Math.max(1, Math.trunc(totalPages)));
 }
 
 /**
@@ -140,7 +140,7 @@ export function registerVibeShowcasePageCount(listingPath: string, totalPages: n
  *
  * - `registeredPageSlugs()`: every page slug the cached reads have seen (the
  *   eager listing slug included).
- * - `registeredVibeProjectSlugs()`: every published project slug seen so far.
+ * - `registeredProjectSlugs()`: every published project slug seen so far.
  *
  * Both are monotonic in-process sets: they grow as routes render and are only
  * reset with the process. That is exactly what the purge needs (a broader list
@@ -152,27 +152,27 @@ export function registeredPageSlugs(): string[] {
 }
 
 /** Monotonic in-process list of published project slugs (purge/ops only). */
-export function registeredVibeProjectSlugs(): string[] {
-  return [...registries().vibeProjects];
+export function registeredProjectSlugs(): string[] {
+  return [...registries().projects];
 }
 
 /** Detail URLs of every registered project in both locales (ops view). */
-export function registeredVibeDetailPaths(): string[] {
-  return [...registries().vibeProjects].flatMap(vibeDetailPaths);
+export function registeredProjectDetailPaths(): string[] {
+  return [...registries().projects].flatMap(projectDetailPaths);
 }
 
 /** Detail URLs of one project in both locales ('home' is not a project). */
-function vibeDetailPaths(slug: string): string[] {
+function projectDetailPaths(slug: string): string[] {
   const normalized = normalizeSlug(slug);
   if (!normalized || normalized === 'home') return [];
-  // `vibeProjectPath` normalizes the segment the same way the route builder
+  // `projectPath` normalizes the segment the same way the route builder
   // does, so the purged URL is byte-identical to the rendered one.
-  return FRONTEND_LOCALES.map((locale) => vibeProjectPath(locale, normalized));
+  return FRONTEND_LOCALES.map((locale) => projectPath(locale, normalized));
 }
 
 /** Page-1 listing URLs of both locales (the prefix op covers the variants). */
-function vibeListingPaths(): string[] {
-  return FRONTEND_LOCALES.map((locale) => vibeListingPath(locale));
+function projectListingPaths(): string[] {
+  return FRONTEND_LOCALES.map((locale) => projectListingPath(locale));
 }
 
 /**
@@ -182,7 +182,7 @@ function vibeListingPaths(): string[] {
  * the home route is the one page that exists without a DB read, so a page-set
  * flush (`cms:pages`) must never leave it behind.
  *
- * The listing routes (`LISTING_SLUGS`, i.e. `vibe-coding`) are part of every
+ * The listing routes (`LISTING_SLUGS`, i.e. `projects`) are part of every
  * content flush for the same reason: the listing IS a `pages` document, and its
  * page-1 HTML is a content object like any other page.
  */
@@ -216,21 +216,21 @@ export function edgePurgePathsForTag(
     return FRONTEND_LOCALES.map((locale) => pagePath(locale, slug));
   }
 
-  if (tag.startsWith(VIBE_PROJECT_TAG_PREFIX)) {
+  if (tag.startsWith(PROJECT_DETAIL_TAG_PREFIX)) {
     // One project changed: its two detail URLs. The listing subtree is evicted
-    // by the prefix op revalidateVibeListingCache queues.
-    return vibeDetailPaths(tag.slice(VIBE_PROJECT_TAG_PREFIX.length));
+    // by the prefix op revalidateProjectListingCache queues.
+    return projectDetailPaths(tag.slice(PROJECT_DETAIL_TAG_PREFIX.length));
   }
 
-  if (tag === CACHE_TAGS.vibeProjects) {
+  if (tag === CACHE_TAGS.projects) {
     // Project SET changed: every known detail plus page 1 of the listing.
-    return [...vibeListingPaths(), ...[...registries().vibeProjects].flatMap(vibeDetailPaths)];
+    return [...projectListingPaths(), ...[...registries().projects].flatMap(projectDetailPaths)];
   }
 
-  if (tag === CACHE_TAGS.vibeShowcase || tag === CACHE_TAGS.vibeTags) {
+  if (tag === CACHE_TAGS.projectShowcase || tag === CACHE_TAGS.projectTags) {
     // Listing projection / chip row: page 1 of both locales; deeper variants
     // are covered by the prefix op.
-    return vibeListingPaths();
+    return projectListingPaths();
   }
 
   return [];
@@ -335,7 +335,7 @@ export function revalidateNotFoundCache(): void {
   safeRevalidate(CACHE_TAGS.notFound, 'not-found global');
 }
 
-// -- Vibe-coding showcase ----------------------------------------------------
+// -- Project-Showcase ----------------------------------------------------
 
 /**
  * Listing flush: the listing projection tag plus ONE prefix op for the route
@@ -343,48 +343,48 @@ export function revalidateNotFoundCache(): void {
  * project writes and by tag writes — a tag rename/delete changes every
  * `?tag=` variant and the chip row.
  */
-export function revalidateVibeListingCache(label = 'vibe listing'): void {
-  safeRevalidate(CACHE_TAGS.vibeShowcase, label);
-  enqueueCloudflarePurge({ type: 'prefixes', paths: vibeListingPaths() }, label);
+export function revalidateProjectListingCache(label = 'project listing'): void {
+  safeRevalidate(CACHE_TAGS.projectShowcase, label);
+  enqueueCloudflarePurge({ type: 'prefixes', paths: projectListingPaths() }, label);
 }
 
 /**
- * One vibe project changed (create / update / unpublish / delete).
+ * One project changed (create / update / unpublish / delete).
  *
  * The listing is flushed too: a publish moves the project between pages, a
  * delete empties one, and both change counts and the `ItemList`. One project
  * edit therefore purges its two detail URLs AND the listing subtree — the
  * queue merges both into a single request.
  */
-export function revalidateVibeProjectCache(slug: string | null | undefined): void {
+export function revalidateProjectCache(slug: string | null | undefined): void {
   const normalized = normalizeSlug(slug ?? '');
   if (!normalized || normalized === 'home') {
     // No usable slug: never fall back to a broad flush of every detail URL.
-    revalidateVibeListingCache('vibe listing (project without slug)');
+    revalidateProjectListingCache('project listing (project without slug)');
     return;
   }
-  safeRevalidate(CACHE_TAGS.vibeProject(normalized), `vibe project ${normalized}`);
-  safeRevalidate(CACHE_TAGS.vibeProjects, 'vibe projects domain');
-  safeRevalidate(CACHE_TAGS.sitemap, 'sitemap (vibe project changed)');
-  revalidateVibeListingCache(`vibe listing (project ${normalized})`);
+  safeRevalidate(CACHE_TAGS.project(normalized), `project ${normalized}`);
+  safeRevalidate(CACHE_TAGS.projects, 'projects domain');
+  safeRevalidate(CACHE_TAGS.sitemap, 'sitemap (project changed)');
+  revalidateProjectListingCache(`project listing (project ${normalized})`);
 }
 
 /**
  * Slug rename: the OLD detail URL must 404 from then on, so it is flushed and
  * purged explicitly (the tags only know the new slug).
  */
-export function revalidatePreviousVibeProjectCache(
+export function revalidatePreviousProjectCache(
   previousSlug: string | null | undefined,
   nextSlug: string | null | undefined,
 ): void {
   const previous = normalizeSlug(previousSlug ?? '');
   const next = normalizeSlug(nextSlug ?? '');
   if (!previous || previous === 'home' || previous === next) return;
-  safeRevalidate(CACHE_TAGS.vibeProject(previous), `old vibe project ${previous}`);
-  safeRevalidate(CACHE_TAGS.sitemap, 'sitemap (vibe project renamed)');
+  safeRevalidate(CACHE_TAGS.project(previous), `old project ${previous}`);
+  safeRevalidate(CACHE_TAGS.sitemap, 'sitemap (project renamed)');
   enqueueCloudflarePurge(
-    { type: 'urls', paths: [...vibeDetailPaths(previous), ...vibeDetailPaths(next)] },
-    `old vibe project ${previous} (renamed)`,
+    { type: 'urls', paths: [...projectDetailPaths(previous), ...projectDetailPaths(next)] },
+    `old project ${previous} (renamed)`,
   );
 }
 
@@ -394,10 +394,10 @@ export function revalidatePreviousVibeProjectCache(
  * must fall back to the unfiltered listing), so this uses the same prefix op as
  * a project-set change.
  */
-export function revalidateVibeTagsCache(slug?: string | null): void {
-  const label = `vibe tags ${slug ? normalizeSlug(slug) : 'set'}`;
-  safeRevalidate(CACHE_TAGS.vibeTags, label);
-  revalidateVibeListingCache(`${label} (listing)`);
+export function revalidateProjectTagsCache(slug?: string | null): void {
+  const label = `project tags ${slug ? normalizeSlug(slug) : 'set'}`;
+  safeRevalidate(CACHE_TAGS.projectTags, label);
+  revalidateProjectListingCache(`${label} (listing)`);
 }
 
 /**
@@ -414,13 +414,13 @@ function pageVariants(totalPages: number): string[] {
   const pages = Math.max(1, Math.trunc(totalPages) || 1);
   return FRONTEND_LOCALES.flatMap((locale) =>
     Array.from({ length: pages }, (_, index) => index + 1).map((page) =>
-      page === 1 ? vibeListingPath(locale) : `${vibeListingPath(locale)}?page=${page}`,
+      page === 1 ? projectListingPath(locale) : `${projectListingPath(locale)}?page=${page}`,
     ),
   );
 }
 
 /** Exact `?page=2 … N` listing URLs for a published count (`totalDocs`). */
-export function pageWindowUrls(totalDocs: number, pageSize: number = VIBE_PAGE_SIZE): string[] {
+export function pageWindowUrls(totalDocs: number, pageSize: number = PROJECT_PAGE_SIZE): string[] {
   const pages = Math.max(1, Math.ceil(Math.max(0, totalDocs) / Math.max(1, pageSize)) || 1);
   return pageVariants(pages);
 }
@@ -438,17 +438,17 @@ export function pageWindowUrls(totalDocs: number, pageSize: number = VIBE_PAGE_S
  * The page count is the DB count (`totalDocs`), never below the page count a
  * listing render observed — a shrink must not leave a stale page uncounted.
  */
-export function vibeShowcaseVariantPaths(
+export function projectShowcaseVariantPaths(
   totalDocs: number,
-  pageSize: number = VIBE_PAGE_SIZE,
+  pageSize: number = PROJECT_PAGE_SIZE,
 ): { pages: string[]; details: string[] } {
-  const shown = Math.max(1, ...VIBE_SHOWN_PAGES.values());
+  const shown = Math.max(1, ...PROJECT_SHOWN_PAGES.values());
   const fromCount = Math.max(1, Math.ceil(Math.max(0, totalDocs) / Math.max(1, pageSize)) || 1);
   return {
     pages: pageVariants(Math.max(fromCount, shown)),
     // Every known detail URL; empty when no listing render has registered one
     // yet (the caller then relies on the DB count / prefix purge only).
-    details: [...registries().vibeProjects].flatMap(vibeDetailPaths),
+    details: [...registries().projects].flatMap(projectDetailPaths),
   };
 }
 

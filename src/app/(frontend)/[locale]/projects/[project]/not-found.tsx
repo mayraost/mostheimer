@@ -11,11 +11,11 @@ import type { NotFound } from '@/payload-types';
  *
  * Why this file exists (same rule as `[[...slug]]/not-found.tsx`): `notFound()`
  * is caught by the `HTTPAccessFallbackBoundary` of ITS OWN segment — the page
- * sits in `[locale]/vibe-coding/[project]`, so a not-found boundary one level up
+ * sits in `[locale]/projects/[project]`, so a not-found boundary one level up
  * would not render for it. Without this file an unknown project would show the
  * global English fallback.
  *
- * The HTTP status comes from the Proxy (`publishedVibeProjectStatus`); this
+ * The HTTP status comes from the Proxy (`publishedProjectStatus`); this
  * boundary only replaces the content column. Document shell, header, footer,
  * theme and consent all come from the `[locale]` layout.
  *
@@ -23,7 +23,7 @@ import type { NotFound } from '@/payload-types';
  * segment params. Copy comes from the CMS global `not-found` (de/en); a DB
  * failure degrades to the localized fallback copy, never to a 500.
  */
-export default async function VibeProjectNotFound() {
+export default async function ProjectNotFound() {
   const pathname = (await headers()).get('x-pathname');
   const locale: FrontendLocale = pathname?.startsWith('/de') ? 'de' : 'en';
 

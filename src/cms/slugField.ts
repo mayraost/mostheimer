@@ -3,7 +3,7 @@
  *
  * One shape for both the stored value and the derived fallback (title/label),
  * so `/de/…/<slug>` never carries uppercase, umlauts or repeated dashes. The
- * slug is the URL contract: `vibe-coding` or `audit-scanner`, never a
+ * slug is the URL contract: `projects` or `audit-scanner`, never a
  * translated variant (see design doc § 2 / § 10).
  */
 export function toUrlSlug(input: unknown): string {
