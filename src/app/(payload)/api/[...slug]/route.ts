@@ -1,3 +1,19 @@
+// Load-bearing side-effect import — do NOT remove. `file-type` (used by
+// Payload's upload MIME detection) reaches `strtok3` only through a *runtime*
+// `import(specifier)` call with a non-literal specifier
+// (`importAtRuntime('strtok3')`, file-type/source/index.js `fromFile()`), which
+// no bundler can trace. Turbopack therefore copied only the subpath that
+// `file-type` imports statically (`strtok3/core` → lib/core.js) and left
+// `lib/index.js`, `types.js` and `FileTokenizer.js` out of the standalone
+// output. Production then threw
+// `Cannot find module '/app/node_modules/strtok3/lib/index.js'` on every
+// `/api/media/file/*` request → HTTP 500 on every image, while the uploads were
+// present and intact on disk.
+//
+// A static import of the package entry makes Turbopack trace the full package
+// tree. `outputFileTracingIncludes` is NOT an alternative: Next 16 skips the
+// whole include/exclude pass when the bundler is Turbopack.
+import 'strtok3';
 import configPromise from '@payload-config';
 import {
   REST_OPTIONS,

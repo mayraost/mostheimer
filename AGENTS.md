@@ -1588,6 +1588,24 @@ Vor jedem Commit wird diese Datei auf Aktualität geprüft und bei Bedarf ergän
 - **[Cache/Root] `/` wird am Edge redirected, nicht gecacht** (07.11.2026). Free kann keinen Cache-Key nach `Accept-Language` (nur Enterprise; `Vary` wird ignoriert). Ein gecachter negotiated Redirect würde die Sprache des ersten Besuchers 30 d einfrieren. Fix: zwei Dynamic-Redirect-Rules am Edge — `lower(accept-language) contains "de"` → `/de`, sonst `/en` (307, Query bleibt). **First match wins**, die deutsche Regel steht deshalb vor dem Fallback. Kein Origin, kein Cache-Objekt, im Ausfall weiter 307. Der Proxy-Fallback negotiiert weiterhin (lokal/direkt).
 - **[Turbopack/Stale-Cache #2]** `npm run build` im frisch erzeugten Worktree panickte mit `invalid utf-8 sequence of 1 bytes from index …` (SourceMap-Asset), obwohl derselbe Commit auf `origin/main` sauber baute. Ursache: vererbter/inkrementeller `.next`-Zustand aus dem Worktree-Anlegen (Nutzer lesen `node_modules`/`.next` vom Haupt-Checkout). Fix: `rm -rf .next` und erneut bauen → grün. Merke (wie beim `@tailwindcss/turbopack`-Fall): bei „Build-Panic ohne Codebezug" **zuerst** `.next` löschen, bevor Deps/Code verdächtigt werden.
 - **[Coolify/Build-ARGs]** Coolify injiziert ALLE App-Envs als Build-ARGs (unabhängig von Compose-Refs) → Secrets landen in `docker history`-Layer. Fix: Coolify-Env-Flag `is_buildtime: false` (REST PATCH envs) + Compose-`$SECRET`-Referenzen entfernen. Nach jedem Deploy: `docker history <image> | grep -iE 'SECRET|DATABASE'` (presence-only, nie Werte drucken).
+- **[Turbopack/Standalone] `file-type` braucht `strtok3` explizit im Standalone-Build** (09.11.2026). Symptom: **alle** Bilder auf `/de/projects` (und jede `/api/media/file/*`-URL) antworten **500**, nicht 404 — die Dateien liegen aber korrekt und vollständig in `/app/public/media/`. Im Log:
+
+  ```
+  ERROR: Cannot find module '/app/node_modules/strtok3/lib/index.js'
+         imported from /app/node_modules/file-type/source/index.js
+  ⨯ internal image response failed for /api/media/file/<name>-768x432.png 500
+  ```
+
+  Ursache: Payloads Upload-MIME-Erkennung ruft `file-type.fromFile()`, das `strtok3` nur über `importAtRuntime('strtok3')` = `import(variable)` nachlädt. Turbopack kann das nicht tracen und kopiert nur den **statisch** importierten Subpath (`strtok3/core` → `lib/core.js`); `lib/index.js`, `types.js`, `FileTokenizer.js` und `NotRegularFileError.js` fehlen im Image. Messbar im Container: `docker exec <app> node -e "require('strtok3')"` → `MODULE_NOT_FOUND` (gegen `require('strtok3')` im **Standalone-Ordner** lokal reproduzierbar).
+
+  **Fix — beide Teile nötig (einzeln jeweils verifiziert unzureichend):**
+  1. `serverExternalPackages: ['file-type', 'strtok3', 'token-types', '@tokenizer/inflate']` in `next.config.ts` — Paket bleibt external, ganze Dateien werden kopiert statt gebündelt.
+  2. Statischer Side-Effect-Import in der Payload-REST-Route (`src/app/(payload)/api/[...slug]/route.ts`): `import 'strtok3';` — zwingt Turbopack, den **Package-Entry** zu tracen.
+
+  **`outputFileTracingIncludes` ist hier wirkungslos:** Next 16 überspringt den kompletten Include/Exclude-Pass unter Turbopack (`build/index.js`: `if (bundler !== Bundler.Turbopack && …) collectBuildTraces(…)`) — die Globs sind ein stiller No-op. `@tokenizer/token` ist **nur types** (`.d.ts`) und `peek-readable` ist kein Dep von `strtok3` v10 — keines davon listen (fehlender Pfad bricht den Build).
+
+  **Verifikation:** `[ -e .next/standalone/node_modules/strtok3/lib/index.js ]` + `cd .next/standalone && node -e "require('strtok3')"`, danach in Prod `curl -s -o /dev/null -w '%{http_code} %{content_type}' https://mostheimer.de/api/media/file/<name>-768x432.png` → `200 image/png` (vorher 500).
+
 - **[Secure-Cookie]** `cookies: { secure: true }` + Safari: Secure-Cookie wird auf `http://localhost` NICHT gesetzt → Dev-Login in Safari bricht (Chrome/FF ok, localhost gilt dort als secure context). Hinweis-Only.
 - **[CORP]** Media wird auch via `/api/media/file/:file*`-Endpoint ausgeliefert → CORP-Header doppelt setzen (beide Paths in `next.config.ts` `headers()`).
 - **[ESLint/FlatConfig Overrides]** Spätere Entries in `eslint.config.mjs` gewinnen per-File: `files: ['src/migrations/**']` → `unused-imports/no-unused-vars: 'off'` für Payload-Codegen-Hook-Signaturen (`payload/req/db` ungebraucht). Override VOR dem globalen Plugin-Block wird stillschweigend von dessen Regel-Definition zugeschlagen (21 Warnings blieben) — Exemption gehört ans Array-Ende.
