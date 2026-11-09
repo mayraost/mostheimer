@@ -2,19 +2,19 @@ import React from 'react';
 import Image from 'next/image';
 import { RichText as LexicalRichText } from '@payloadcms/richtext-lexical/react';
 import { BentoTile, CardHeader, Chip, CornerTicks, Eyebrow } from '../ui/industrial';
-import { VibeChip, VibeExternalLink } from './chips';
-import type { VibeSectionKey, VibeProjectView } from './projectView';
+import { ProjectChip, ProjectExternalLink } from './chips';
+import type { ProjectSectionKey, ProjectView } from './projectView';
 import { hasSection } from './projectView';
-import type { VibeKind } from './showcaseView';
+import type { ProjectKind } from './showcaseView';
 
 /**
- * Copy of the detail route (`routes.vibeProject.*`).
+ * Copy of the detail route (`routes.project.*`).
  *
  * `kindLabels` and `newTabHint` are shared with the listing
- * (`blocks.vibeShowcase.*`): the same project is shown on both surfaces, so the
+ * (`blocks.projectShowcase.*`): the same project is shown on both surfaces, so the
  * label of a `tool` must not differ between the tile and the detail page.
  */
-export type VibeDetailCopy = {
+export type ProjectDetailCopy = {
   eyebrow: string;
   contextLabel: string;
   approachLabel: string;
@@ -28,13 +28,13 @@ export type VibeDetailCopy = {
   noCover: string;
   empty: string;
   newTabHint: string;
-  kindLabels: Record<VibeKind, string>;
+  kindLabels: Record<ProjectKind, string>;
 };
 
 /** Section order of the case study (§ 5: context → approach → learnings → outcome). */
 type SectionLabelKey = 'contextLabel' | 'approachLabel' | 'learningsLabel' | 'outcomeLabel';
 
-const SECTIONS: readonly { key: VibeSectionKey; labelKey: SectionLabelKey }[] = [
+const SECTIONS: readonly { key: ProjectSectionKey; labelKey: SectionLabelKey }[] = [
   { key: 'context', labelKey: 'contextLabel' },
   { key: 'approach', labelKey: 'approachLabel' },
   { key: 'learnings', labelKey: 'learningsLabel' },
@@ -84,22 +84,22 @@ function Paragraphs({ paragraphs }: { paragraphs: string[] }) {
 }
 
 /**
- * Vibe-coding project detail (design § 5).
+ * Project detail (design § 5).
  *
  * Pure prop renderer (server component, synchronous): the route resolves the
  * document through the cached reader, maps it with `toProjectView`, and hands
  * the view + copy in. Same shape the live preview renders.
  *
- * Hero: the `vibeHero` crop with explicit width/height (`next/image`, no
+ * Hero: the `hero` crop with explicit width/height (`next/image`, no
  * `fill`), so the reserved box cannot cause CLS. External links are omitted
  * when absent — `githubUrl` is legitimately `null` for a private repo.
  */
-export function VibeProjectDetail({
+export function ProjectDetail({
   project,
   copy,
 }: {
-  project: VibeProjectView;
-  copy: VibeDetailCopy;
+  project: ProjectView;
+  copy: ProjectDetailCopy;
 }) {
   const sections = SECTIONS.filter((section) => hasSection(project, section.key));
   const hasLinks = Boolean(project.liveUrl || project.githubUrl);
@@ -142,12 +142,12 @@ export function VibeProjectDetail({
             </ul>
             {hasLinks && (
               <div className="flex flex-wrap gap-2">
-                <VibeExternalLink
+                <ProjectExternalLink
                   href={project.liveUrl}
                   label={copy.liveCta}
                   newTabHint={copy.newTabHint}
                 />
-                <VibeExternalLink
+                <ProjectExternalLink
                   href={project.githubUrl}
                   label={copy.githubCta}
                   newTabHint={copy.newTabHint}
@@ -213,7 +213,7 @@ export function VibeProjectDetail({
                 <ul className="flex flex-wrap gap-1.5">
                   {project.tags.map((tag) => (
                     <li key={tag.slug}>
-                      <VibeChip variant="solid">{tag.label}</VibeChip>
+                      <ProjectChip variant="solid">{tag.label}</ProjectChip>
                     </li>
                   ))}
                 </ul>
@@ -226,7 +226,7 @@ export function VibeProjectDetail({
                 <ul className="flex flex-wrap gap-1.5">
                   {project.stack.map((tech) => (
                     <li key={tech}>
-                      <VibeChip>{tech}</VibeChip>
+                      <ProjectChip>{tech}</ProjectChip>
                     </li>
                   ))}
                 </ul>
@@ -234,12 +234,12 @@ export function VibeProjectDetail({
             )}
             {hasLinks && (
               <BentoTile className="flex flex-col gap-2 p-4">
-                <VibeExternalLink
+                <ProjectExternalLink
                   href={project.liveUrl}
                   label={copy.liveCta}
                   newTabHint={copy.newTabHint}
                 />
-                <VibeExternalLink
+                <ProjectExternalLink
                   href={project.githubUrl}
                   label={copy.githubCta}
                   newTabHint={copy.newTabHint}

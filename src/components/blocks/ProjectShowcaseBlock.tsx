@@ -4,25 +4,33 @@ import type { Page } from '@/payload-types';
 import { BentoTile, Chip, CornerTicks, Eyebrow, StatusDot } from '../ui/industrial';
 import { RevealGrid } from '../ui/MotionWrappers';
 import { buildListingHref, pageWindow } from '@/cms/cache/frontend/routes';
-import type { VibeImage, VibeImageSlot } from '../vibe/pickImage';
-import type { VibeKind, VibeShowcaseItem, VibeShowcaseView } from '../vibe/showcaseView';
+import type { ProjectImage, ProjectImageSlot } from '../projects/pickImage';
+import type {
+  ProjectKind,
+  ProjectShowcaseItem,
+  ProjectShowcaseView,
+} from '../projects/showcaseView';
 
-// The tile/view model and its mapper are owned by `components/vibe/` (pure,
+// The tile/view model and its mapper are owned by `components/projects/` (pure,
 // client-safe). Re-exported here so callers of the block import from one place.
-export type { VibeShowcaseItem, VibeShowcaseTag, VibeShowcaseView } from '../vibe/showcaseView';
-export { toShowcaseTags, toShowcaseView } from '../vibe/showcaseView';
+export type {
+  ProjectShowcaseItem,
+  ProjectShowcaseTag,
+  ProjectShowcaseView,
+} from '../projects/showcaseView';
+export { toShowcaseTags, toShowcaseView } from '../projects/showcaseView';
 
-type VibeShowcaseBlockData = Extract<
+type ProjectShowcaseBlockData = Extract<
   NonNullable<Page['layout']>[number],
-  { blockType: 'vibeShowcase' }
+  { blockType: 'projectShowcase' }
 >;
 
 /**
- * Shell copy of the listing (`blocks.vibeShowcase.*` in the translations
- * global). The project CONTENT is `vibeProjects` data; these are the labels
+ * Shell copy of the listing (`blocks.projectShowcase.*` in the translations
+ * global). The project CONTENT is `projects` data; these are the labels
  * around it (kind names, counts, filter, pagination, empty states).
  */
-export type VibeShowcaseCopy = {
+export type ProjectShowcaseCopy = {
   eyebrow: string;
   countSingular: string;
   countPlural: string;
@@ -39,7 +47,7 @@ export type VibeShowcaseCopy = {
   nextLabel: string;
   pageLabel: string;
   ofLabel: string;
-  kindLabels: Record<VibeKind, string>;
+  kindLabels: Record<ProjectKind, string>;
   filterLabel: string;
   filterAll: string;
   filterEmpty: string;
@@ -61,7 +69,7 @@ function fillCount(template: string, count: number): string {
  * the UNFILTERED published set — the header describes the collection, the
  * filter row describes the subset.
  */
-function countLabel(view: VibeShowcaseView, copy: VibeShowcaseCopy): string {
+function countLabel(view: ProjectShowcaseView, copy: ProjectShowcaseCopy): string {
   const total = view.totalDocs;
   const noun = total === 1 ? copy.countSingular : copy.countPlural;
   return [String(total), noun].filter(Boolean).join(' ');
@@ -73,11 +81,19 @@ function countLabel(view: VibeShowcaseView, copy: VibeShowcaseCopy): string {
  * `sizes` matches the grid: 1 column < 640px, 2 < 1024px, 3 above, and 2
  * columns for the featured tile.
  */
-function TileCover({ cover, featured, alt }: { cover: VibeImage; featured: boolean; alt: string }) {
+function TileCover({
+  cover,
+  featured,
+  alt,
+}: {
+  cover: ProjectImage;
+  featured: boolean;
+  alt: string;
+}) {
   const sizes = featured
     ? '(min-width: 1024px) 66vw, (min-width: 640px) 100vw, 100vw'
     : '(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw';
-  const slot: VibeImageSlot = featured ? 'tileWide' : 'tile';
+  const slot: ProjectImageSlot = featured ? 'tileWide' : 'tile';
   return (
     <Image
       src={cover.url}
@@ -103,7 +119,7 @@ function TileCover({ cover, featured, alt }: { cover: VibeImage; featured: boole
  * elements are invalid HTML and break the tab order. They sit above the overlay
  * via `relative z-10`.
  */
-function ShowcaseTile({ item, copy }: { item: VibeShowcaseItem; copy: VibeShowcaseCopy }) {
+function ShowcaseTile({ item, copy }: { item: ProjectShowcaseItem; copy: ProjectShowcaseCopy }) {
   return (
     <BentoTile
       as="li"
@@ -257,9 +273,9 @@ function FilterRow({
   basePath,
   copy,
 }: {
-  view: VibeShowcaseView;
+  view: ProjectShowcaseView;
   basePath: string;
-  copy: VibeShowcaseCopy;
+  copy: ProjectShowcaseCopy;
 }) {
   return (
     <nav aria-label={copy.filterLabel} className="mb-4">
@@ -288,7 +304,7 @@ function FilterRow({
  * tag filter is active — the unfiltered count already sits in the section
  * header, so repeating it would double-announce the same number.
  */
-function ResultCount({ view, copy }: { view: VibeShowcaseView; copy: VibeShowcaseCopy }) {
+function ResultCount({ view, copy }: { view: ProjectShowcaseView; copy: ProjectShowcaseCopy }) {
   const template =
     view.items.length === 1 ? copy.filterResultCountSingular : copy.filterResultCountPlural;
   return (
@@ -317,9 +333,9 @@ function Pagination({
   basePath,
   copy,
 }: {
-  view: VibeShowcaseView;
+  view: ProjectShowcaseView;
   basePath: string;
-  copy: VibeShowcaseCopy;
+  copy: ProjectShowcaseCopy;
 }) {
   // One page needs no navigation chrome at all.
   if (view.totalPages <= 1) return null;
@@ -446,10 +462,10 @@ function Pagination({
 }
 
 /**
- * Vibe-coding showcase: the paginated, tag-filtered listing of `vibeProjects`.
+ * Project-Showcase: the paginated, tag-filtered listing of `projects`.
  *
  * PURE RENDERER (server component, synchronous): the page resolves the data
- * (`getCachedVibeProjectPage`, `getCachedVibeTags`) and the URL state
+ * (`getCachedProjectPage`, `getCachedProjectTags`) and the URL state
  * (`?page=`, `?tag=`) and hands them in — the block never reads
  * `searchParams` itself, so it stays renderable from the live preview
  * (design § 3). Zero client JS: pagination and filtering are `<a href>`s.
@@ -458,19 +474,19 @@ function Pagination({
  * `<nav>` above the grid, the pagination `<nav>` below it. The filter row is
  * never hidden — an empty result must keep the way back visible.
  */
-export function VibeShowcaseBlock({
+export function ProjectShowcaseBlock({
   block,
   view,
   basePath,
   copy,
 }: {
-  block: VibeShowcaseBlockData;
+  block: ProjectShowcaseBlockData;
   /** Resolved listing: tile slice, request state and chip row. */
-  view: VibeShowcaseView;
-  /** Listing route of the current locale (`/de/vibe-coding`). */
+  view: ProjectShowcaseView;
+  /** Listing route of the current locale (`/de/projects`). */
   basePath: string;
-  /** Shell copy (`blocks.vibeShowcase`), read by the dispatcher. */
-  copy: VibeShowcaseCopy;
+  /** Shell copy (`blocks.projectShowcase`), read by the dispatcher. */
+  copy: ProjectShowcaseCopy;
 }) {
   const showFilter = block.showFilter ?? true;
   // A tag filter narrows the set: the "no projects yet" state then describes

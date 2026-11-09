@@ -6,9 +6,9 @@
  *
  * The page list mirrors the eight published `pages` documents (home, career,
  * case-studies, tech-radar, leadership, contact, imprint, privacy) in both
- * locales — keep it in sync when pages are added or removed. The vibe-coding
+ * locales — keep it in sync when pages are added or removed. The projects
  * listing is a further page document with its own section below; its detail
- * project pages are CMS data (enumerated in the sitemap, not here).
+ * pages are CMS data (enumerated in the sitemap, not here).
  */
 
 const BASE = 'https://mostheimer.de';
@@ -45,11 +45,11 @@ respective pages. Facts below are the same ones stated on the site itself.
 - [Datenschutz / Privacy (DE)](${BASE}/de/privacy): Privacy policy (German).
 - [Privacy (EN)](${BASE}/en/privacy): Privacy policy (English).
 
-## Vibe Coding
+## Projects
 
-- [Vibe Coding (DE)](${BASE}/de/vibe-coding): Showcase of vibe-coded projects — what was built, how it was built and what was learned.
-- [Vibe Coding (EN)](${BASE}/en/vibe-coding): English version of the showcase.
-- Each project has its own page under \`/{locale}/vibe-coding/<project>\` (context, approach, learnings, outcome, stack); every project page is listed in the sitemap.
+- [Projekte (DE)](${BASE}/de/projects): Showcase of own projects — what was built, how it was built, and the engineering standards it was held to.
+- [Projects (EN)](${BASE}/en/projects): English version of the showcase.
+- Each project has its own page under \`/{locale}/projects/<project>\` (context, approach, learnings, outcome, stack); every project page is listed in the sitemap.
 - Filtered and paginated variants (\`?tag=\`, \`?page=\`) are deliberately \`noindex\` and are never enumerated: the listing is the crawl entry point, the details are reached through its links.
 
 ## Indexes

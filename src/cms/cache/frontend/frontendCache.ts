@@ -1,7 +1,7 @@
 /**
  * Data-cache layer barrel.
  *
- * `./routes` and `./revalidate` used to export `vibeProjectPath` twice (the
+ * `./routes` and `./revalidate` used to export `projectPath` twice (the
  * route builder and a purge helper) — a `TS2308` ambiguous star export that
  * silently resolved to whichever module came last. The route builder in
  * `./routes` is now the single definition and `./revalidate` imports it.
@@ -21,7 +21,7 @@ export * from './utils';
 /**
  * Route registry views for the operational read side (`/api/purge-manifest`,
  * diagnostics). A named re-export, NOT a star: `./revalidate` already
- * re-exports `vibeProjectPath` from `./routes`, and a second star would be
+ * re-exports `projectPath` from `./routes`, and a second star would be
  * ambiguous (`TS2308`).
  */
-export { registeredVibeDetailPaths, registeredVibeProjectSlugs } from './revalidate';
+export { registeredProjectDetailPaths, registeredProjectSlugs } from './revalidate';

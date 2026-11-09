@@ -10,7 +10,7 @@
  *
  * PAGINATED / FILTERED ROUTES ARE PURGED BY PREFIX
  *
- * `?page=N` and `?tag=<slug>` variants of the vibe-coding listing are separate
+ * `?page=N` and `?tag=<slug>` variants of the projects listing are separate
  * edge objects with an open-ended URL space. They are NOT enumerated: the app
  * publishes its `PAGINATED_ROUTES` at `/api/purge-manifest`, and each route is
  * purged once per locale as a `prefixes` entry (`host+path`, no scheme/query/
@@ -346,7 +346,7 @@ async function fetchPaginatedRoutes(port) {
 const LOCALE_PREFIXES = ['/de', '/en'];
 
 /**
- * Site-relative prefix PATHS (`/de/vibe-coding`) for the paginated routes.
+ * Site-relative prefix PATHS (`/de/projects`) for the paginated routes.
  *
  * The purge API wants `host+path` WITHOUT scheme/query/fragment and matches
  * "starts with", so one entry per locale route evicts the bare URL plus every
@@ -359,7 +359,7 @@ function paginatedRoutePaths(routes) {
   for (const route of routes ?? []) {
     for (const locale of LOCALE_PREFIXES) {
       // No trailing slash: a prefix purge matches "starts with", so
-      // `/de/vibe-coding/` would miss the bare listing.
+      // `/de/projects/` would miss the bare listing.
       const path = `${locale}${route}`.replace(/\/+$/, '');
       if (seen.has(path) || !isPurgeable(path)) continue;
       seen.add(path);

@@ -14,8 +14,8 @@ import { TimelineBlock } from './blocks/TimelineBlock';
 import { TestimonialBlock } from './blocks/TestimonialBlock';
 import { TechRadarBlock } from './blocks/TechRadarBlock';
 import { ArchitectureDiagramBlock } from './blocks/ArchitectureDiagramBlock';
-import { VibeShowcaseBlock } from './blocks/VibeShowcaseBlock';
-import type { VibeShowcaseView } from './blocks/VibeShowcaseBlock';
+import { ProjectShowcaseBlock } from './blocks/ProjectShowcaseBlock';
+import type { ProjectShowcaseView } from './blocks/ProjectShowcaseBlock';
 import { getCachedSiteSettings } from '@/cms/cache/frontend/queries';
 import {
   loadArchitectureCopy,
@@ -26,11 +26,11 @@ import {
   loadHeroCopy,
   loadTechRadarCopy,
   loadTimelineCopy,
-  loadVibeShowcaseCopy,
+  loadProjectShowcaseCopy,
 } from '@/lib/translationBundles.server';
 import { getCachedTranslation } from '@/lib/translations.server';
 import type { FrontendLocale } from '@/cms/cache/frontend/routes';
-import { VIBE_SHOWCASE_SLUG } from '@/cms/cache/frontend/routes';
+import { PROJECT_SHOWCASE_SLUG } from '@/cms/cache/frontend/routes';
 import type { HeroCopy } from './blocks/HeroBlock';
 
 export type PageBlock = NonNullable<Page['layout']>[number];
@@ -41,7 +41,7 @@ export type PageBlock = NonNullable<Page['layout']>[number];
  * not paginate.
  */
 export type BlockRequestData = {
-  listing?: { vibeShowcase: VibeShowcaseView };
+  listing?: { projectShowcase: ProjectShowcaseView };
 };
 
 /**
@@ -129,13 +129,13 @@ export async function BlockRenderer({
     // Paginated listing: the page resolves `?page=`/`?tag=` into a view and
     // passes it in. Without request data the block renders nothing rather than
     // inventing page 1 (that would be a second, uncached query).
-    case 'vibeShowcase':
+    case 'projectShowcase':
       return request?.listing ? (
-        <VibeShowcaseBlock
+        <ProjectShowcaseBlock
           block={block}
-          view={request.listing.vibeShowcase}
-          basePath={`/${locale}/${VIBE_SHOWCASE_SLUG}`}
-          copy={await loadVibeShowcaseCopy(locale)}
+          view={request.listing.projectShowcase}
+          basePath={`/${locale}/${PROJECT_SHOWCASE_SLUG}`}
+          copy={await loadProjectShowcaseCopy(locale)}
         />
       ) : null;
 
@@ -177,5 +177,5 @@ export {
   TestimonialBlock,
   TechRadarBlock,
   ArchitectureDiagramBlock,
-  VibeShowcaseBlock,
+  ProjectShowcaseBlock,
 };

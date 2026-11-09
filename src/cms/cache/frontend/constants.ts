@@ -11,21 +11,21 @@ export const CACHE_TAGS = {
   // No locale prefix: slugs are locale-agnostic (only fields are localized), so
   // a targeted flush invalidates both the en and de variant of the route.
   pageByPath: (slug: string) => `cms:pages:${slug}`,
-  // -- Vibe-coding showcase (collection `vibeProjects`, filter `vibeTags`) -----
+  // -- Project-Showcase (collection `projects`, filter `projectTags`) -----
   // Three levels, mirroring the page tags:
-  //   `cms:vibeprojects`          → collection domain (sitemap list, counts)
-  //   `cms:vibeprojects:<slug>`   → ONE project detail
-  //   `cms:vibeshowcase`          → the listing projection (every page-1 HTML is
+  //   `cms:projects`          → collection domain (sitemap list, counts)
+  //   `cms:projects:<slug>`   → ONE project detail
+  //   `cms:project-showcase`          → the listing projection (every page-1 HTML is
   //                                 a different slice per `?page=N` / `?tag=`)
-  //   `cms:vibetags`              → the tag CHIP row only (§10.4)
-  // `vibeShowcase` is a separate entry from `vibeProjects` because the listing
+  //   `cms:project-tags`              → the tag CHIP row only (§10.4)
+  // `projectShowcase` is a separate entry from `projects` because the listing
   // read is a different query than a single document; a project edit flushes
-  // both. `vibeTags` never replaces `vibeShowcase`: a tag rename/delete changes
+  // both. `projectTags` never replaces `projectShowcase`: a tag rename/delete changes
   // every `?tag=` variant (and which chips exist), so it flushes the listing.
-  vibeProjects: 'cms:vibeprojects',
-  vibeProject: (slug: string) => `cms:vibeprojects:${slug}`,
-  vibeShowcase: 'cms:vibeshowcase',
-  vibeTags: 'cms:vibetags',
+  projects: 'cms:projects',
+  project: (slug: string) => `cms:projects:${slug}`,
+  projectShowcase: 'cms:project-showcase',
+  projectTags: 'cms:project-tags',
   sitemap: 'cms:sitemap',
   siteSettings: 'cms:global:site-settings',
   navigation: 'cms:global:navigation',

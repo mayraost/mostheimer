@@ -3,28 +3,28 @@ import { notFound } from 'next/navigation';
 import { connection } from 'next/server';
 import { envConfig } from '@/envConfig';
 import { ogImageUrl } from '@/components/og/ogCard';
-import { JsonLdScript, buildVibeProjectJsonLd } from '@/components/StructuredData';
-import { VibeProjectDetail } from '@/components/vibe/VibeProjectDetail';
-import { toProjectView } from '@/components/vibe/projectView';
-import type { VibeProjectView } from '@/components/vibe/projectView';
+import { JsonLdScript, buildProjectJsonLd } from '@/components/StructuredData';
+import { ProjectDetail } from '@/components/projects/ProjectDetail';
+import { toProjectView } from '@/components/projects/projectView';
+import type { ProjectView } from '@/components/projects/projectView';
 import {
   getCachedPageBySlug,
   getCachedSiteSettings,
-  getCachedVibeProjectBySlug,
+  getCachedProjectBySlug,
 } from '@/cms/cache/frontend/frontendCache';
 import type { FrontendLocale } from '@/cms/cache/frontend/frontendCache';
-import { VIBE_SHOWCASE_SLUG } from '@/cms/cache/frontend/routes';
-import { loadVibeDetailCopy } from '@/lib/translationBundles.server';
+import { PROJECT_SHOWCASE_SLUG } from '@/cms/cache/frontend/routes';
+import { loadProjectDetailCopy } from '@/lib/translationBundles.server';
 
 /**
- * Vibe-coding project detail (`/[locale]/vibe-coding/<project>`, design § 5).
+ * Project detail (`/[locale]/projects/<project>`, design § 5).
  *
  * A static literal segment beside `[[...slug]]` is legal (only `[locale]` is
  * dynamic) and wins over the catch-all, so a project URL never reaches the page
  * resolver.
  *
  * Routing contract:
- * - The Proxy decides the HTTP status (`publishedVibeProjectStatus`) — the page
+ * - The Proxy decides the HTTP status (`publishedProjectStatus`) — the page
  *   still calls `notFound()` so the segment's own `not-found.tsx` renders the
  *   localized body (`AGENTS.md` § 404-Handling: a streamed shell freezes the
  *   status at 200).
@@ -51,12 +51,12 @@ export const instant = false;
 /** Reads the published project through the cached layer and maps it. */
 async function resolveProject(
   params: Promise<{ locale?: string; project?: string }>,
-): Promise<{ locale: FrontendLocale; project: VibeProjectView | null }> {
+): Promise<{ locale: FrontendLocale; project: ProjectView | null }> {
   const resolved = await params;
   const locale = toLocale(resolved.locale);
   const slug = resolved.project ?? '';
   if (!slug) return { locale, project: null };
-  const doc = await getCachedVibeProjectBySlug(slug, locale);
+  const doc = await getCachedProjectBySlug(slug, locale);
   return { locale, project: doc ? toProjectView(doc, locale) : null };
 }
 
@@ -70,7 +70,7 @@ async function resolveProject(
  */
 export async function generateMetadata({
   params,
-}: PageProps<'/[locale]/vibe-coding/[project]'>): Promise<Metadata> {
+}: PageProps<'/[locale]/projects/[project]'>): Promise<Metadata> {
   const { locale, project } = await resolveProject(params);
   if (!project) notFound();
 
@@ -80,7 +80,7 @@ export async function generateMetadata({
 
   const [siteSettings, listingPage] = await Promise.all([
     getCachedSiteSettings(locale),
-    getCachedPageBySlug(VIBE_SHOWCASE_SLUG, locale),
+    getCachedPageBySlug(PROJECT_SHOWCASE_SLUG, locale),
   ]);
   const siteName = siteSettings.siteName ?? '';
   const baseUrl = envConfig.serverUrl;
@@ -108,9 +108,9 @@ export async function generateMetadata({
     alternates: {
       canonical,
       languages: {
-        en: `${baseUrl}/en/${VIBE_SHOWCASE_SLUG}/${project.slug}`,
-        de: `${baseUrl}/de/${VIBE_SHOWCASE_SLUG}/${project.slug}`,
-        'x-default': `${baseUrl}/de/${VIBE_SHOWCASE_SLUG}/${project.slug}`,
+        en: `${baseUrl}/en/${PROJECT_SHOWCASE_SLUG}/${project.slug}`,
+        de: `${baseUrl}/de/${PROJECT_SHOWCASE_SLUG}/${project.slug}`,
+        'x-default': `${baseUrl}/de/${PROJECT_SHOWCASE_SLUG}/${project.slug}`,
       },
     },
     // A project page is always indexable: it is a full document, never a facet.
@@ -118,9 +118,7 @@ export async function generateMetadata({
   };
 }
 
-export default async function VibeProjectPage({
-  params,
-}: PageProps<'/[locale]/vibe-coding/[project]'>) {
+export default async function ProjectPage({ params }: PageProps<'/[locale]/projects/[project]'>) {
   // Aborts the build-time prerender attempt (no DB in the build container).
   await connection();
 
@@ -130,11 +128,11 @@ export default async function VibeProjectPage({
   if (!project) notFound();
 
   const [copy, listingPage] = await Promise.all([
-    loadVibeDetailCopy(locale),
-    getCachedPageBySlug(VIBE_SHOWCASE_SLUG, locale),
+    loadProjectDetailCopy(locale),
+    getCachedPageBySlug(PROJECT_SHOWCASE_SLUG, locale),
   ]);
 
-  const jsonLd = buildVibeProjectJsonLd({
+  const jsonLd = buildProjectJsonLd({
     locale,
     project,
     listingName: listingPage?.title ?? '',
@@ -143,7 +141,7 @@ export default async function VibeProjectPage({
   return (
     <>
       <JsonLdScript data={jsonLd} />
-      <VibeProjectDetail project={project} copy={copy} />
+      <ProjectDetail project={project} copy={copy} />
     </>
   );
 }

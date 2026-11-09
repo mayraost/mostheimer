@@ -1,7 +1,7 @@
 import React from 'react';
 
 /**
- * Pure presentation helpers shared by the vibe-coding LISTING block and the
+ * Pure presentation helpers shared by the projects LISTING block and the
  * detail route.
  *
  * They live in their own module because both surfaces render the same chrome
@@ -10,8 +10,8 @@ import React from 'react';
  * Server Components.
  */
 
-/** External link labels for the detail page (`routes.vibeProject.*`). */
-export type VibeExternalCopy = { live: string; github: string; newTabHint: string };
+/** External link labels for the detail page (`routes.project.*`). */
+export type ProjectExternalCopy = { live: string; github: string; newTabHint: string };
 
 /**
  * Small "open in a new tab" link for `liveUrl` / `githubUrl`.
@@ -24,7 +24,7 @@ export type VibeExternalCopy = { live: string; github: string; newTabHint: strin
  * Returns `null` for an absent URL: halloween-counter has a private repo, so
  * `githubUrl` is legitimately empty there and an empty pill must never render.
  */
-export function VibeExternalLink({
+export function ProjectExternalLink({
   href,
   label,
   newTabHint,
@@ -61,7 +61,7 @@ export function VibeExternalLink({
  * chip (`Developer tooling`). Rendered as a `<span>`, so it can sit inside a
  * link without nesting interactive elements.
  */
-export function VibeChip({
+export function ProjectChip({
   children,
   variant = 'outline',
 }: {
