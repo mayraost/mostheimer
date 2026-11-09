@@ -20,6 +20,8 @@ import * as migration_20261107_221931_add_clipboard_copied_inline from './202611
 import * as migration_20261108_144000_add_ui_copy_translations from './20261108_144000_add_ui_copy_translations';
 import * as migration_20261108_150000_seed_ui_copy_translations from './20261108_150000_seed_ui_copy_translations';
 import * as migration_20261108_151500_de_command_palette_copy from './20261108_151500_de_command_palette_copy';
+import * as migration_20261108_164101_add_site_identity from './20261108_164101_add_site_identity';
+import * as migration_20261108_170000_seed_seo_copy from './20261108_170000_seed_seo_copy';
 
 export const migrations = [
   {
@@ -131,5 +133,15 @@ export const migrations = [
     up: migration_20261108_151500_de_command_palette_copy.up,
     down: migration_20261108_151500_de_command_palette_copy.down,
     name: '20261108_151500_de_command_palette_copy',
+  },
+  {
+    up: migration_20261108_164101_add_site_identity.up,
+    down: migration_20261108_164101_add_site_identity.down,
+    name: '20261108_164101_add_site_identity',
+  },
+  {
+    up: migration_20261108_170000_seed_seo_copy.up,
+    down: migration_20261108_170000_seed_seo_copy.down,
+    name: '20261108_170000_seed_seo_copy',
   },
 ];

@@ -19,6 +19,7 @@ import {
 import type { JsonLdObject } from '@/components/StructuredData';
 import { derivePageDescription } from '@/cms/aeo/pageMetadata';
 import { ogImageUrl } from '@/components/og/ogCard';
+import { loadPersonJsonLd } from '@/lib/identity.server';
 
 /**
  * About-me-like slugs render as ProfilePage JSON-LD; the homepage itself is a
@@ -52,15 +53,17 @@ function buildPageJsonLd(
   page: CmsPage,
   description: string | null,
   siteName: string,
+  person: JsonLdObject,
 ): JsonLdObject {
   const path = pagePath(locale, slug);
 
   if (slug === 'home') {
-    return buildSiteJsonLd({ locale, siteName, description });
+    return buildSiteJsonLd({ locale, siteName, description, person });
   }
 
   if (PROFILE_PAGE_SLUGS.has(slug)) {
     return buildProfilePageJsonLd({
+      person,
       locale,
       path,
       name: page.title,
@@ -71,6 +74,7 @@ function buildPageJsonLd(
 
   if (slug === 'career') {
     return buildCareerJsonLd({
+      person,
       locale,
       path,
       name: page.title,
@@ -92,6 +96,7 @@ function buildPageJsonLd(
   }
 
   return buildWebPageJsonLd({
+    person,
     locale,
     path,
     name: page.title,
@@ -150,6 +155,7 @@ export default async function Page({ params }: PageProps<'/[locale]/[[...slug]]'
     page,
     derivePageDescription(page),
     siteSettings.siteName ?? '',
+    await loadPersonJsonLd(locale, siteSettings),
   );
 
   // Semantic <h1> guarantee: case-studies / tech-radar / career have no block
@@ -234,7 +240,7 @@ function buildPageMetadata(
       url: canonical,
       locale: locale === 'de' ? 'de_DE' : 'en_US',
       ...(description ? { description } : {}),
-      images: [ogImageUrl(page.title, locale)],
+      images: [ogImageUrl(page.title, locale, siteName)],
     },
     twitter: {
       card: 'summary_large_image',

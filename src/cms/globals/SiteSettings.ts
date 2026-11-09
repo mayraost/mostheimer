@@ -46,6 +46,41 @@ export const SiteSettings: GlobalConfig = {
       type: 'upload',
       relationTo: 'media',
     },
+    /**
+     * Identity facts for the JSON-LD `Person` node, the OG card and the
+     * imprint. They live HERE and not in `translations`: an address or a phone
+     * number is DATA about the person, not a UI label, and duplicating it per
+     * locale invites drift with the imprint.
+     */
+    {
+      name: 'identity',
+      type: 'group',
+      admin: {
+        description:
+          'Stammdaten für JSON-LD, OG-Karte und Impressum. Nur Fakten eintragen, die auch auf der Seite bzw. im Impressum stehen.',
+      },
+      fields: [
+        { name: 'personName', type: 'text', localized: true },
+        { name: 'email', type: 'email' },
+        { name: 'telephone', type: 'text' },
+        { name: 'streetAddress', type: 'text' },
+        { name: 'postalCode', type: 'text' },
+        { name: 'addressLocality', type: 'text', localized: true },
+        { name: 'addressCountry', type: 'text' },
+        {
+          name: 'sameAs',
+          type: 'array',
+          admin: { description: 'Öffentliche Profile (GitHub, LinkedIn …), vollständige URLs' },
+          fields: [{ name: 'url', type: 'text', required: true }],
+        },
+        {
+          name: 'knowsLanguage',
+          type: 'array',
+          admin: { description: 'BCP-47-Sprachcodes, z. B. de, en' },
+          fields: [{ name: 'code', type: 'text', required: true }],
+        },
+      ],
+    },
     // Authorship is admin-only metadata; public reads must not carry it.
     ...protectedAuthorshipFields(),
   ],

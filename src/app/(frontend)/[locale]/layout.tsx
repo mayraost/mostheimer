@@ -23,13 +23,42 @@ import { runPendingCloudflarePurges } from '@/cms/cache/frontend/purges';
 import { getCachedRouteRegistry } from '@/cms/cache/frontend/queries';
 
 import { getCommandItems } from '@/components/ui/commandItems';
-import { layoutMetadata } from './layoutMetadata';
+import { perRequestMetadata } from './layoutMetadata';
 
 /**
- * Base metadata for every `[locale]` segment; the object itself lives in
- * `layoutMetadata.ts` (kept import-light for the wording guardrail test).
+ * Base metadata for every `[locale]` segment.
+ *
+ * Generated per request instead of a static export so the values can come from
+ * the CMS (`seo.*` copy + `site-settings` brand). Static export with literals
+ * was the last place where shipping copy lived in code. The fallbacks inside
+ * `perRequestMetadata` are the registry seeds, so a cold cache still renders
+ * real text; the wording guardrail test validates `layoutMetadata` (same
+ * seeds).
+ *
+ * DB-less build guard: metadata resolves BEFORE `connection()`, so during the
+ * prerender attempt every cached read is skipped and the seeds apply.
  */
-export const metadata: Metadata = layoutMetadata;
+export async function generateMetadata({ params }: LayoutProps<'/[locale]'>): Promise<Metadata> {
+  const resolvedParams = await params;
+  const locale = (resolvedParams.locale as FrontendLocale) || 'en';
+  const isBuild = process.env.NEXT_PHASE === 'phase-production-build';
+
+  if (isBuild) {
+    return perRequestMetadata({ title: '', description: '', siteName: '' });
+  }
+
+  const [title, description, siteSettings] = await Promise.all([
+    getCachedTranslation(locale, 'seo.title'),
+    getCachedTranslation(locale, 'seo.description'),
+    getCachedSiteSettings(locale),
+  ]);
+
+  return perRequestMetadata({
+    title,
+    description,
+    siteName: siteSettings.siteName ?? '',
+  });
+}
 
 // The shell renders `connection()`-guarded content inside a Suspense boundary
 // (skeleton streams first, real chrome follows), which Next's [block]

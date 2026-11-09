@@ -62,7 +62,7 @@ export async function generateMetadata({
       siteName,
       url: canonical,
       locale: locale === 'de' ? 'de_DE' : 'en_US',
-      images: [ogImageUrl(title, locale)],
+      images: [ogImageUrl(title, locale, siteName)],
     },
     twitter: { card: 'summary_large_image', description },
     alternates: {
