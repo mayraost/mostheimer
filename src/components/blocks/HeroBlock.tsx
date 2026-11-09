@@ -148,7 +148,10 @@ export function HeroBlock({
             <p
               className={[
                 'mb-8 max-w-2xl leading-relaxed text-muted-foreground',
-                variant === 'compact' ? 'line-clamp-3 text-base' : 'text-base sm:text-lg',
+                // Full text, no clamping: a truncated hero teaser looks broken
+                // (`Cod…`), and the compact hero is a page header, not a card —
+                // longer copy must wrap instead of disappearing.
+                variant === 'compact' ? 'text-base' : 'text-base sm:text-lg',
               ].join(' ')}
             >
               {block.subheading}
