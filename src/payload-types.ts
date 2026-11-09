@@ -3303,6 +3303,36 @@ export interface SiteSetting {
   siteName: string;
   siteDescription?: string | null;
   defaultOgImage?: (number | null) | Media;
+  /**
+   * Stammdaten für JSON-LD, OG-Karte und Impressum. Nur Fakten eintragen, die auch auf der Seite bzw. im Impressum stehen.
+   */
+  identity?: {
+    personName?: string | null;
+    email?: string | null;
+    telephone?: string | null;
+    streetAddress?: string | null;
+    postalCode?: string | null;
+    addressLocality?: string | null;
+    addressCountry?: string | null;
+    /**
+     * Öffentliche Profile (GitHub, LinkedIn …), vollständige URLs
+     */
+    sameAs?:
+      | {
+          url: string;
+          id?: string | null;
+        }[]
+      | null;
+    /**
+     * BCP-47-Sprachcodes, z. B. de, en
+     */
+    knowsLanguage?:
+      | {
+          code: string;
+          id?: string | null;
+        }[]
+      | null;
+  };
   createdBy?: {
     relationTo: 'users';
     value: number | User;
@@ -3491,6 +3521,29 @@ export interface SiteSettingsSelect<T extends boolean = true> {
   siteName?: T;
   siteDescription?: T;
   defaultOgImage?: T;
+  identity?:
+    | T
+    | {
+        personName?: T;
+        email?: T;
+        telephone?: T;
+        streetAddress?: T;
+        postalCode?: T;
+        addressLocality?: T;
+        addressCountry?: T;
+        sameAs?:
+          | T
+          | {
+              url?: T;
+              id?: T;
+            };
+        knowsLanguage?:
+          | T
+          | {
+              code?: T;
+              id?: T;
+            };
+      };
   createdBy?: T;
   updatedBy?: T;
   updatedAt?: T;

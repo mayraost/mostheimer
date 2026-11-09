@@ -12,9 +12,12 @@ import { envConfig } from '@/envConfig';
  * - Other content pages: slim `WebPage` nodes, extended per page (`ItemList`
  *   for listings, `ProfilePage` for the CV).
  *
- * Every fact in `PERSON` is backed by the imprint (§ 5 DDG), public profiles
- * (GitHub/LinkedIn) or the site's own case-study/timeline content — no invented
- * degrees, titles or availability claims.
+ * Every fact in the Person node is backed by `site-settings.identity` (which is
+ * maintained from the imprint, § 5 DDG), public profiles or the site's own
+ * case-study/timeline content — no invented degrees, titles or availability
+ * claims. The node is built per request by `buildPerson()`; there is no module
+ * level `PERSON` constant any more (08.11.2026), because that was the last
+ * place where shipping identity copy lived in code.
  *
  * Types are minimal local structures instead of the `schema-dts` package to
  * keep this feature dependency-free.
@@ -30,47 +33,77 @@ export function jsonLdLanguageTag(locale: FrontendLocale): 'de-DE' | 'en-US' {
 }
 
 /**
- * Identity anchor: the Person object with a stable `@id`. Values come from the
- * imprint (§ 5 DDG), public profiles and the professional facts stated on the
- * site itself (case studies / career timeline).
+ * Identity facts for the Person node.
+ *
+ * DATA lives in `site-settings.identity` (an address is not a UI label), copy
+ * in the `translations` registry (`seo.person*`). The builder below stays a
+ * pure function so the JSON-LD can be unit-tested without a database.
+ */
+export interface PersonIdentity {
+  siteName: string;
+  personName: string;
+  email: string;
+  telephone: string;
+  streetAddress: string;
+  postalCode: string;
+  addressLocality: string;
+  addressCountry: string;
+  sameAs: string[];
+  knowsLanguage: string[];
+  jobTitle: string;
+  description: string;
+  worksFor: string;
+  contactType: string;
+  /** Locale root path for `url` (`/de` or `/en`). */
+  localePath: string;
+}
+
+/**
+ * Identity anchor: the Person object with a stable `@id`.
  *
  * Deliberately omitted:
  * - `image`: Google requires a real crawlable photo; a missing image is
  *   harmless, a placeholder OG card posing as the person's photo is not.
  * - `seeks`/`makesOffer`/"available for work": that badge is marketing copy,
  *   not a verified availability status.
+ *
+ * Empty fields are DROPPED rather than emitted blank — schema.org validators
+ * reject `""` for most properties, and an editor clearing a field must degrade
+ * the graph, not break it.
  */
-export const PERSON: JsonLdObject = {
-  '@type': 'Person',
-  '@id': `${BASE_URL}/#person`,
-  name: 'Mayra Ostheimer',
-  url: `${BASE_URL}/de`,
-  jobTitle: 'Senior Fullstack Developer',
-  description:
-    'Senior Fullstack Developer für resiliente Web- und Anwendungsarchitekturen: Next.js, React, TypeScript, Payload CMS und Pimcore im Enterprise-Umfeld.',
-  sameAs: ['https://github.com/mayraost', 'https://de.linkedin.com/in/mayra-ostheimer-207355438'],
-  email: 'mayraostheimer@gmail.com',
-  telephone: '+49 176 63787951',
-  address: {
-    '@type': 'PostalAddress',
-    streetAddress: 'Ringstraße 60',
-    postalCode: '25368',
-    addressLocality: 'Kiebitzreihe',
-    addressCountry: 'DE',
-  },
-  worksFor: {
-    '@type': 'Organization',
-    name: 'valantic DXA',
-  },
-  knowsLanguage: ['de', 'en'],
-  contactPoint: {
+export function buildPerson(input: PersonIdentity): JsonLdObject {
+  const contactPoint: JsonLdObject = {
     '@type': 'ContactPoint',
-    email: 'mayraostheimer@gmail.com',
-    telephone: '+49 176 63787951',
-    contactType: 'personal',
-    availableLanguage: ['de', 'en'],
-  },
-};
+    ...(input.email ? { email: input.email } : {}),
+    ...(input.telephone ? { telephone: input.telephone } : {}),
+    ...(input.contactType ? { contactType: input.contactType } : {}),
+    ...(input.knowsLanguage.length > 0 ? { availableLanguage: input.knowsLanguage } : {}),
+  };
+
+  const address: JsonLdObject = {
+    '@type': 'PostalAddress',
+    ...(input.streetAddress ? { streetAddress: input.streetAddress } : {}),
+    ...(input.postalCode ? { postalCode: input.postalCode } : {}),
+    ...(input.addressLocality ? { addressLocality: input.addressLocality } : {}),
+    ...(input.addressCountry ? { addressCountry: input.addressCountry } : {}),
+  };
+
+  return {
+    '@type': 'Person',
+    '@id': `${BASE_URL}/#person`,
+    name: input.personName || input.siteName,
+    url: `${BASE_URL}${input.localePath}`,
+    ...(input.jobTitle ? { jobTitle: input.jobTitle } : {}),
+    ...(input.description ? { description: input.description } : {}),
+    ...(input.sameAs.length > 0 ? { sameAs: input.sameAs } : {}),
+    ...(input.email ? { email: input.email } : {}),
+    ...(input.telephone ? { telephone: input.telephone } : {}),
+    ...(Object.keys(address).length > 1 ? { address } : {}),
+    ...(input.worksFor ? { worksFor: { '@type': 'Organization', name: input.worksFor } } : {}),
+    ...(input.knowsLanguage.length > 0 ? { knowsLanguage: input.knowsLanguage } : {}),
+    ...(Object.keys(contactPoint).length > 1 ? { contactPoint } : {}),
+  };
+}
 
 /** Person as a standalone reference (same `@id` → graph link). */
 function personRef(): JsonLdObject {
@@ -81,6 +114,7 @@ export interface SiteJsonLdInput {
   locale: FrontendLocale;
   siteName: string;
   description?: string | null;
+  person: JsonLdObject;
 }
 
 /**
@@ -100,12 +134,13 @@ export function buildSiteJsonLd(input: SiteJsonLdInput): JsonLdObject {
         publisher: personRef(),
         ...(input.description ? { description: input.description } : {}),
       },
-      PERSON,
+      input.person,
     ],
   };
 }
 
 export interface ProfilePageJsonLdInput {
+  person: JsonLdObject;
   locale: FrontendLocale;
   /** Slug path without base URL, with locale prefix (e.g. `/en/about`). */
   path: string;
@@ -133,11 +168,12 @@ export function buildProfilePageJsonLd(input: ProfilePageJsonLdInput): JsonLdObj
     ...(input.name ? { name: input.name } : {}),
     ...(input.description ? { description: input.description } : {}),
     ...(input.dateModified ? { dateModified: input.dateModified } : {}),
-    mainEntity: PERSON,
+    mainEntity: input.person,
   };
 }
 
 export interface WebPageJsonLdInput {
+  person: JsonLdObject;
   locale: FrontendLocale;
   /** Slug path without base URL, with locale prefix (e.g. `/de/contact`). */
   path: string;
@@ -146,7 +182,7 @@ export interface WebPageJsonLdInput {
   dateModified?: string | null;
   /**
    * `/contact`: contact facts as a second graph node (Person reference +
-   * ContactPoint), from the same source as `PERSON` — not a duplicate.
+   * ContactPoint), from the same source as the Person node — not a duplicate.
    */
   includeContact?: boolean;
 }
@@ -179,13 +215,7 @@ export function buildWebPageJsonLd(input: WebPageJsonLdInput): JsonLdObject {
 
   return {
     '@context': 'https://schema.org',
-    '@graph': [
-      page,
-      {
-        ...PERSON,
-        url: `${BASE_URL}/${input.locale === 'de' ? 'de' : 'en'}`,
-      },
-    ],
+    '@graph': [page, input.person],
   };
 }
 
@@ -241,6 +271,7 @@ export function parsePeriod(period: string | null | undefined): ParsedPeriod | n
 }
 
 export interface CareerJsonLdInput {
+  person: JsonLdObject;
   locale: FrontendLocale;
   path: string;
   name?: string | null;
@@ -288,7 +319,7 @@ export function buildCareerJsonLd(input: CareerJsonLdInput): JsonLdObject {
     ...(input.description ? { description: input.description } : {}),
     ...(input.dateModified ? { dateModified: input.dateModified } : {}),
     mainEntity: {
-      ...PERSON,
+      ...input.person,
       ...(occupations.length > 0 ? { hasOccupation: occupations } : {}),
     },
   };

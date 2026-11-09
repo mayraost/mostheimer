@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { COPY_KEYS } from '@/lib/translations';
 
 /**
  * LAST-RESORT error page: rendered when the root layout itself fails.
@@ -59,25 +60,28 @@ export default function GlobalError({
       <body>
         <main>
           <div className="card">
-            <p className="label">HTTP 500 · Critical error</p>
-            <h1>The site could not be loaded</h1>
-            <p>
-              A fatal error occurred while rendering this page. Please try again or return to the
-              home page.
-            </p>
+            {/* Copy from the registry (`routes.globalError.*` seeds): this
+                document may be the LAST thing that renders, so it must not
+                depend on a CMS read — but it also must not carry literals that
+                drift from the seeded copy. */}
+            <p className="label">{COPY_KEYS['routes.globalError.code']}</p>
+            <h1>{COPY_KEYS['routes.globalError.title']}</h1>
+            <p>{COPY_KEYS['routes.globalError.message']}</p>
             <div className="actions">
               {/* Link renders a plain <a href="/"> too — works without client JS. */}
               <Link className="primary" href="/">
-                Back to home
+                {COPY_KEYS['routes.globalError.home']}
               </Link>
               {onRetry ? (
                 <button type="button" className="ghost" onClick={() => onRetry()}>
-                  Try again
+                  {COPY_KEYS['routes.globalError.retry']}
                 </button>
               ) : null}
             </div>
           </div>
-          <footer>Mayra Ostheimer · Web &amp; Application Architect</footer>
+          <footer>
+            {COPY_KEYS['seo.manifestShortName']} · {COPY_KEYS['seo.ogSubtitle']}
+          </footer>
         </main>
       </body>
     </html>

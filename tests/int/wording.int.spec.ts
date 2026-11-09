@@ -6,7 +6,8 @@ import {
   hasRequiredWording,
 } from '@/cms/aeo/constraints';
 import { LLMS_TXT } from '@/cms/aeo/llmsTxt';
-import { PERSON } from '@/components/StructuredData';
+import { buildPerson } from '@/components/StructuredData';
+import { COPY_KEYS } from '@/lib/translations';
 import { wordingBeforeValidate } from '@/cms/wording/beforeValidateWordingCheck';
 
 /**
@@ -121,12 +122,44 @@ describe('wordingBeforeValidate hook', () => {
 });
 
 describe('code-side identity strings', () => {
-  const identityStrings = collectStrings(PERSON);
+  /*
+   * The Person node is built per request from `site-settings` (data) + the
+   * `seo.person*` copy; the DATA half lives in the CMS, so this test pins the
+   * COPY half — the registry seeds, which are exactly the strings a fresh
+   * database ships.
+   */
+  const person = buildPerson({
+    siteName: COPY_KEYS['seo.manifestShortName'],
+    personName: COPY_KEYS['seo.manifestShortName'],
+    email: '',
+    telephone: '',
+    streetAddress: '',
+    postalCode: '',
+    addressLocality: '',
+    addressCountry: '',
+    sameAs: [],
+    knowsLanguage: ['de', 'en'],
+    jobTitle: COPY_KEYS['seo.personJobTitle'],
+    description: COPY_KEYS['seo.personDescription'],
+    worksFor: COPY_KEYS['seo.worksFor'],
+    contactType: COPY_KEYS['seo.contactType'],
+    localePath: '/de',
+  });
+  const identityStrings = collectStrings(person);
 
-  it('JSON-LD Person carries no banned wording and states Senior', () => {
+  it('JSON-LD Person copy carries no banned wording and states Senior', () => {
     const joined = identityStrings.join('\n');
     expect(findWordingViolations(joined)).toEqual([]);
     expect(hasRequiredWording(joined)).toBe(true);
+  });
+
+  it('all SEO copy seeds carry no banned wording', () => {
+    const seoCopy = Object.entries(COPY_KEYS)
+      .filter(([key]) => key.startsWith('seo.'))
+      .map(([, value]) => value)
+      .join('\n');
+    expect(findWordingViolations(seoCopy)).toEqual([]);
+    expect(hasRequiredWording(seoCopy)).toBe(true);
   });
 
   it('llms.txt carries no banned wording and states Senior', () => {

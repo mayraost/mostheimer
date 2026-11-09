@@ -141,6 +141,29 @@ export const COPY_KEYS = {
   'blocks.imageText.eyebrow': 'content',
   'blocks.imageText.imagePlaceholder': '[ image ]',
 
+  // -- SEO / metadata (layout, manifest, OG card) ----------------------------
+  'seo.title': 'Mayra Ostheimer — Web & Application Architect',
+  'seo.description':
+    'Mayra Ostheimer — Web & Application Architect und Senior-Level FullStack Engineer. Composable Architekturen, Next.js/Payload, Team- & Projektleitung für produktionsreife Systeme.',
+  'seo.ogSubtitle': 'Web & Application Architect',
+  'seo.manifestName': 'Mayra Ostheimer — Web & Application Architect',
+  'seo.manifestShortName': 'Mayra Ostheimer',
+  'seo.manifestDescription':
+    'Senior Fullstack Developer und Web-Application-Architekt. Composable Architekturen, TypeScript, React und Next.js.',
+  'seo.personJobTitle': 'Senior Fullstack Developer',
+  'seo.personDescription':
+    'Senior Fullstack Developer für resiliente Web- und Anwendungsarchitekturen: Next.js, React, TypeScript, Payload CMS und Pimcore im Enterprise-Umfeld.',
+  'seo.worksFor': 'valantic DXA',
+  'seo.contactType': 'personal',
+
+  // -- Global error document (last resort, no DB guarantee) -------------------
+  'routes.globalError.code': 'HTTP 500 · Critical error',
+  'routes.globalError.title': 'The site could not be loaded',
+  'routes.globalError.message':
+    'A fatal error occurred while rendering this page. Please try again or return to the home page.',
+  'routes.globalError.home': 'Back to home',
+  'routes.globalError.retry': 'Try again',
+
   // -- Routes ----------------------------------------------------------------
   'routes.imprint.title': 'Imprint',
   'routes.imprint.eyebrow': 'Home // Imprint',

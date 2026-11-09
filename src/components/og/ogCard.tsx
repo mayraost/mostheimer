@@ -103,10 +103,10 @@ export function OgMark({ size = 96 }: { size?: number }) {
  * comment). The URL stays relative on purpose — `metadataBase` from the layout
  * resolves it to an absolute one.
  */
-export function ogImageUrl(title: string, locale: OgLocale): string {
+export function ogImageUrl(title: string, locale: OgLocale, subtitle = ''): string {
   const params = new URLSearchParams({
     t: title.slice(0, OG_TITLE_MAX_LENGTH),
-    s: 'Mayra Ostheimer',
+    s: subtitle.slice(0, OG_TITLE_MAX_LENGTH),
     loc: locale,
   });
   return `/og?${params.toString()}`;
@@ -122,13 +122,38 @@ export interface OgCardProps {
   title: string;
   /** Subtitle (site name or short byline). */
   subtitle?: string;
+  /**
+   * Brand wordmark, split into its lines (the card stacks them).
+   *
+   * Copy comes from the caller (`site-settings.siteName`), resolved in the /og
+   * route: the card itself must stay a pure renderer because Satori runs
+   * outside any React request context and cannot await the CMS.
+   */
+  wordmark: string[];
+  /** Subline under the wordmark (`seo.ogSubtitle`, e.g. "Web & Application Architect"). */
+  tagline?: string;
+}
+
+/**
+ * Splits a brand name into display lines.
+ *
+ * Satori cannot wrap automatically and the card reserves a fixed two-line
+ * block, so the caller passes the already-split result of this helper (shared
+ * with the route, which owns the data).
+ */
+export function splitWordmark(siteName: string): string[] {
+  const words = siteName.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return [];
+  if (words.length === 1) return [words[0].toUpperCase()];
+  // First word on line one, the rest on line two ("MAYRA" / "OSTHEIMER").
+  return [words[0].toUpperCase(), words.slice(1).join(' ').toUpperCase()];
 }
 
 /**
  * The card itself: brand row (mark, wordmark, subline) on top, title
  * bottom-left, on the dark brand surface with an emerald→cyan hairline.
  */
-export function OgCard({ title, subtitle }: OgCardProps) {
+export function OgCard({ title, subtitle, wordmark, tagline }: OgCardProps) {
   return (
     <div
       style={{
@@ -161,8 +186,11 @@ export function OgCard({ title, subtitle }: OgCardProps) {
               color: OG_BRAND.text,
             }}
           >
-            <div style={{ display: 'flex' }}>MAYRA</div>
-            <div style={{ display: 'flex' }}>OSTHEIMER</div>
+            {wordmark.map((line) => (
+              <div key={line} style={{ display: 'flex' }}>
+                {line}
+              </div>
+            ))}
           </div>
           <div
             style={{
@@ -173,7 +201,7 @@ export function OgCard({ title, subtitle }: OgCardProps) {
               color: OG_BRAND.cyan,
             }}
           >
-            {'// WEB & APPLICATION ARCHITECT'}
+            {tagline ? `// ${tagline.toUpperCase()}` : ''}
           </div>
         </div>
       </div>

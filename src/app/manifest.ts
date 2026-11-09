@@ -1,7 +1,17 @@
 import type { MetadataRoute } from 'next';
+import { COPY_KEYS } from '@/lib/translations';
 
 /**
  * Web app manifest — install/metadata for mobile home screens and Android.
+ *
+ * COPY SOURCE (rule since 08.11.2026): name/short_name/description come from
+ * the `translations` registry (`seo.manifest*`), not from literals. A manifest
+ * is fetched by the BROWSER before any locale is negotiated and is served from
+ * a static route, so it deliberately uses the registry seeds (the same strings
+ * the CMS is seeded with) rather than a request-time read: reading the CMS here
+ * would make an install prompt depend on a database round-trip.
+ *
+ * `lang` is the primary audience (de), matching `x-default`.
  *
  * The icons are generated from the MO mark by `scripts/brand-icons.ts`
  * (`npm run generate:icons`). `purpose: 'any'` and `'maskable'` use separate
@@ -11,10 +21,9 @@ import type { MetadataRoute } from 'next';
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Mayra Ostheimer — Web & Application Architect',
-    short_name: 'Mayra Ostheimer',
-    description:
-      'Senior Fullstack Developer und Web-Application-Architekt. Composable Architekturen, TypeScript, React und Next.js.',
+    name: COPY_KEYS['seo.manifestName'],
+    short_name: COPY_KEYS['seo.manifestShortName'],
+    description: COPY_KEYS['seo.manifestDescription'],
     start_url: '/',
     display: 'standalone',
     // Matches the design system's dark default (`--color-background`), so the

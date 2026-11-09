@@ -2094,3 +2094,30 @@ SELECT count(*) FROM pg_enum …  -- vor UND nach dem Lauf vergleichen (muss >= 
 
 Merke: Eine „grüne" lokale Migration beweist für Prod **nichts**, wenn die lokale DB den
 Schema-Stand nie erreicht hat (SQLite-Historie, Downgrades, nie angewendete Drifts).
+
+### SEO-/Identitäts-Copy: die letzten Literale (08.11.2026)
+
+Die letzten hartkodierten Strings lagen an Stellen, die **nicht** in einem Request-Kontext
+laufen und deshalb nicht einfach `await`en können. Drei Kategorien, drei Muster:
+
+| Stelle | Muster | Warum |
+| --- | --- | --- |
+| `layoutMetadata.ts` | Registry-Seeds als **statischer** Export (`layoutMetadata`), plus `perRequestMetadata()` für den echten Request | `export const metadata` kann nicht awaiten; der Wording-Test importiert das Objekt direkt. Das Layout nutzt jetzt `generateMetadata()` mit CMS-Werten. |
+| `manifest.ts` | Registry-Seeds (`seo.manifest*`) | Der Browser holt das Manifest vor jeder Locale-Aushandlung; ein Install-Prompt darf nicht an einer DB-Runde hängen. |
+| `ogCard.tsx` / `/og` | Karte = reiner Renderer (Props), Route löst `site-settings` + `seo.ogSubtitle` auf | Satori läuft außerhalb des React-Request-Kontexts. |
+| `global-error.tsx` | Registry-Seeds (`routes.globalError.*`) | Letztes Dokument; darf nicht lesen, aber auch keine driftenden Literale tragen. |
+| `StructuredData.tsx` | `buildPerson(input)` statt `PERSON`-Konstante | JSON-LD wird pro Request gebaut; Identity kommt aus `site-settings.identity`, Copy aus `seo.person*`. |
+
+**Identität = Daten, nicht Copy.** Name, Adresse, Telefon, Profile und Sprachen liegen in
+`site-settings.identity` (Gruppe, mit `sameAs`/`knowsLanguage` als Arrays). Eine Adresse ist
+kein UI-Label; sie wird aus dem Impressum gepflegt. `src/lib/identity.server.ts` verbindet
+beide Quellen zu `PersonIdentity` und baut den `Person`-Knoten.
+
+**Leere Felder werden aus dem JSON-LD ENTFERNT**, nicht als `""` emittiert — schema.org
+weist leere Werte zurück, und ein geleertes Feld soll den Graphen verschlechtern, nicht
+zerstören.
+
+**Merke beim Rebase/Checkout:** `git checkout <branch> -- src/cms/globals/X.ts` holt die
+FREMDE Version und überschreibt lokale Arbeit. Wenn eine Config-Datei plötzlich alte Felder
+(`maintenanceMode`) oder ein `pick()`-Leck hat, ist genau das passiert — die Datei gegen
+`origin/main` zurücksetzen und die eigene Erweiterung neu einfügen.
