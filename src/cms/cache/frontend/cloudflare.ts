@@ -57,7 +57,17 @@
  * disagree; both fall back to the same single content zone.
  *
  * A URL is only ever sent to the zone that owns its host: the mapping is
- * filtered by host (`purgeUrlsByZone`), never the other way round.
+ * filtered by host (`purgeGroupsByZone`), never the other way round.
+ *
+ * FILES vs PREFIXES
+ *
+ * Exact URLs (`files`) are the default: a page slug or a project detail page is
+ * one object. Routes whose page-1 HTML carries query-string variants
+ * (`?page=N`, `?tag=<slug>` — see `PAGINATED_ROUTES` in ./routes.ts) have an
+ * open-ended URL space, so they are evicted with `prefixes` (`host+path`, no
+ * scheme/query/fragment) instead of enumerating every variant. Both shapes ride
+ * in ONE request per zone when a flush has both, and both are capped at 100 ops
+ * per request (longer lists are batched, a dropped op is logged loudly).
  *
  * TOKEN PERMISSION
  *
@@ -77,21 +87,37 @@ import { isPurgeablePath } from './routes';
 
 const CLOUDFLARE_API_BASE = 'https://api.cloudflare.com/client/v4';
 const REQUEST_TIMEOUT_MS = 5000;
-/** Cloudflare accepts up to 100 URLs per single-file purge request. */
-const MAX_URLS_PER_REQUEST = 100;
 /** After a failed API call, skip purges for this long (Free bucket refills per minute). */
 const CIRCUIT_OPEN_MS = 2 * 60_000;
+/**
+ * 429 pacing: the Free plan allows 5 purge REQUESTS per minute account-wide (a
+ * token bucket of 25). One retry after a short pause rides out a burst; a
+ * second 429 fails the purge so the circuit breaker can stop hammering.
+ */
+const RATE_LIMIT_RETRY_MS = 1_500;
+const MAX_RATE_LIMIT_RETRIES = 1;
 
 /**
- * Purge targets. Deliberately there is NO `everything` variant in the public
- * type: `purge_everything` would also wipe `/_next/static/**`, which must never
- * be purged (see `isPurgeablePath` in ./routes.ts). A broad flush is still a
- * single API call — `cms:all` resolves to the full set of content routes.
+ * Purge targets — three shapes, one request body each:
  *
- * `type: 'urls'` carries site-relative paths; `toPurgeUrls` expands them across
- * the content hosts (`mostheimer.de`, `www.mostheimer.de`).
+ * - `urls`: exact site-relative paths (detail pages, page slugs). Expanded
+ *   across the content hosts.
+ * - `prefixes`: site-relative route PATHS whose whole subtree must go (the
+ *   paginated/filtered listing: bare URL, `?page=N`, `?tag=<slug>`). The API
+ *   wants `host+path` WITHOUT scheme/query/fragment, so the hosts are prepended
+ *   and nothing else is added.
+ * - `mixed`: both in ONE request — the Free budget is 5 requests/min, so a
+ *   project publish must not fan out into one call per target type.
+ *
+ * Deliberately there is NO `everything` variant in the public type:
+ * `purge_everything` would also wipe `/_next/static/**`, which must never be
+ * purged (see `isPurgeablePath` in ./routes.ts). A broad flush is still a
+ * single API call — `cms:all` resolves to the full set of content routes.
  */
-export type CloudflarePurgeTarget = { type: 'urls'; paths: readonly string[] };
+export type CloudflarePurgeTarget =
+  | { type: 'urls'; paths: readonly string[] }
+  | { type: 'prefixes'; paths: readonly string[] }
+  | { type: 'mixed'; paths?: readonly string[]; prefixes?: readonly string[] };
 
 /** Outcome of a purge attempt — logged by the caller, never contains the token. */
 export type CloudflarePurgeResult =
@@ -99,7 +125,7 @@ export type CloudflarePurgeResult =
       status: 'skipped';
       reason: 'build-phase' | 'not-configured' | 'circuit-open' | 'nothing-to-purge';
     }
-  | { status: 'purged'; urls: number; zones: number }
+  | { status: 'purged'; urls: number; prefixes: number; zones: number }
   | { status: 'failed'; reason: string };
 
 let circuitOpenUntil = 0;
@@ -131,6 +157,9 @@ export function resetCloudflareCircuitForTests(): void {
  * Free-plan purge budget.
  */
 type PurgeZone = { zoneId: string; origins: string[] };
+
+/** Cloudflare accepts at most 100 ops (`files` or `prefixes`) per request. */
+export const MAX_OPS_PER_REQUEST = 100;
 
 /**
  * Read at call time (not from `envConfig` at import): keeps this module usable
@@ -258,7 +287,7 @@ function urlBelongsToOrigin(url: string, origin: string): boolean {
  * — present or future — can hand a `/_next/static/**` URL to the purge API.
  *
  * This is the diagnostic/URL view (content hosts, no zone split). The actual
- * API call groups these by zone — see `purgeUrlsByZone`.
+ * API call groups these by zone — see `purgeGroupsByZone`.
  */
 export function toPurgeUrls(paths: readonly string[]): string[] {
   const urls = new Set<string>();
@@ -273,101 +302,288 @@ export function toPurgeUrls(paths: readonly string[]): string[] {
 }
 
 /**
- * `[{ zoneId, files }]` — one group per zone, each containing ONLY the URLs of
- * hosts that zone serves. A URL is never sent to a zone that does not own it:
- * Cloudflare would answer `success: true` and evict nothing (see `PurgeZone`)
- * while still spending one request of the account-wide Free-plan budget.
+ * Absolute `host+path` PREFIX entries (no scheme, no query, no fragment — the
+ * shape Cloudflare's `prefixes` field expects) across the content hosts.
  *
- * The host filter runs in BOTH directions: a zone only receives URLs built from
- * its own origins, and a URL is dropped entirely when no zone owns its host
- * (e.g. a legacy `mosthi.de` origin from a stale configuration).
+ * Diagnostic view of `type: 'prefixes'` targets; the asset filter is the same
+ * single choke point as for URLs.
  */
-function purgeUrlsByZone(
-  paths: readonly string[],
+export function toPurgePrefixes(paths: readonly string[]): string[] {
+  return purgeGroupsByZone({ paths: [], prefixes: paths }, resolveZones()).flatMap(
+    (group) => group.prefixes,
+  );
+}
+
+/**
+ * `[{ zoneId, files, prefixes }]` — one group per zone, each containing ONLY
+ * the URLs/prefixes of hosts that zone serves. A URL is never sent to a zone
+ * that does not own it: Cloudflare would answer `success: true` and evict
+ * nothing (see `PurgeZone`) while still spending one request of the
+ * account-wide Free-plan budget.
+ *
+ * The host filter runs in BOTH directions: a zone only receives entries built
+ * from its own origins, and an entry is dropped entirely when no zone owns its
+ * host (e.g. a legacy `mosthi.de` origin from a stale configuration).
+ *
+ * Prefix entries are `host+path` (no scheme, no query, no fragment) as the purge
+ * API requires, and they run through `isPurgeablePath` too — a prefix derived
+ * from an asset path is impossible by construction (`normalizePrefixPath`
+ * returns `null` for it), so the never-purge-assets invariant covers both
+ * request shapes.
+ */
+type ZoneGroup = { zoneId: string; files: string[]; prefixes: string[] };
+
+function toPrefix(origin: string, path: string): string | null {
+  if (!isPurgeablePath(path)) return null;
+  const host = originHost(origin);
+  if (!host) return null;
+  // `originHost` lowercases the hostname without a port: prefix purges are
+  // path-based and the site is served on the default port.
+  return `${host}${path}`;
+}
+
+/**
+ * Normalizes a prefix CANDIDATE path, or `null` when it must never become a
+ * prefix entry:
+ *
+ * - `/_next/static/**` → `null` (the asset invariant; a prefix is the widest
+ *   possible way to violate it),
+ * - a query/fragment is stripped (Cloudflare rejects `?`/`#` in `prefixes`),
+ * - a trailing `/` is stripped, because a prefix purge matches "starts with"
+ *   and `/de/vibe-coding/` would miss the bare listing while
+ *   `/de/vibe-coding` covers its whole subtree,
+ * - anything that is not a path (`http://…`, `//host/…`) → `null`.
+ */
+function normalizePrefixPath(pathname: string): string | null {
+  const path = pathname.split(/[?#]/, 1)[0] ?? '';
+  if (!path) return null;
+  // An absolute URL carries a scheme — never a prefix path (the host of a
+  // prefix comes from the zone, never from the input).
+  if (/^[a-z][a-z0-9+.-]*:/i.test(path)) return null;
+  const withSlash = path.startsWith('/') ? path : `/${path}`;
+  const trimmed = withSlash.length > 1 ? withSlash.replace(/\/+$/, '') : withSlash;
+  // A protocol-relative value (`//host/...`) would prefix a foreign host.
+  if (trimmed.startsWith('//')) return null;
+  if (!isPurgeablePath(trimmed)) return null;
+  return trimmed;
+}
+
+function purgeGroupsByZone(
+  { paths, prefixes }: { paths: readonly string[]; prefixes: readonly string[] },
   zones: readonly PurgeZone[],
-): { zoneId: string; files: string[] }[] {
-  const purgeable = paths
+): ZoneGroup[] {
+  const files = paths
     .map((path) => (path.startsWith('/') ? path : `/${path}`))
     .filter(isPurgeablePath);
+  // Prefix entries go through the same choke point as files (`isPurgeablePath`
+  // inside `normalizePrefixPath`), so an asset prefix is impossible by
+  // construction — see the INVARIANT in the module header.
+  const prefixPaths = prefixes
+    .map(normalizePrefixPath)
+    .filter((path): path is string => path !== null);
 
-  const groups: { zoneId: string; files: string[] }[] = [];
+  const groups: ZoneGroup[] = [];
   for (const zone of zones) {
-    const files = new Set<string>();
-    for (const path of purgeable) {
+    const zoneFiles = new Set<string>();
+    const zonePrefixes = new Set<string>();
+    for (const path of files) {
       for (const origin of zone.origins) {
         const url = `${origin}${path}`;
         if (!urlBelongsToOrigin(url, origin)) continue;
-        files.add(url);
+        zoneFiles.add(url);
       }
     }
-    if (files.size > 0) groups.push({ zoneId: zone.zoneId, files: [...files] });
+    for (const path of prefixPaths) {
+      for (const origin of zone.origins) {
+        if (!urlBelongsToOrigin(`${origin}${path}`, origin)) continue;
+        const prefix = toPrefix(origin, path);
+        if (prefix) zonePrefixes.add(prefix);
+      }
+    }
+    if (zoneFiles.size > 0 || zonePrefixes.size > 0) {
+      groups.push({ zoneId: zone.zoneId, files: [...zoneFiles], prefixes: [...zonePrefixes] });
+    }
   }
   return groups;
+}
+
+/** One API call for a zone: `files` and/or `prefixes`, visible in one request. */
+async function postPurge(
+  zoneId: string,
+  token: string,
+  body: { files?: string[]; prefixes?: string[] },
+): Promise<Response> {
+  return fetchImpl(`${CLOUDFLARE_API_BASE}/zones/${zoneId}/purge_cache`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+    cache: 'no-store',
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+}
+
+/**
+ * Splits a list into chunks of at most `size`, preserving order.
+ *
+ * `files` and `prefixes` are batched with the SAME helper, so a flush of 120
+ * URLs becomes `100 + 20` and not `100` with 20 silently dropped. The API caps
+ * a request at 100 ops TOTAL, which is why the batches are sent as pairs (see
+ * `opBatches`).
+ */
+export function chunkOps<T>(ops: readonly T[], size: number = MAX_OPS_PER_REQUEST): T[][] {
+  const normalized = Math.max(1, Math.trunc(size) || MAX_OPS_PER_REQUEST);
+  const chunks: T[][] = [];
+  for (let index = 0; index < ops.length; index += normalized) {
+    chunks.push(ops.slice(index, index + normalized));
+  }
+  return chunks;
+}
+
+/** One request body: up to 100 files and up to 100 prefixes. */
+export type PurgeRequestBody = { files?: string[]; prefixes?: string[] };
+
+/**
+ * Batch plan for one zone: `[{files: 100}, {files: 20, prefixes: 4}, …]`.
+ *
+ * Files are consumed first so that a flush of pure URLs keeps its exact
+ * `ceil(n / 100)` request count (a Free-plan budget concern), and the prefixes
+ * ride along in the trailing requests: both shapes share one request whenever
+ * they overlap, which keeps a mixed flush at `max(ceil(files/100),
+ * ceil(prefixes/100))` requests instead of the sum.
+ */
+export function planPurgeRequests(
+  files: readonly string[],
+  prefixes: readonly string[],
+): PurgeRequestBody[] {
+  const batches: PurgeRequestBody[] = [];
+  const fileChunks = chunkOps(files);
+  const prefixChunks = chunkOps(prefixes);
+  const count = Math.max(fileChunks.length, prefixChunks.length);
+  for (let index = 0; index < count; index += 1) {
+    const body: PurgeRequestBody = {};
+    const fileChunk = fileChunks[index];
+    const prefixChunk = prefixChunks[index];
+    if (fileChunk?.length) body.files = fileChunk;
+    if (prefixChunk?.length) body.prefixes = prefixChunk;
+    if (body.files || body.prefixes) batches.push(body);
+  }
+  return batches;
+}
+
+/**
+ * Runs every batch of one zone. Any non-2xx (after the single 429 retry) makes
+ * the whole zone a failure: a partially purged zone is indistinguishable from an
+ * untouched one while the stale objects keep serving.
+ */
+async function sendZoneBatches(
+  zoneId: string,
+  token: string,
+  batches: readonly PurgeRequestBody[],
+): Promise<{ ok: true; files: number; prefixes: number } | { ok: false; reason: string }> {
+  let files = 0;
+  let prefixes = 0;
+  for (let index = 0; index < batches.length; index += 1) {
+    const body = batches[index];
+    if (!body) continue;
+    try {
+      let response = await postPurge(zoneId, token, body);
+      if (response.status === 429) {
+        // Paced retry: one after a short pause, then give up (circuit breaker).
+        for (let attempt = 0; attempt < MAX_RATE_LIMIT_RETRIES; attempt += 1) {
+          await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_RETRY_MS));
+          response = await postPurge(zoneId, token, body);
+          if (response.status !== 429) break;
+        }
+      }
+
+      if (!response.ok) {
+        const batchLabel = batches.length > 1 ? ` (batch ${index + 1}/${batches.length})` : '';
+        return {
+          ok: false,
+          // Rate limiting is reported verbatim (no zone prefix): the caller maps
+          // it to the one reason string every consumer keys on.
+          reason:
+            response.status === 429
+              ? `rate limited (429)${batchLabel}`
+              : `zone ${zoneId}: HTTP ${response.status}${batchLabel}`,
+        };
+      }
+      files += body.files?.length ?? 0;
+      prefixes += body.prefixes?.length ?? 0;
+    } catch (error) {
+      // Name + message only: the request object carries the token.
+      return {
+        ok: false,
+        reason:
+          error instanceof Error
+            ? `zone ${zoneId}: ${error.name}: ${error.message}`
+            : `zone ${zoneId}: unknown error`,
+      };
+    }
+  }
+  return { ok: true, files, prefixes };
 }
 
 async function sendPurge(
   target: CloudflarePurgeTarget,
   { token, zones }: { token: string; zones: PurgeZone[] },
 ): Promise<CloudflarePurgeResult> {
-  const groups = purgeUrlsByZone(target.paths, zones);
+  const groups = purgeGroupsByZone(resolveTargetOps(target), zones);
   if (groups.length === 0) return { status: 'skipped', reason: 'nothing-to-purge' };
 
-  // One request per zone. The Free-plan bucket is per ACCOUNT (5/min), so two
-  // zones cost two requests of that bucket — never one request per URL.
+  // Requests are batched per zone (the Free-plan bucket is per ACCOUNT, 5/min),
+  // never one request per URL. A flush of 240 files therefore costs
+  // `ceil(240 / 100) = 3` requests in that zone.
   const failures: string[] = [];
   let urls = 0;
+  let prefixes = 0;
   let purgedZones = 0;
+  let batches = 0;
 
   for (const group of groups) {
-    const files = group.files.slice(0, MAX_URLS_PER_REQUEST);
-    const dropped = group.files.length - files.length;
-    if (dropped > 0) {
-      // Never drop purges silently: a larger site would otherwise keep serving
-      // stale objects while the API still reports success for the sent subset.
-      console.warn(
-        `[cf-cache] ${group.files.length} URLs exceed the ${MAX_URLS_PER_REQUEST}-URL request cap for zone ${group.zoneId.slice(0, 8)}; ${dropped} URL(s) not purged`,
-      );
+    const plan = planPurgeRequests(group.files, group.prefixes);
+    batches += plan.length;
+    const outcome = await sendZoneBatches(group.zoneId, token, plan);
+    if (outcome.ok) {
+      purgedZones += 1;
+      urls += outcome.files;
+      prefixes += outcome.prefixes;
+      continue;
     }
-    const body: Record<string, unknown> = { files };
-    try {
-      const response = await fetchImpl(`${CLOUDFLARE_API_BASE}/zones/${group.zoneId}/purge_cache`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-        cache: 'no-store',
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      });
-
-      if (response.ok) {
-        purgedZones += 1;
-        urls += files.length;
-        continue;
-      }
-      failures.push(
-        response.status === 429
-          ? 'rate limited (429)'
-          : `zone ${group.zoneId}: HTTP ${response.status}`,
-      );
-    } catch (error) {
-      // Name + message only: the request object carries the token.
-      failures.push(
-        error instanceof Error
-          ? `zone ${group.zoneId}: ${error.name}: ${error.message}`
-          : `zone ${group.zoneId}: unknown error`,
-      );
-    }
+    failures.push(outcome.reason);
   }
 
-  // Partial success is a failure: the zone that failed keeps serving stale
-  // content, and the caller must see that (and the circuit must open).
+  // Partial success is a failure: the zone (or the batch) that failed keeps
+  // serving stale content, and the caller must see that (and the circuit must
+  // open) — reporting `success` for the sent subset is the silent-drift trap.
   if (failures.length > 0) {
     circuitOpenUntil = Date.now() + CIRCUIT_OPEN_MS;
+    console.warn(
+      `[cf-cache] Purge unvollstaendig: ${batches - failures.length}/${batches} Request(s) ok, ` +
+        `${failures.length} fehlgeschlagen`,
+    );
     return { status: 'failed', reason: failures.join('; ') };
   }
-  return { status: 'purged', urls, zones: purgedZones };
+  return { status: 'purged', urls, prefixes, zones: purgedZones };
+}
+
+/** Normalizes a target into the two op lists (a `mixed` target may omit one). */
+function resolveTargetOps(target: CloudflarePurgeTarget): {
+  paths: readonly string[];
+  prefixes: readonly string[];
+} {
+  if (target.type === 'urls') return { paths: target.paths, prefixes: [] };
+  if (target.type === 'prefixes') return { paths: [], prefixes: target.paths };
+  return { paths: target.paths ?? [], prefixes: target.prefixes ?? [] };
+}
+
+/** True when a target carries nothing purgeable (skip before touching the API). */
+function isEmptyTarget(target: CloudflarePurgeTarget): boolean {
+  const { paths, prefixes } = resolveTargetOps(target);
+  return paths.length === 0 && prefixes.length === 0;
 }
 
 /**
@@ -377,11 +593,9 @@ export async function purgeCloudflareCache(
   target: CloudflarePurgeTarget,
 ): Promise<CloudflarePurgeResult> {
   if (isBuildPhase()) return { status: 'skipped', reason: 'build-phase' };
+  if (isEmptyTarget(target)) return { status: 'skipped', reason: 'nothing-to-purge' };
   const credentials = credential();
   if (!credentials) return { status: 'skipped', reason: 'not-configured' };
-  if (target.type === 'urls' && target.paths.length === 0) {
-    return { status: 'skipped', reason: 'nothing-to-purge' };
-  }
   if (Date.now() < circuitOpenUntil) return { status: 'skipped', reason: 'circuit-open' };
   return sendPurge(target, credentials);
 }

@@ -12,6 +12,7 @@ import { TechRadar } from './TechRadar';
 import { TechSection } from './TechSection';
 import { Testimonial } from './Testimonial';
 import { Timeline } from './Timeline';
+import { VibeShowcase } from './VibeShowcase';
 
 export const allBlocks = [
   Hero,
@@ -28,4 +29,5 @@ export const allBlocks = [
   ImageText,
   RichText,
   CallToAction,
+  VibeShowcase,
 ];

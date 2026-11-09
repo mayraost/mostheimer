@@ -14,6 +14,8 @@ import { TimelineBlock } from './blocks/TimelineBlock';
 import { TestimonialBlock } from './blocks/TestimonialBlock';
 import { TechRadarBlock } from './blocks/TechRadarBlock';
 import { ArchitectureDiagramBlock } from './blocks/ArchitectureDiagramBlock';
+import { VibeShowcaseBlock } from './blocks/VibeShowcaseBlock';
+import type { VibeShowcaseView } from './blocks/VibeShowcaseBlock';
 import { getCachedSiteSettings } from '@/cms/cache/frontend/queries';
 import {
   loadArchitectureCopy,
@@ -24,12 +26,23 @@ import {
   loadHeroCopy,
   loadTechRadarCopy,
   loadTimelineCopy,
+  loadVibeShowcaseCopy,
 } from '@/lib/translationBundles.server';
 import { getCachedTranslation } from '@/lib/translations.server';
 import type { FrontendLocale } from '@/cms/cache/frontend/routes';
+import { VIBE_SHOWCASE_SLUG } from '@/cms/cache/frontend/routes';
 import type { HeroCopy } from './blocks/HeroBlock';
 
 export type PageBlock = NonNullable<Page['layout']>[number];
+
+/**
+ * Data a paginated block needs from the request (never read by the block
+ * itself). Passed by the page from `searchParams`; `null` for blocks that do
+ * not paginate.
+ */
+export type BlockRequestData = {
+  listing?: { vibeShowcase: VibeShowcaseView };
+};
 
 /**
  * Block dispatcher (server component).
@@ -51,11 +64,18 @@ export async function BlockRenderer({
   block,
   locale,
   heroCopy,
+  request,
 }: {
   block: PageBlock;
   locale: FrontendLocale;
   /** Hero shell copy, already resolved by the page (shared with the header). */
   heroCopy?: HeroCopy;
+  /**
+   * Request-derived data for paginated blocks (`?page=`/`?tag=`), resolved by
+   * the page from `searchParams`. `undefined` renders the block without a
+   * listing (first page, no filter) — the live preview uses that path.
+   */
+  request?: BlockRequestData;
 }) {
   switch (block.blockType) {
     case 'hero':
@@ -106,6 +126,19 @@ export async function BlockRenderer({
         />
       );
 
+    // Paginated listing: the page resolves `?page=`/`?tag=` into a view and
+    // passes it in. Without request data the block renders nothing rather than
+    // inventing page 1 (that would be a second, uncached query).
+    case 'vibeShowcase':
+      return request?.listing ? (
+        <VibeShowcaseBlock
+          block={block}
+          view={request.listing.vibeShowcase}
+          basePath={`/${locale}/${VIBE_SHOWCASE_SLUG}`}
+          copy={await loadVibeShowcaseCopy(locale)}
+        />
+      ) : null;
+
     // Pure content blocks: everything they render is a CMS field of the block
     // itself, so no shell copy is involved.
     case 'featureGrid':
@@ -144,4 +177,5 @@ export {
   TestimonialBlock,
   TechRadarBlock,
   ArchitectureDiagramBlock,
+  VibeShowcaseBlock,
 };

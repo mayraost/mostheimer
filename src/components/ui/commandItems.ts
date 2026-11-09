@@ -45,6 +45,7 @@ const ITEMS: CommandItemDefinition[] = [
     group: 'sections',
   },
   { id: 'case-studies', href: '/case-studies', group: 'pages' },
+  { id: 'vibe-coding', href: '/vibe-coding', group: 'pages' },
   { id: 'tech-radar', href: '/tech-radar', group: 'pages' },
   { id: 'leadership', href: '/leadership', group: 'pages' },
   { id: 'career', href: '/career', group: 'pages' },

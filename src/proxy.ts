@@ -1,16 +1,42 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { FRONTEND_LOCALES, pathnameToSlug, slugToPath } from '@/cms/cache/frontend/routes';
+import {
+  FRONTEND_LOCALES,
+  VIBE_SHOWCASE_SLUG,
+  pathnameToSlug,
+  slugToPath,
+} from '@/cms/cache/frontend/routes';
 import type { FrontendLocale } from '@/cms/cache/frontend/routes';
-import { publishedSlugStatus } from './proxy-slug-cache';
+import { publishedSlugStatus, publishedVibeProjectStatus } from './proxy-slug-cache';
 
 const defaultLocale: FrontendLocale = 'en';
 
 /**
  * Routes under [locale] that render their own tree instead of the
  * `[[...slug]]` catch-all — they are not page slugs and must not be checked.
+ *
+ * `vibe-coding` is deliberately NOT listed: its first segment is the listing
+ * page, a `pages` document with that slug, so it is checked like any page. Its
+ * one-segment children are project details and are answered by
+ * `publishedVibeProjectStatus` (see `handleLocalizedRequest`); two or more
+ * children are not a route at all.
  */
 const STATIC_CHILD_ROUTES = new Set(['preview', 'settings', 'impressum']);
+
+/**
+ * True for a one-segment child of a STATIC route (`/de/impressum/<x>`,
+ * `/de/settings/<x>`): those routes render their own tree and have no
+ * `[[...slug]]` fallback, so nothing can ever make such a URL exist — it is a
+ * real 404 regardless of the page-slug snapshot.
+ *
+ * `vibe-coding` is deliberately NOT in this set: its children are
+ * `vibeProjects` documents (`publishedVibeProjectStatus` decides), while the
+ * listing itself is a page slug like any other.
+ */
+function isUnknownStaticChildRoute(slug: string): boolean {
+  const [head, child] = slug.split('/');
+  return child !== undefined && STATIC_CHILD_ROUTES.has(head ?? '');
+}
 
 /**
  * Proxy responsibilities — and only these:
@@ -79,8 +105,22 @@ async function handleLocalizedRequest(request: NextRequest, locale: FrontendLoca
   const slug = pathnameToSlug(locale, pathname);
 
   // `null` = not addressable as a page (trailing slash), `''` = locale root.
-  if (slug === null || slug === '' || STATIC_CHILD_ROUTES.has(slug.split('/')[0] ?? '')) {
-    return forward(request, pathname, locale);
+  if (slug === null || slug === '') return forward(request, pathname, locale);
+
+  // `/[locale]/vibe-coding` (the listing page) also matches, so the first
+  // segment must go through the page-slug snapshot — only the one-segment child
+  // is a project. Two or more children are not a route at all.
+  const [head, child, ...rest] = slug.split('/');
+  if (head === VIBE_SHOWCASE_SLUG && child !== undefined) {
+    if (rest.length > 0) return forward(request, pathname, locale, 404);
+    const status = await publishedVibeProjectStatus(child);
+    return forward(request, pathname, locale, status === 'missing' ? 404 : undefined);
+  }
+
+  if (STATIC_CHILD_ROUTES.has(head ?? '')) {
+    // The static route itself (`/de/impressum`) renders; a CHILD of it has no
+    // route at all and is a 404 — never "publishable content".
+    return forward(request, pathname, locale, isUnknownStaticChildRoute(slug) ? 404 : undefined);
   }
 
   const status = await publishedSlugStatus(slug);

@@ -13,7 +13,12 @@
  * that next visit is the request that triggers the purge.
  */
 
-import { purgeCloudflareNow, toPurgeUrls, type CloudflarePurgeTarget } from './cloudflare';
+import {
+  purgeCloudflareNow,
+  toPurgePrefixes,
+  toPurgeUrls,
+  type CloudflarePurgeTarget,
+} from './cloudflare';
 
 type PendingPurge = { target: CloudflarePurgeTarget; label: string };
 
@@ -44,6 +49,7 @@ export function enqueueCloudflarePurge(target: CloudflarePurgeTarget, label: str
 export type PurgeRunSummary = {
   pending: number;
   urls: number;
+  prefixes: number;
   status: 'idle' | 'purged' | 'failed' | 'skipped';
 };
 
@@ -52,6 +58,13 @@ function drainQueue(): PendingPurge[] {
   const queue = store[QUEUE_KEY] ?? [];
   store[QUEUE_KEY] = [];
   return queue;
+}
+
+/** Ops of one target, split by kind (a `mixed` target carries both). */
+function opsOf(target: CloudflarePurgeTarget): { paths: string[]; prefixes: string[] } {
+  if (target.type === 'urls') return { paths: [...target.paths], prefixes: [] };
+  if (target.type === 'prefixes') return { paths: [], prefixes: [...target.paths] };
+  return { paths: [...(target.paths ?? [])], prefixes: [...(target.prefixes ?? [])] };
 }
 
 /**
@@ -63,23 +76,34 @@ export async function runPendingCloudflarePurges(): Promise<PurgeRunSummary> {
   try {
     purges = drainQueue();
   } catch {
-    return { pending: 0, urls: 0, status: 'idle' };
+    return { pending: 0, urls: 0, prefixes: 0, status: 'idle' };
   }
-  if (purges.length === 0) return { pending: 0, urls: 0, status: 'idle' };
+  if (purges.length === 0) return { pending: 0, urls: 0, prefixes: 0, status: 'idle' };
 
   const labels = purges.map((purge) => purge.label).join(', ');
-  // Merge every queued flush into ONE URL purge — the Free-plan bucket allows
-  // 5 requests/min, so a cascade of hooks must not fan out. Static assets are
-  // filtered in `toPurgeUrls` (never purged, see routes.ts).
+  // Merge every queued flush into ONE purge request — the Free-plan bucket
+  // allows 5 requests/min, so a cascade of hooks must not fan out. Static
+  // assets are filtered in `toPurgeUrls`/`toPurgePrefixes` (never purged, see
+  // routes.ts). A listing flush that queues an exact detail pair AND the
+  // subtree prefix therefore costs exactly one request.
   const paths = new Set<string>();
+  const prefixes = new Set<string>();
   for (const purge of purges) {
-    for (const path of purge.target.paths) paths.add(path);
+    const ops = opsOf(purge.target);
+    for (const path of ops.paths) paths.add(path);
+    for (const prefix of ops.prefixes) prefixes.add(prefix);
   }
 
-  const result = await purgeCloudflareNow({ type: 'urls', paths: [...paths] }, labels);
+  const target: CloudflarePurgeTarget =
+    prefixes.size > 0
+      ? { type: 'mixed', paths: [...paths], prefixes: [...prefixes] }
+      : { type: 'urls', paths: [...paths] };
+
+  const result = await purgeCloudflareNow(target, labels);
   return {
     pending: purges.length,
     urls: toPurgeUrls([...paths]).length,
+    prefixes: toPurgePrefixes([...prefixes]).length,
     status: result.status === 'failed' ? 'failed' : result.status,
   };
 }

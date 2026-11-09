@@ -8,6 +8,17 @@
  * `/sitemap.xml` — derived from the live `/sitemap.xml` so the list cannot drift
  * from the CMS.
  *
+ * PAGINATED / FILTERED ROUTES ARE PURGED BY PREFIX
+ *
+ * `?page=N` and `?tag=<slug>` variants of the vibe-coding listing are separate
+ * edge objects with an open-ended URL space. They are NOT enumerated: the app
+ * publishes its `PAGINATED_ROUTES` at `/api/purge-manifest`, and each route is
+ * purged once per locale as a `prefixes` entry (`host+path`, no scheme/query/
+ * fragment). One prefix evicts the bare URL and every variant below it.
+ * `?page=N` / `?tag=` URLs are never warmed either (only the bare listing).
+ * Both op kinds are batched at 100 per request; `files` and `prefixes` ride in
+ * the same request.
+ *
  * `/_next/static/**` is NEVER purged. Those objects are immutable
  * (`public, max-age=31536000`) and content-addressed by build; a CMS edit or a
  * deploy cannot change what an existing chunk URL returns. Purging them would
@@ -96,6 +107,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { pathToFileURL } from 'node:url';
+
+// Single source of truth for the route model. Imported straight from the app:
+// `routes.ts` has no imports of its own, so this stays a plain-Node script (no
+// Next/Payload module graph) while the paginated-route list and the
+// never-purge-assets rule cannot drift from src/cms/cache/frontend.
+import { PAGINATED_ROUTES, isPurgeablePath } from '../src/cms/cache/frontend/routes.ts';
 
 const API_BASE = 'https://api.cloudflare.com/client/v4';
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -273,6 +290,86 @@ async function fetchContentPaths(port) {
 }
 
 /**
+ * Site-relative routes whose page-1 HTML carries query-string variants
+ * (`?page=N`, `?tag=<slug>`), served by the app at `/api/purge-manifest`.
+ *
+ * Read from the app instead of hardcoding the list in this script: the routes
+ * are `PAGINATED_ROUTES` in src/cms/cache/frontend/routes.ts, and a second copy
+ * here would silently drift when a paginated route is added. Fail-soft: no
+ * manifest → no prefix purge (the exact sitemap URLs are still purged).
+ */
+async function fetchPaginatedRoutes(port) {
+  const sources = [
+    `http://127.0.0.1:${port}/api/purge-manifest`,
+    `${SITE_ORIGIN}/api/purge-manifest`,
+  ];
+  for (const source of sources) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const response = await fetch(source, {
+          headers: { 'cache-control': 'no-cache' },
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        });
+        if (response.ok) {
+          const body = await response.json();
+          // The manifest is the primary source (it is per-image); the imported
+          // constant is the fallback for a partially booted container.
+          const routes = Array.isArray(body?.paginatedRoutes) ? body.paginatedRoutes : [];
+          const clean = routes.filter(
+            (route) =>
+              typeof route === 'string' &&
+              route.startsWith('/') &&
+              !route.includes('?') &&
+              isPurgeable(route),
+          );
+          // An empty or unusable list is not an answer: fall back instead of
+          // purging zero prefixes.
+          if (clean.length === 0) {
+            warn('purge manifest returned no usable paginated route — using the built-in list');
+            return [...PAGINATED_ROUTES];
+          }
+          return clean;
+        }
+      } catch {
+        // Retry below; a missing manifest only costs the prefix purge.
+      }
+      await sleep(WAIT_INTERVAL_MS);
+    }
+  }
+  // Fail-soft fallback: the constant the manifest serves, so a manifest hiccup
+  // costs a log line, not the prefix purge.
+  warn('purge manifest unavailable — using the built-in paginated route list');
+  return [...PAGINATED_ROUTES];
+}
+
+/** Locale prefixes of this app; paginated routes exist once per locale. */
+const LOCALE_PREFIXES = ['/de', '/en'];
+
+/**
+ * Site-relative prefix PATHS (`/de/vibe-coding`) for the paginated routes.
+ *
+ * The purge API wants `host+path` WITHOUT scheme/query/fragment and matches
+ * "starts with", so one entry per locale route evicts the bare URL plus every
+ * `?page=N` / `?tag=<slug>` variant. Static assets can never be produced here:
+ * every entry comes from a route of the manifest plus a locale prefix.
+ */
+function paginatedRoutePaths(routes) {
+  const paths = [];
+  const seen = new Set();
+  for (const route of routes ?? []) {
+    for (const locale of LOCALE_PREFIXES) {
+      // No trailing slash: a prefix purge matches "starts with", so
+      // `/de/vibe-coding/` would miss the bare listing.
+      const path = `${locale}${route}`.replace(/\/+$/, '');
+      if (seen.has(path) || !isPurgeable(path)) continue;
+      seen.add(path);
+      paths.push(path);
+    }
+  }
+  return paths;
+}
+
+/**
  * True for paths that must never be warmed: admin/API surface, Next internals
  * (except static), preview/settings, Cloudflare internals. `/api/media/file/`
  * is deliberately allowed (Payload's file endpoint is a public image asset).
@@ -357,6 +454,9 @@ function collectWarmPaths(paths) {
     const path = raw.startsWith('/') ? raw : `/${raw}`;
     if (path === '/' || path.startsWith('//') || path.includes('..')) continue;
     if (path.length > 1 && path.endsWith('/')) continue;
+    // `?page=N` / `?tag=<slug>` are variants, never the canonical URL: warming
+    // them would populate edge objects that no link and no sitemap points to.
+    if (path.includes('?')) continue;
     if (isForbiddenAssetPath(path)) continue;
     if (seen.has(path)) continue;
     seen.add(path);
@@ -469,12 +569,29 @@ async function warmCache(paths, { origin = SITE_ORIGIN, concurrency = WARM_CONCU
 
 /**
  * Static assets are immutable and content-addressed; a purge must never touch
- * them (see header). Mirrors `isPurgeablePath` in src/cms/cache/frontend/routes.ts.
+ * them (see header). This is THE rule from src/cms/cache/frontend/routes.ts,
+ * imported instead of mirrored: a second copy drifted the moment the rule
+ * learned about `/_next/static` without a trailing slash.
  */
-function isPurgeable(path) {
-  return !path.startsWith('/_next/static/');
+const isPurgeable = isPurgeablePath;
+
+/** Cloudflare accepts at most 100 URLs / prefixes per purge request. */
+const MAX_OPS_PER_REQUEST = 100;
+
+/** Splits a list into chunks of at most `size` (empty in → empty out). */
+function chunk(list, size = MAX_OPS_PER_REQUEST) {
+  const chunks = [];
+  for (let index = 0; index < list.length; index += size) {
+    chunks.push(list.slice(index, index + size));
+  }
+  return chunks;
 }
 
+/**
+ * One purge request. `body` carries `files` and/or `prefixes` — both shapes
+ * ride in the SAME request so a flush never costs two of the five Free-plan
+ * requests per minute.
+ */
 async function purge({ token, zoneId, body }) {
   const response = await fetch(`${API_BASE}/zones/${zoneId}/purge_cache`, {
     method: 'POST',
@@ -486,6 +603,14 @@ async function purge({ token, zoneId, body }) {
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   return response.status;
+}
+
+/** All `host+path` prefixes of a zone (no scheme/query — the API's shape). */
+function zonePrefixes(zone, routePaths) {
+  return zone.origins.flatMap((origin) => {
+    const host = new URL(origin).host;
+    return (routePaths ?? []).filter(isPurgeable).map((path) => `${host}${path}`);
+  });
 }
 
 /**
@@ -547,7 +672,16 @@ function resolveZones(env = process.env) {
 }
 
 // Exported for the policy test (tests/int/cloudflare-purge.int.spec.ts).
-export { CONTENT_ORIGINS, DEFAULT_CONTENT_ZONE_ID, resolveOrigins, resolveZones };
+export {
+  CONTENT_ORIGINS,
+  DEFAULT_CONTENT_ZONE_ID,
+  MAX_OPS_PER_REQUEST,
+  chunk,
+  paginatedRoutePaths,
+  resolveOrigins,
+  resolveZones,
+  zonePrefixes,
+};
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
@@ -617,33 +751,78 @@ async function main() {
     return;
   }
 
-  // One request per zone: a zone only evicts objects of hosts it serves, and
-  // the same URL exists in more than one zone here (see "MULTIPLE ZONES").
+  // Paginated/filtered routes (`?page=N`, `?tag=<slug>`) are evicted by PREFIX,
+  // not URL by URL: their variant space is open-ended and every variant is a
+  // separate edge object. The list of routes comes from the app
+  // (`/api/purge-manifest`), so it cannot drift from PAGINATED_ROUTES.
+  const paginatedRoutes = args.everything ? [] : await fetchPaginatedRoutes(port);
+  const routePaths = paginatedRoutePaths(paginatedRoutes);
+  if (!args.everything && routePaths.length > 0) {
+    log(`paginated routes purged by prefix: ${routePaths.join(', ')}`);
+  }
+
+  // One request per zone and batch: a zone only evicts objects of hosts it
+  // serves (see "MULTIPLE ZONES"), and both op kinds (`files`, `prefixes`) are
+  // capped at 100 per request. Batches are sent sequentially to stay inside the
+  // Free-plan bucket; `?page=N` / `?tag=` URLs are never warmed (below).
   let failed = 0;
   for (const zone of zones) {
-    const body = args.everything
-      ? { purge_everything: true }
-      : { files: zone.origins.flatMap((origin) => paths.map((path) => `${origin}${path}`)) };
-    const description = args.everything
-      ? 'EVERYTHING (manual)'
-      : `${paths.length} content URLs x ${zone.origins.length} host(s), static assets excluded`;
-    try {
-      const status = await purge({ token, zoneId: zone.zoneId, body });
-      if (status < 200 || status >= 300) {
+    if (args.everything) {
+      try {
+        const status = await purge({
+          token,
+          zoneId: zone.zoneId,
+          body: { purge_everything: true },
+        });
+        if (status < 200 || status >= 300) {
+          failed += 1;
+          warn(
+            `purge failed for zone ${zone.zoneId.slice(0, 8)} (HTTP ${status}) — the edge keeps the previous release until the next successful purge`,
+          );
+          continue;
+        }
+        log(`purged EVERYTHING (manual) in zone ${zone.zoneId.slice(0, 8)} (release ${release})`);
+      } catch (error) {
         failed += 1;
-        warn(
-          `purge failed for zone ${zone.zoneId.slice(0, 8)} (HTTP ${status}) — the edge keeps the previous release until the next successful purge`,
-        );
-        continue;
+        const message =
+          error instanceof Error ? `${error.name}: ${error.message}` : 'unknown error';
+        warn(`purge request failed for zone ${zone.zoneId.slice(0, 8)} (${message})`);
       }
-      log(`purged ${description} in zone ${zone.zoneId.slice(0, 8)} (release ${release})`);
-    } catch (error) {
-      failed += 1;
-      // Message only: the request object carries the token.
-      const message = error instanceof Error ? `${error.name}: ${error.message}` : 'unknown error';
-      warn(
-        `purge request failed for zone ${zone.zoneId.slice(0, 8)} (${message}) — the edge keeps the previous release until the next successful purge`,
-      );
+      continue;
+    }
+
+    const files = zone.origins.flatMap((origin) => paths.map((path) => `${origin}${path}`));
+    const prefixes = zonePrefixes(zone, routePaths);
+    const requestCount = Math.max(chunk(files).length, chunk(prefixes).length);
+    for (let index = 0; index < requestCount; index += 1) {
+      const fileBatch = chunk(files)[index] ?? [];
+      const prefixBatch = chunk(prefixes)[index] ?? [];
+      const body = {};
+      if (fileBatch.length > 0) body.files = fileBatch;
+      if (prefixBatch.length > 0) body.prefixes = prefixBatch;
+      const description =
+        `${fileBatch.length} content URLs + ${prefixBatch.length} prefix(es) x ` +
+        `${zone.origins.length} host(s), static assets excluded` +
+        (requestCount > 1 ? ` [batch ${index + 1}/${requestCount}]` : '');
+      try {
+        const status = await purge({ token, zoneId: zone.zoneId, body });
+        if (status < 200 || status >= 300) {
+          failed += 1;
+          warn(
+            `purge failed for zone ${zone.zoneId.slice(0, 8)} (HTTP ${status}) — the edge keeps the previous release until the next successful purge`,
+          );
+          continue;
+        }
+        log(`purged ${description} in zone ${zone.zoneId.slice(0, 8)} (release ${release})`);
+      } catch (error) {
+        failed += 1;
+        // Message only: the request object carries the token.
+        const message =
+          error instanceof Error ? `${error.name}: ${error.message}` : 'unknown error';
+        warn(
+          `purge request failed for zone ${zone.zoneId.slice(0, 8)} (${message}) — the edge keeps the previous release until the next successful purge`,
+        );
+      }
     }
   }
 

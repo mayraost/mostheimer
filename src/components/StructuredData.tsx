@@ -1,5 +1,6 @@
 import type { FrontendLocale } from '@/cms/cache/frontend/frontendCache';
 import type { Page } from '@/payload-types';
+import type { VibeProjectView } from '@/components/vibe/projectView';
 import { envConfig } from '@/envConfig';
 
 /**
@@ -392,12 +393,137 @@ export function buildCaseStudiesJsonLd(input: CaseStudiesJsonLdInput): JsonLdObj
   return { '@context': 'https://schema.org', '@graph': graph };
 }
 
+// -- Vibe coding showcase ----------------------------------------------------
+
+/**
+ * One project as a `CreativeWork`.
+ *
+ * Type choice (design § 5): `CreativeWork`, NOT `SoftwareSourceCode` (implies a
+ * public source tree — halloween-counter's repo is private), NOT `TechArticle`
+ * (that is documentation) and NOT `Product` (needs an offer, invalid without).
+ */
+function vibeProjectNode(project: VibeProjectView): JsonLdObject {
+  const image = project.hero?.url ?? project.cover?.url ?? null;
+  return {
+    '@type': 'CreativeWork',
+    name: project.title,
+    creator: personRef(),
+    url: project.liveUrl ?? `${BASE_URL}${project.path}`,
+    ...(project.teaser ? { description: project.teaser } : {}),
+    ...(project.stack.length > 0 ? { keywords: project.stack.join(', ') } : {}),
+    ...(project.githubUrl ? { codeRepository: project.githubUrl } : {}),
+    ...(image ? { image: image.startsWith('http') ? image : `${BASE_URL}${image}` } : {}),
+    ...(project.updatedAt ? { dateModified: project.updatedAt } : {}),
+  };
+}
+
+/** Home → listing → project breadcrumb (the listing name is the CMS page title). */
+function vibeBreadcrumb(listingName: string, project: VibeProjectView): JsonLdObject {
+  const listingUrl = `${BASE_URL}${project.listingPath}`;
+  return {
+    '@type': 'BreadcrumbList',
+    '@id': `${BASE_URL}${project.path}#breadcrumb`,
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: listingName || 'Vibe coding',
+        item: listingUrl,
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: project.title,
+        item: `${BASE_URL}${project.path}`,
+      },
+    ],
+  };
+}
+
+export interface VibeProjectJsonLdInput {
+  locale: FrontendLocale;
+  project: VibeProjectView;
+  /** Visible title of the listing page (CMS `pages.title`). */
+  listingName?: string | null;
+}
+
+/** Detail page: `WebPage` + `mainEntity: CreativeWork` + `BreadcrumbList`. */
+export function buildVibeProjectJsonLd(input: VibeProjectJsonLdInput): JsonLdObject {
+  const url = `${BASE_URL}${input.project.path}`;
+  const page: JsonLdObject = {
+    '@type': 'WebPage',
+    '@id': `${url}#webpage`,
+    url,
+    inLanguage: jsonLdLanguageTag(input.locale),
+    isPartOf: { '@id': `${BASE_URL}/#website` },
+    about: personRef(),
+    author: personRef(),
+    name: input.project.title,
+    ...(input.project.teaser ? { description: input.project.teaser } : {}),
+    ...(input.project.updatedAt ? { dateModified: input.project.updatedAt } : {}),
+    mainEntity: vibeProjectNode(input.project),
+  };
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [page, vibeBreadcrumb(input.listingName ?? '', input.project)],
+  };
+}
+
+export interface VibeListingJsonLdInput {
+  locale: FrontendLocale;
+  /** Listing route of this locale (`/de/vibe-coding`). */
+  path: string;
+  name?: string | null;
+  description?: string | null;
+  /** The projects of the RENDERED page (never the whole set). */
+  items: readonly VibeProjectView[];
+  /** Published projects in the whole listing (`numberOfItems`). */
+  totalDocs: number;
+}
+
+/**
+ * Unfiltered listing page: `WebPage` + `ItemList` of the rendered slice,
+ * `numberOfItems` = the whole published set.
+ *
+ * Never emitted for a filtered / `?page>=2` URL (design § 10.3): an ItemList on
+ * a page we ask Google to drop is noise.
+ */
+export function buildVibeListingJsonLd(input: VibeListingJsonLdInput): JsonLdObject {
+  const url = `${BASE_URL}${input.path}`;
+  const graph: JsonLdObject[] = [
+    {
+      '@type': 'WebPage',
+      '@id': `${url}#webpage`,
+      url,
+      inLanguage: jsonLdLanguageTag(input.locale),
+      isPartOf: { '@id': `${BASE_URL}/#website` },
+      about: personRef(),
+      author: personRef(),
+      ...(input.name ? { name: input.name } : {}),
+      ...(input.description ? { description: input.description } : {}),
+    },
+  ];
+  if (input.items.length > 0) {
+    graph.push({
+      '@type': 'ItemList',
+      '@id': `${url}#itemlist`,
+      numberOfItems: Math.max(input.items.length, input.totalDocs),
+      itemListOrder: 'https://schema.org/ItemListOrderAscending',
+      itemListElement: input.items.map((project, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        item: vibeProjectNode(project),
+      })),
+    });
+  }
+  return { '@context': 'https://schema.org', '@graph': graph };
+}
+
 /**
  * Official injection pattern: a native `<script type="application/ld+json">`
  * in a Server Component, NOT `next/script` (which optimises for code
  * execution, not data). `<` is escaped to `\u003c` to prevent XSS.
- */
-export function JsonLdScript({ data }: { data: JsonLdObject }) {
+ */ export function JsonLdScript({ data }: { data: JsonLdObject }) {
   return (
     <script
       type="application/ld+json"

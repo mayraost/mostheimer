@@ -1741,6 +1741,7 @@ Drawer öffnet sich dort gar nicht. Messweg: `npm run build`, `src/public` und
 **Achtung:** `'use cache'`-Queries halten die alte HTML-Antwort, also immer mit
 Cache-Buster (`?cb=$RANDOM`) gegen den Origin prüfen, sonst misst man den
 vorherigen Build. Tests: `tests/int/nav-state.int.spec.ts` (10 Fälle, ohne DB).
+
 ## QA Iteration 3 — Anchor-IDs, Wording, Security (07.11.2026)
 
 - **Anchor-IDs sind locale-abhängig:** die Architektur-Sektion (`BentoGridBlock`) rendert
@@ -1781,6 +1782,7 @@ mit `border-t`.
   nur Suche, Sprache und Menü.
 - Der **MobileNavPortal-Prop-Vertrag ist erweitert** — wer den Drawer je von woanders
   rendert, muss die fünf neuen Props mitgeben (TypeScript erzwingt das).
+
 ## Scroll-Animationen & Micro-Interactions (07.11.2026)
 
 Umsetzung der Spec „High-Performance Scroll Animations". Leitregel: **nur
@@ -1788,16 +1790,16 @@ Umsetzung der Spec „High-Performance Scroll Animations". Leitregel: **nur
 
 ### Dateien
 
-| Datei | Rolle |
-| --- | --- |
-| `src/hooks/useScrollReveal.ts` | `IntersectionObserver` (`threshold .12`, `rootMargin "0px 0px -40px 0px"`), einmalig; exportiert `motionEnabled()` als **einzige** Motion-Entscheidung |
-| `src/hooks/useBentoSpotlight.ts` | EIN rAF-gedrosselter `pointermove`-Listener aufs Grid, schreibt `--mouse-x/--mouse-y` auf die Karte — **kein React-State** |
-| `src/hooks/useTimelineProgress.ts` | Scroll-Fortschritt → `--rail-progress` + `data-active` auf der aktiven Station |
-| `src/components/ui/MotionWrappers.tsx` | `RevealGrid` / `SpotlightGrid`: Client-Wrapper, nehmen Server-`children` (Seiten bleiben RSC) |
-| `src/components/ui/Decode.tsx` | Mono-Decode (280ms) + Count-Up (350ms) für numerische Metriken |
-| `src/components/ui/ScrollProgressBar.tsx` | Top-Bar, primär `animation-timeline: scroll(root)`, Fallback `--scroll-progress` |
-| `src/components/ui/LiveDot.tsx` | Telemetrie-Puls (3.5s, Ring `scale(1)→2.2`, `opacity .5→0`) |
-| `src/components/blocks/TimelineRail.tsx` | Client-Island für die Timeline-Rails (Beam `scaleY`) |
+| Datei                                     | Rolle                                                                                                                                                  |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/hooks/useScrollReveal.ts`            | `IntersectionObserver` (`threshold .12`, `rootMargin "0px 0px -40px 0px"`), einmalig; exportiert `motionEnabled()` als **einzige** Motion-Entscheidung |
+| `src/hooks/useBentoSpotlight.ts`          | EIN rAF-gedrosselter `pointermove`-Listener aufs Grid, schreibt `--mouse-x/--mouse-y` auf die Karte — **kein React-State**                             |
+| `src/hooks/useTimelineProgress.ts`        | Scroll-Fortschritt → `--rail-progress` + `data-active` auf der aktiven Station                                                                         |
+| `src/components/ui/MotionWrappers.tsx`    | `RevealGrid` / `SpotlightGrid`: Client-Wrapper, nehmen Server-`children` (Seiten bleiben RSC)                                                          |
+| `src/components/ui/Decode.tsx`            | Mono-Decode (280ms) + Count-Up (350ms) für numerische Metriken                                                                                         |
+| `src/components/ui/ScrollProgressBar.tsx` | Top-Bar, primär `animation-timeline: scroll(root)`, Fallback `--scroll-progress`                                                                       |
+| `src/components/ui/LiveDot.tsx`           | Telemetrie-Puls (3.5s, Ring `scale(1)→2.2`, `opacity .5→0`)                                                                                            |
+| `src/components/blocks/TimelineRail.tsx`  | Client-Island für die Timeline-Rails (Beam `scaleY`)                                                                                                   |
 
 ### Dual Motion-Guardrail — EINE Quelle, `<html>`
 
@@ -1846,7 +1848,6 @@ Läuft es ohne `< /dev/null`, fragt es „No schema changes detected. Would you 
 to create a blank migration file?" und **erzeugt bei Nichtantwort gar nichts**
 (Exit 0, keine Datei). Immer `< /dev/null` anhängen oder die Frage beantworten.
 
-
 ## Brand: MO-Monogramm, Lockups & Icon-Set (08.11.2026)
 
 **Eine Geometrie, alle Flächen.** Das aktuelle Artwork („Precision Ribbon
@@ -1854,15 +1855,15 @@ Monogram") liegt **ausschließlich** in `src/components/brand/markGeometry.ts`.
 Wer Pfade, Farben oder Boxmaße ändert, ändert sie dort — Header, 404-Chrome,
 OG-Card und sämtliche Icon-Dateien leiten daraus ab.
 
-| Datei | Rolle |
-| --- | --- |
-| `src/components/brand/markGeometry.ts` | **Single Source**: Pfade, Reticle, Paletten, Lockup-Typografie, ViewBoxen |
-| `src/components/brand/MarkArtwork.tsx` | Mark-Renderer; `paint()` schaltet zwischen fester Palette (Raster/OG) und `var(--mark-*)` (Inline-SVG) |
-| `src/components/brand/LogoLockupMark.tsx` | Header: zwei Kompositionen (`compact` unter `lg`, `full` ab `lg` mit Subline) |
-| `src/components/brand/LogoLockup.tsx` | Voller Lockup mit Subline für große Flächen |
-| `scripts/brand-icons.ts` | `npm run generate:icons` → `icon.svg`, `favicon.ico`, `apple-icon.png`, `icon-192/512(-maskable).png`, `logo-lockup.svg` |
-| `src/app/manifest.ts` | Web-App-Manifest (`icon-512-maskable.png` separat) |
-| `tests/int/brand.int.spec.ts` | Invarianten, ohne DB/DOM |
+| Datei                                     | Rolle                                                                                                                    |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `src/components/brand/markGeometry.ts`    | **Single Source**: Pfade, Reticle, Paletten, Lockup-Typografie, ViewBoxen                                                |
+| `src/components/brand/MarkArtwork.tsx`    | Mark-Renderer; `paint()` schaltet zwischen fester Palette (Raster/OG) und `var(--mark-*)` (Inline-SVG)                   |
+| `src/components/brand/LogoLockupMark.tsx` | Header: zwei Kompositionen (`compact` unter `lg`, `full` ab `lg` mit Subline)                                            |
+| `src/components/brand/LogoLockup.tsx`     | Voller Lockup mit Subline für große Flächen                                                                              |
+| `scripts/brand-icons.ts`                  | `npm run generate:icons` → `icon.svg`, `favicon.ico`, `apple-icon.png`, `icon-192/512(-maskable).png`, `logo-lockup.svg` |
+| `src/app/manifest.ts`                     | Web-App-Manifest (`icon-512-maskable.png` separat)                                                                       |
+| `tests/int/brand.int.spec.ts`             | Invarianten, ohne DB/DOM                                                                                                 |
 
 ### Subline nur ab `lg` — und der Header wird dort höher
 
@@ -1873,7 +1874,7 @@ klein", sondern unlesbar. Deshalb:
 - **`lg`-Header ist `lg:h-20` (80 px)** statt `h-16`; der Lockup bekommt
   `lg:h-[72px]`. Ergebnis bei 1280 px: Wortmark **16 px**, Subline **8.5 px**.
 - Unter `lg`: nur Mark + Wortmark (`compact`-Komposition), keine Subline.
-- **Warum zwei SVGs statt CSS-Hide:** die Subline braucht eine *höhere* Box. Ein
+- **Warum zwei SVGs statt CSS-Hide:** die Subline braucht eine _höhere_ Box. Ein
   `viewBox` ist ein Attribut, kein Style — keine Media-Query kann ihn tauschen,
   und Überlaufen würde abgeschnitten. Also rendern beide Kompositionen, `lg`
   entscheidet, welche im Layout ist. Genau eine ist sichtbar → kein doppelter
@@ -1903,7 +1904,7 @@ Ein Inline-SVG kann keine Tailwind-Klassen auf `fill` anwenden. Brücke sind die
   eigener Manifest-Eintrag; dieselbe Datei für `any` wirkt unmaskiert zu klein.
 - **iOS ignoriert Transparenz** → `apple-icon.png` mit Platte.
 - **ICO selbst gebaut** (kein `png-to-ico`/ImageMagick im Projekt): 6-Byte-Header
-  + 16-Byte-Directory + PNG-Payloads, Vista+-Format; `sharp` liefert die PNGs.
+  - 16-Byte-Directory + PNG-Payloads, Vista+-Format; `sharp` liefert die PNGs.
 - **Negative `pad` braucht einen breiteren viewBox**, sonst clippt der Renderer
   still — im Generator über `bleed` gelöst.
 
@@ -1912,8 +1913,9 @@ Ein Inline-SVG kann keine Tailwind-Klassen auf `fill` anwenden. Brücke sind die
 Die Subline (JetBrains Mono 700 @34 Units) ist **676 Units** breit und endet bei
 x≈1238 — weit rechts der 440-Unit-Marke. Eine hartkodierte 1000er-Box schnitt sie
 zu `"WEB & APPLICATION A"` ab. `LOCKUP_BOX` leitet Breite/Höhe aus `SUBLINE_INK`
-+ Padding ab, `MARK_TOP_PAD` (12) gibt dem Reticle Luft, und
-`tests/int/brand.int.spec.ts` prüft, dass Text in jeder Box Platz hat.
+
+- Padding ab, `MARK_TOP_PAD` (12) gibt dem Reticle Luft, und
+  `tests/int/brand.int.spec.ts` prüft, dass Text in jeder Box Platz hat.
 
 ### Gotchas
 
@@ -1945,10 +1947,10 @@ Hashes, wenn jemand `generate:css` vergaß, und blockierte lokal jeden Branch-We
 `src/app/(frontend)/not-found.tsx` (`CRITICAL_404_HASH`) und
 `src/app/404-critical.css/route.ts` (`CRITICAL_404_CSS`). Fehlt sie, bricht beides hart:
 
-| Fehlt die Datei … | Symptom |
-| --- | --- |
-| `npm run dev` | **HTTP 500 auf ALLEN Routen** (`Module not found: '@/404-critical.generated'`) |
-| `npm run typecheck` | 2× `TS2307` |
+| Fehlt die Datei …   | Symptom                                                                        |
+| ------------------- | ------------------------------------------------------------------------------ |
+| `npm run dev`       | **HTTP 500 auf ALLEN Routen** (`Module not found: '@/404-critical.generated'`) |
+| `npm run typecheck` | 2× `TS2307`                                                                    |
 
 Deshalb regeneriert **jeder** Einstiegspunkt, der die Datei importieren kann, sie zuerst
 über npm-Hooks: `prebuild`, `predev`, `pretypecheck`, `pretest`. Zusätzlich ruft
@@ -1983,12 +1985,12 @@ Neue Strings sind neue **Zeilen** → unbegrenzt skalierbar.
 
 ### Schichten
 
-| Datei | Rolle |
-| --- | --- |
-| `src/lib/translations.ts` | **CLIENT-SAFE**: `COPY_KEYS`-Registry, `getTranslation`, `isLegacyName`/`getLegacyCopy`, `getTranslationList`, `commandItemCopy`, `interpolate`. Kein `next/cache`-Import! |
-| `src/lib/translations.server.ts` | Server-Reader (`getCachedTranslation`, `getCachedTranslationList`, `commandItemCopy`…) — `'use cache'`-Wrapper, nur aus Server Components importierbar |
-| `src/lib/translationBundles.server.ts` | Typisierte Bundles: `loadChromeCopy`, `loadHeroCopy`, `loadBentoCopy`, … `loadPreviewCopy` |
-| `src/cms/cache/frontend/translations.ts` | Die eigentliche `'use cache'`-Schicht (Tag `CACHE_TAGS.translations` = `cms:global:translations`) |
+| Datei                                    | Rolle                                                                                                                                                                      |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/lib/translations.ts`                | **CLIENT-SAFE**: `COPY_KEYS`-Registry, `getTranslation`, `isLegacyName`/`getLegacyCopy`, `getTranslationList`, `commandItemCopy`, `interpolate`. Kein `next/cache`-Import! |
+| `src/lib/translations.server.ts`         | Server-Reader (`getCachedTranslation`, `getCachedTranslationList`, `commandItemCopy`…) — `'use cache'`-Wrapper, nur aus Server Components importierbar                     |
+| `src/lib/translationBundles.server.ts`   | Typisierte Bundles: `loadChromeCopy`, `loadHeroCopy`, `loadBentoCopy`, … `loadPreviewCopy`                                                                                 |
+| `src/cms/cache/frontend/translations.ts` | Die eigentliche `'use cache'`-Schicht (Tag `CACHE_TAGS.translations` = `cms:global:translations`)                                                                          |
 
 **Kritisch:** `src/lib/translations.ts` darf **nie** `next/cache` oder eine
 `'use cache'`-Datei importieren. Client Components (`CopyButton`, `CookieConsent`,
@@ -2034,7 +2036,7 @@ Dispatchern ergänzen.
 - **`error.tsx` kann nicht awaiten** und bekommt keine Custom-Props von Next. Lösung:
   `TranslationsProvider` trägt zusätzlich `errorCopy` (`routes.error.*`), das Layout löst es
   auf; `useErrorCopy()` liest es. Fehlt es, rendert die Karte strukturell ohne Worte — nie
-  erneut werfen (der CMS-Read ist oft *die* Fehlerursache).
+  erneut werfen (der CMS-Read ist oft _die_ Fehlerursache).
 - **Zwei 404-Boundaries:** `[locale]/not-found.tsx` und `[locale]/[[...slug]]/not-found.tsx`
   — Letztere ist die, die für Page-`notFound()` tatsächlich rendert. Beide patchen.
 - **Build-Guard:** `generateMetadata` (impressum) und der Skip-Link im RootLayout laufen
@@ -2100,13 +2102,13 @@ Schema-Stand nie erreicht hat (SQLite-Historie, Downgrades, nie angewendete Drif
 Die letzten hartkodierten Strings lagen an Stellen, die **nicht** in einem Request-Kontext
 laufen und deshalb nicht einfach `await`en können. Drei Kategorien, drei Muster:
 
-| Stelle | Muster | Warum |
-| --- | --- | --- |
-| `layoutMetadata.ts` | Registry-Seeds als **statischer** Export (`layoutMetadata`), plus `perRequestMetadata()` für den echten Request | `export const metadata` kann nicht awaiten; der Wording-Test importiert das Objekt direkt. Das Layout nutzt jetzt `generateMetadata()` mit CMS-Werten. |
-| `manifest.ts` | Registry-Seeds (`seo.manifest*`) | Der Browser holt das Manifest vor jeder Locale-Aushandlung; ein Install-Prompt darf nicht an einer DB-Runde hängen. |
-| `ogCard.tsx` / `/og` | Karte = reiner Renderer (Props), Route löst `site-settings` + `seo.ogSubtitle` auf | Satori läuft außerhalb des React-Request-Kontexts. |
-| `global-error.tsx` | Registry-Seeds (`routes.globalError.*`) | Letztes Dokument; darf nicht lesen, aber auch keine driftenden Literale tragen. |
-| `StructuredData.tsx` | `buildPerson(input)` statt `PERSON`-Konstante | JSON-LD wird pro Request gebaut; Identity kommt aus `site-settings.identity`, Copy aus `seo.person*`. |
+| Stelle               | Muster                                                                                                          | Warum                                                                                                                                                  |
+| -------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `layoutMetadata.ts`  | Registry-Seeds als **statischer** Export (`layoutMetadata`), plus `perRequestMetadata()` für den echten Request | `export const metadata` kann nicht awaiten; der Wording-Test importiert das Objekt direkt. Das Layout nutzt jetzt `generateMetadata()` mit CMS-Werten. |
+| `manifest.ts`        | Registry-Seeds (`seo.manifest*`)                                                                                | Der Browser holt das Manifest vor jeder Locale-Aushandlung; ein Install-Prompt darf nicht an einer DB-Runde hängen.                                    |
+| `ogCard.tsx` / `/og` | Karte = reiner Renderer (Props), Route löst `site-settings` + `seo.ogSubtitle` auf                              | Satori läuft außerhalb des React-Request-Kontexts.                                                                                                     |
+| `global-error.tsx`   | Registry-Seeds (`routes.globalError.*`)                                                                         | Letztes Dokument; darf nicht lesen, aber auch keine driftenden Literale tragen.                                                                        |
+| `StructuredData.tsx` | `buildPerson(input)` statt `PERSON`-Konstante                                                                   | JSON-LD wird pro Request gebaut; Identity kommt aus `site-settings.identity`, Copy aus `seo.person*`.                                                  |
 
 **Identität = Daten, nicht Copy.** Name, Adresse, Telefon, Profile und Sprachen liegen in
 `site-settings.identity` (Gruppe, mit `sameAs`/`knowsLanguage` als Arrays). Eine Adresse ist
@@ -2121,3 +2123,74 @@ zerstören.
 FREMDE Version und überschreibt lokale Arbeit. Wenn eine Config-Datei plötzlich alte Felder
 (`maintenanceMode`) oder ein `pick()`-Leck hat, ist genau das passiert — die Datei gegen
 `origin/main` zurücksetzen und die eigene Erweiterung neu einfügen.
+
+## Projekt-Showcase: `vibeProjects` + `vibeShowcase` (09.11.2026)
+
+Ein paginierbares, tag-filterbares Projekt-Listing mit eigener Detailroute. Design:
+`docs/design/vibe-coding-showcase.md` (Routing, Felder, Cache, Copy, Migrationen, Tag-Filter).
+
+### Datenmodell
+
+| Objekt                                  | Rolle                                                                                                                                                                                                                                                                                                                                                    |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Collection `vibeProjects`               | Ein Projekt = ein Dokument. Drafts/Versionen, Live Preview, `wordingBeforeValidate`, `protectedAuthorshipFields()`, Cover (`vibe_tile`/`vibe_tile_wide`/`vibe_hero`-Varianten), `tags` (Relationship), `stack`, `kind`, `githubUrl`, `liveUrl`, `featured`, `order`, Case-Study-Felder (context/approach/learnings/outcome), alles Text-Feld `localized` |
+| Collection `vibeTags`                   | `slug` (unique) + lokalisiertes `label`. Bewusst eine Collection statt `select`-Enum: neue Tags ohne Migration, URL-stabile Slugs, immer gleiche Schreibweise                                                                                                                                                                                            |
+| Block `vibeShowcase`                    | Wird auf der CMS-Seite `vibe-coding` platziert, rendert Raster + Tag-Filter + Pagination. **Nur der ERSTE Block rendert** — ein zweiter würde `?page=`, das Pagination-Landmark und das `ItemList` verdoppeln                                                                                                                                            |
+| Route `/[locale]/vibe-coding/[project]` | Detailseite, `◐` Partial Prerender                                                                                                                                                                                                                                                                                                                       |
+
+### Vierte Navigationsfläche: Command-Palette (09.11.2026)
+
+Das Listing erscheint in ⌘K als Eintrag **`vibe-coding`** (`href: '/vibe-coding'`, Gruppe `pages`,
+Position direkt nach `case-studies`). Das war die letzte Fläche ohne den Eintrag — Drawer und
+Footer lesen das `navigation`-Global, die Palette dagegen `src/components/ui/commandItems.ts`
+(Struktur) + `translations.copy` (Label/Keywords).
+
+- Label/Keywords: `commandItems.vibe-coding.label` / `.keywords`, Seeds in Migration
+  `20261109_183000_seed_command_palette_vibe_coding` (de + en, `WHERE NOT EXISTS`).
+- **Keine `COPY_KEYS`-/`COPY_LIST_KEYS`-Einträge** — `commandItems.*` wird per id zur Laufzeit
+  adressiert (`commandItemCopy`) und ist dort bewusst nicht enumeriert (siehe Kommentar an
+  `COPY_LIST_KEYS`). Neuer Palette-Eintrag = Struktur-Eintrag + Seed-Migration, nichts sonst.
+- **Ein leerer Label-Wert löscht den Eintrag still** (`getCommandItems` droppt ihn statt einen
+  Blank zu rendern). Ein fehlender Seed sieht also nicht wie ein Fehler aus, sondern wie eine
+  fehlende Seite — beim Anlegen neuer Palette-Einträge immer beide Locales seeden.
+- **Projekt-Detailseiten sind NICHT in der Palette** (bewusste Entscheidung): die Palette wird im
+  Layout server-seitig aus `'use cache'`-Daten gebaut und als Prop in eine Client-Komponente
+  gereicht; jedes Projekt einzeln aufzunehmen hieße, die Collection bei jedem Shell-Render zu
+  lesen und die Trefferliste unbegrenzt wachsen zu lassen. Das Listing ist die stabile
+  Einstiegsfläche; die Suche nach Projekten gehört aufs Listing (Tag-Filter).
+
+### Offener CMS-Schritt: `navigation.headerLinks`/`footerLinks`
+
+Die Palette kennt das Listing über Code, das **Menü kennt es nur, wenn es im `navigation`-Global
+steht** — das ist Content, kein Code. Ein späterer MCP-Write muss je Locale zwei Zeilen setzen
+(Feldpfad `headerLinks` bzw. `footerLinks`, Array-of-`{ label, link, newTab }` bzw.
+`{ label, link }`): DE `{ label: 'Vibe Coding', link: '/de/vibe-coding' }` und EN
+`{ label: 'Vibe Coding', link: '/en/vibe-coding' }`; `newTab` bleibt `false` (interner Link).
+Position: direkt nach dem Case-Studies-Eintrag, damit Menü und Palette dieselbe Reihenfolge haben.
+
+### Listing: Pagination + Tag-Filter (SEO-Vertrag)
+
+- URL-Schema: `?page=N` und `?tag=<slug>`, kombinierbar; Seitenwechsel behält den Tag, Tag-Wechsel springt auf Seite 1.
+- **Page 1 emittiert nie `?page=1`** (`buildListingHref`); `?page=N` ist selbstkanonisch und indexierbar (jede Seite einer Serie ist ein eigenes Dokument).
+- **`?tag=` ist eine Facette, kein Dokument:** `canonical` auf das nackte Listing + `robots: { index: false, follow: true }`. Auch kaputte/überlaufende `?page=`-Werte (`?page=abc`, `?page=99`) sind `noindex` und kanonisch auf die geklemmte Seite.
+- Filter-Chips und Pagination sind **echte `<a href>`** (crawlbar, ohne JS nutzbar), `aria-current` für Zustand (nie nur Farbe), `nav aria-label` aus dem CMS, Ergebnisanzahl in `aria-live="polite"`, 44-px-Targets.
+- Sitemap listet Listing + jede Detail-URL, **nie** `?page=`/`?tag=`. Filterte Seiten erzeugen kein `ItemList` (Design § 10.3).
+
+### Edge-Purge paginierter Routen: **Prefix statt URL-Liste**
+
+`?page=N` und `?tag=` sind eigene Cloudflare-Cache-Objekte (Cache-Key enthält den Query). Eine Bare-Path-Purge lässt sie bis zu `s-maxage` veralten. Lösung:
+
+- `PAGINATED_ROUTES`/`isPaginatedRoute` (`src/cms/cache/frontend/routes.ts`) markiert Routen mit Query-Varianten; der Purge-Client schickt sie als **Prefix** (`host+path`, ohne Scheme/Query/Fragment) — **eine Operation** statt N URLs, deckt `?page=` **und** `?tag=` ab.
+- 100-Operationen-Cap bleibt, Batching exakt (kein stilles Verwerfen), Teil-Erfolg = `failed` + Circuit Breaker, ein 429-Retry.
+- `/_next/static` bleibt strukturell unpurgebar **und** unpräfigierbar (`isPurgeablePath` + `normalizePrefixPath`).
+- Deploy-Purge (`scripts/cf-purge.mjs`) zieht die Prefix-Liste aus `/api/purge-manifest` (statisch, `no-store`, kein DB-Read, kein Secret). Die API-Route ist legitim: externer Caller = Deploy-Skript, das keine Server Action aufrufen kann.
+- **`totalPages` wird nirgends aufgelöst** — ein Prefix-Purge braucht es nicht, und im Payload-Hook ist es nicht synchron verfügbar.
+
+### Gelernte Fehler (diese Session)
+
+- **[Next-16/Route-Typen] `generateStaticParams` + `instant = false` dürfen bei Umbauten der Catch-All-Page nicht verloren gehen.** Symptom beim Build: `A required root parameter (locale) was not provided in generateStaticParams for /[locale]/[[...slug]]`. Beim Umschreiben der Page (searchParams-Plumbing) prüfen, dass beide Exporte erhalten bleiben.
+- **[Typen] `PageProps`/`LayoutProps` existieren erst nach `npx next typegen`** — ohne `.next/types` meldet `tsc --noEmit` `Cannot find name 'PageProps'`, obwohl der Code korrekt ist. Vor jeder Typecheck-Diagnose einmal typegen laufen lassen.
+- **[Cache/Barrel] Ein modul-level `const Set` (z. B. `KNOWN_SLUGS`), das durch das `frontendCache`-Barrel sternexportiert wird, kann unter esbuild `Cannot access … before initialization` werfen** (Zirkularität über den Barrel). Registries liegen deshalb in einem `globalThis`-gekeyten Record.
+- **[Cloudflare/Purge] „Prefix-Purge geht auf dem Free-Plan nicht" ist falsch** (seit 04/2025 für alle Pläne). Die frühere Notiz „`success: true`, evictet nichts" gilt nur für **fremde Hosts** in einer Zone — ein Prefix derselben Zone evictet sehr wohl, inklusive Query-Varianten. Auf Add-on/Pionier-Doku nicht verlassen, API-Format beachten: `host+path`, **kein** Schema, **kein** Query/Fragment (wird sonst abgelehnt).
+- **[Prozess] Verifizierte Zahlen vor dem Schreiben prüfen.** Zwei Copy-Pässe lieferten abweichende Werte (Dashboard-Karten 79 vs. 155 → real 149; „43 PRs über 9 Repos" → real 8 Repos). Jede Zahl in Case-Study-Texten braucht eine Quelle; das Evidence-Log liegt in `/tmp/opencode/vibe-copy-final.md`.
+- **[Marken-/Positionierungs-Wording] „Vibe Coding" ist als Selbstbezeichnung unerwünscht.** Die Projekte entstehen MIT KI-Unterstützung, werden aber an professionellen Standards gemessen (Regelwerk im Repo, Gates vor jedem Merge, automatisierter Audit über den erzeugten Code, Incidents werden diagnostiziert und behoben). Copy formuliert entsprechend — nie als „schnell, niemand prüft".

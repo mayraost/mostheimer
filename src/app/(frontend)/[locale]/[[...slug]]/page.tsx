@@ -6,7 +6,13 @@ import { connection } from 'next/server';
 import { BlockRenderer } from '@/components/blocks';
 import { HeroBlock } from '@/components/blocks/HeroBlock';
 import { envConfig } from '@/envConfig';
-import { getCachedPageBySlug, getCachedSiteSettings } from '@/cms/cache/frontend/frontendCache';
+import {
+  getCachedPageBySlug,
+  getCachedSiteSettings,
+  getCachedVibeProjectPage,
+  getCachedVibeTags,
+} from '@/cms/cache/frontend/frontendCache';
+import { VIBE_SHOWCASE_SLUG, normalizeTagSlug } from '@/cms/cache/frontend/routes';
 import { loadChromeCopy, loadHeroCopy } from '@/lib/translationBundles.server';
 import {
   JsonLdScript,
@@ -14,6 +20,7 @@ import {
   buildCaseStudiesJsonLd,
   buildProfilePageJsonLd,
   buildSiteJsonLd,
+  buildVibeListingJsonLd,
   buildWebPageJsonLd,
 } from '@/components/StructuredData';
 import type { JsonLdObject } from '@/components/StructuredData';
@@ -21,6 +28,11 @@ import { derivePageDescription } from '@/cms/aeo/pageMetadata';
 import { ogImageUrl } from '@/components/og/ogCard';
 import { loadPersonJsonLd } from '@/lib/identity.server';
 import { getCachedTranslation } from '@/lib/translations.server';
+import type { VibeListingPage } from '@/cms/cache/frontend/queries';
+import type { VibeTagDoc } from '@/cms/cache/frontend/queries';
+import type { VibeShowcaseTag, VibeShowcaseView } from '@/components/vibe/showcaseView';
+import { toShowcaseView } from '@/components/vibe/showcaseView';
+import { toProjectView } from '@/components/vibe/projectView';
 
 /**
  * About-me-like slugs render as ProfilePage JSON-LD; the homepage itself is a
@@ -46,6 +58,100 @@ export function generateStaticParams() {
 // Allows the blocking render: this route calls connection() without its own
 // Suspense boundary, which Next otherwise flags during dev.
 export const instant = false;
+
+/**
+ * True when the page renders the paginated vibe-coding listing.
+ *
+ * Two conditions, both required: the page IS the listing route and its layout
+ * actually carries a `vibeShowcase` block. The block is what consumes
+ * `?page=`/`?tag=`, so a page without it stays a normal, canonical, indexable
+ * content page.
+ */
+function isVibeListingPage(slug: string, page: CmsPage): boolean {
+  return (
+    slug === VIBE_SHOWCASE_SLUG &&
+    (page.layout ?? []).some((block) => block.blockType === 'vibeShowcase')
+  );
+}
+
+/**
+ * Listings are faceted URLs (design § 10.2): a filtered view (`?tag=`) or any
+ * `?page=` other than the bare first page is `noindex, follow` and declares the
+ * bare listing as canonical. The bare listing is indexable and self-canonical.
+ */
+function listingIsVariant(listing: VibeListingPage): boolean {
+  return listing.hasTagParam || listing.page > 1 || listing.requestedPage > 1;
+}
+
+/** `?page=` / `?tag=` values as the listing reader expects them. */
+type ListingSearchParams = { page?: string | string[]; tag?: string | string[] };
+
+/**
+ * Resolves the vibe-coding listing for one request.
+ *
+ * The listing page is a normal CMS page that happens to carry a paginated
+ * block, so `?page=`/`?tag=` arrive here as `searchParams` and are handed to the
+ * cached reader (both are part of its cache key). The block itself never reads
+ * the URL — it gets the resolved view.
+ *
+ * Chip counts: the cached reader returns the UNFILTERED total plus the count of
+ * the ACTIVE filter. One aggregate per tag would mean one extra query per chip
+ * on every listing render, so a chip only shows a number when it is known —
+ * never a guessed one. The active count comes from the filtered slice, which is
+ * exact.
+ */
+async function resolveVibeListing(
+  locale: FrontendLocale,
+  pageSize: number,
+  search: ListingSearchParams,
+): Promise<{
+  listing: VibeListingPage;
+  view: VibeShowcaseView;
+}> {
+  const [listing, tags] = await Promise.all([
+    getCachedVibeProjectPage(locale, {
+      rawPage: search.page,
+      rawTag: search.tag,
+      pageSize,
+    }),
+    getCachedVibeTags(locale),
+  ]);
+
+  const counts = new Map<string, number>();
+  // With no filter the whole published set is the "all" bucket; a chip's own
+  // number stays unknown (0 = "do not claim a number").
+  if (listing.tagSlug) counts.set(listing.tagSlug, listing.totalDocs);
+
+  const chips = toShowcaseTagsForListing(tags, counts, listing.tagSlug);
+  return { listing, view: toShowcaseView(locale, listing, chips) };
+}
+
+/**
+ * Tag chips for the row: known slugs, deduplicated, plus the count when it is
+ * known. Unlike `toShowcaseTags` (which drops tags without a count for the
+ * JSON-LD/ops views) the filter row keeps every tag — hiding a tag because its
+ * number is not known would make a whole facet unreachable.
+ */
+function toShowcaseTagsForListing(
+  tags: readonly VibeTagDoc[],
+  counts: ReadonlyMap<string, number>,
+  activeSlug: string | null,
+) {
+  const seen = new Set<string>();
+  const chips: VibeShowcaseTag[] = [];
+  for (const tag of tags) {
+    const slug = normalizeTagSlug(tag.slug);
+    if (!slug || seen.has(slug)) continue;
+    // The tag slug is validated by the manual check above; the active tag's
+    // chip carries the exact filtered count.
+    chips.push({
+      slug,
+      label: tag.label?.trim() || slug,
+      count: slug === activeSlug ? (counts.get(slug) ?? 0) : 0,
+    });
+  }
+  return chips;
+}
 
 /** Page-level JSON-LD, built on the server from already cached page data (no extra read, no client JS). */
 function buildPageJsonLd(
@@ -120,6 +226,7 @@ function buildPageJsonLd(
  */
 export async function generateMetadata({
   params,
+  searchParams,
 }: PageProps<'/[locale]/[[...slug]]'>): Promise<Metadata> {
   const { locale, slug, page } = await resolvePage(params);
   if (!page) notFound();
@@ -127,10 +234,27 @@ export async function generateMetadata({
   // `og:site_name` are public brand copy.
   const siteSettings = await getCachedSiteSettings(locale);
   const brandTitle = await getCachedTranslation(locale, 'seo.title');
-  return buildPageMetadata(locale, slug, page, siteSettings.siteName ?? '', brandTitle);
+  // The listing page adds facet metadata (canonical → bare listing,
+  // `noindex, follow` for `?page=`/`?tag=`). Resolved here, before the stream,
+  // so the crawler-facing head is correct even if the body streams later.
+  const listing = isVibeListingPage(slug, page)
+    ? await getCachedVibeProjectPage(locale, {
+        rawPage: (await searchParams).page,
+        rawTag: (await searchParams).tag,
+        pageSize: vibePageSizeOf(page),
+      })
+    : null;
+  return buildPageMetadata(locale, slug, page, siteSettings.siteName ?? '', brandTitle, listing);
 }
 
-export default async function Page({ params }: PageProps<'/[locale]/[[...slug]]'>) {
+/** `pageSize` of the listing block, clamped exactly like the cached reader. */
+function vibePageSizeOf(page: CmsPage): number {
+  const block = (page.layout ?? []).find((entry) => entry.blockType === 'vibeShowcase');
+  const value = block && block.blockType === 'vibeShowcase' ? block.pageSize : undefined;
+  return Math.min(12, Math.max(3, Math.trunc(value ?? 6) || 6));
+}
+
+export default async function Page({ params, searchParams }: PageProps<'/[locale]/[[...slug]]'>) {
   // Aborts the build-time prerender attempt: the Coolify build container has no
   // DB, so pages render at runtime against the 'use cache' layer instead.
   await connection();
@@ -144,6 +268,18 @@ export default async function Page({ params }: PageProps<'/[locale]/[[...slug]]'
     notFound();
   }
 
+  // Paginated block data: only the listing page needs it, and only when a
+  // `vibeShowcase` block is actually placed. Reading the two `searchParams` the
+  // listing understands is the whole plumbing — the block stays a pure renderer.
+  const listingPage = isVibeListingPage(slug, page);
+  const search = await searchParams;
+  const listingData = listingPage
+    ? await resolveVibeListing(locale, vibePageSizeOf(page), {
+        page: search.page,
+        tag: search.tag,
+      })
+    : null;
+
   const [siteSettings, chrome] = await Promise.all([
     getCachedSiteSettings(locale),
     loadChromeCopy(locale),
@@ -151,14 +287,32 @@ export default async function Page({ params }: PageProps<'/[locale]/[[...slug]]'
   // Hero shell copy carries the brand name from site-settings (it is the same
   // entity name the metadata uses, so it is data, not copy).
   const heroCopy = await loadHeroCopy(locale, siteSettings.siteName ?? '');
-  const jsonLd = buildPageJsonLd(
-    slug,
-    locale,
-    page,
-    derivePageDescription(page),
-    siteSettings.siteName ?? '',
-    await loadPersonJsonLd(locale, siteSettings),
-  );
+  // A filtered or paginated listing emits NO ItemList (design § 10.3): an
+  // ItemList on a page we ask Google to drop is noise.
+  const jsonLd =
+    listingData && !listingIsVariant(listingData.listing)
+      ? buildVibeListingJsonLd({
+          locale,
+          path: pagePath(locale, slug),
+          name: page.title,
+          description: derivePageDescription(page),
+          items: listingData.view.items.flatMap((item) => {
+            // The JSON-LD node needs the full view (links, stack, hero); the
+            // tile model omits the narrative fields it does not draw.
+            const match = listingData.listing.docs.find((doc) => doc?.slug === item.slug);
+            const project = match ? toProjectView(match, locale) : null;
+            return project ? [project] : [];
+          }),
+          totalDocs: listingData.listing.totalDocs,
+        })
+      : buildPageJsonLd(
+          slug,
+          locale,
+          page,
+          derivePageDescription(page),
+          siteSettings.siteName ?? '',
+          await loadPersonJsonLd(locale, siteSettings),
+        );
 
   // Semantic <h1> guarantee: case-studies / tech-radar / career have no block
   // that emits one. The title renders as h1 only when no hero block exists,
@@ -200,7 +354,21 @@ export default async function Page({ params }: PageProps<'/[locale]/[[...slug]]'
               copy={heroCopy}
             />
           ) : (
-            <BlockRenderer key={index} block={block} locale={locale} />
+            <BlockRenderer
+              key={index}
+              block={block}
+              locale={locale}
+              // Only the first `vibeShowcase` renders (design § 3): two listings
+              // would duplicate the `?page=` set, the pagination landmark and
+              // the `ItemList`. Later copies render nothing.
+              request={
+                listingData &&
+                block.blockType === 'vibeShowcase' &&
+                layout.findIndex((entry) => entry.blockType === 'vibeShowcase') === index
+                  ? { listing: { vibeShowcase: listingData.view } }
+                  : undefined
+              }
+            />
           ),
         )}
       </article>
@@ -219,19 +387,37 @@ async function resolvePage(
   return { locale, slug, page };
 }
 
-/** Page metadata: title, description, OG card, canonicals and hreflang. */
+/**
+ * Page metadata: title, description, OG card, canonicals and hreflang.
+ *
+ * `listing` is present only for the vibe-coding listing page. Then the head
+ * follows the faceted-URL rules (design § 10.2):
+ * - bare listing → self-canonical, indexable;
+ * - `?tag=` / `?page>1` / malformed `?page` → canonical to the BARE listing,
+ *   `robots: noindex, follow` (links stay crawlable, equity is passed on).
+ * Paginated variants (`?page=2 …`) stay self-canonical and indexable, because
+ * each page of a paginated series is a distinct document.
+ */
 function buildPageMetadata(
   locale: FrontendLocale,
   slug: string,
   page: CmsPage,
   siteName: string,
   brandTitle: string,
+  listing: VibeListingPage | null = null,
 ): Metadata {
   const baseUrl = envConfig.serverUrl;
-  const canonical = baseUrl + pagePath(locale, slug);
+  const barePath = baseUrl + pagePath(locale, slug);
+  const canonical = barePath;
   const description = derivePageDescription(page);
   const enUrl = baseUrl + '/en' + (slug === 'home' ? '' : '/' + slug);
   const deUrl = baseUrl + '/de' + (slug === 'home' ? '' : '/' + slug);
+
+  // A filtered view (`?tag=`, whatever the page) is a subset, not a document:
+  // canonical to the bare listing and ask crawlers to drop it while following.
+  const isFilteredVariant = listing !== null && listing.hasTagParam;
+  // A malformed or overreaching `?page=` is a duplicate of the clamped page.
+  const isMalformedPage = listing !== null && !listing.isCanonicalPage;
 
   // Homepage: the BRAND title (`seo.title`, e.g. "Mayra Ostheimer — Web &
   // Application Architect"). The CMS page title there is a short label
@@ -248,6 +434,7 @@ function buildPageMetadata(
   return {
     title: { absolute: title },
     ...(description ? { description } : {}),
+    ...(isFilteredVariant || isMalformedPage ? { robots: { index: false, follow: true } } : {}),
     openGraph: {
       // Share cards show the same headline as the document title, so a shared
       // homepage link never reads "Startseite".
