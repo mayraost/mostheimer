@@ -66,6 +66,9 @@ payload.db
 .visual-test/
 .tmp-agent/
 
+# agent-generated content payloads (local only)
+/.content/
+
 # local agent scratch (never commit)
 /.visual-test/
 /.playwright-mcp/

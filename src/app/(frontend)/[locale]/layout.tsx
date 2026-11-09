@@ -32,8 +32,7 @@ import { perRequestMetadata } from './layoutMetadata';
  * the CMS (`seo.*` copy + `site-settings` brand). Static export with literals
  * was the last place where shipping copy lived in code. The fallbacks inside
  * `perRequestMetadata` are the registry seeds, so a cold cache still renders
- * real text; the wording guardrail test validates `layoutMetadata` (same
- * seeds).
+ * real text.
  *
  * DB-less build guard: metadata resolves BEFORE `connection()`, so during the
  * prerender attempt every cached read is skipped and the seeds apply.

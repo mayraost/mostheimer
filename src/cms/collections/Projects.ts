@@ -7,7 +7,6 @@ import {
   revalidateProjectCache,
 } from '../cache/frontend/frontendCache';
 import { toUrlSlug } from '../slugField';
-import { wordingBeforeValidate } from '../wording/beforeValidateWordingCheck';
 
 /**
  * Project-Showcase projects — one document per detail route
@@ -62,9 +61,6 @@ export const Projects: CollectionConfig = {
   // still passes `draft: false` and stays published-only.
   versions: { drafts: true },
   hooks: {
-    // Wording guardrail: banned hierarchy/brand terms fail the save with a
-    // readable message instead of shipping (see cms/aeo/constraints.ts).
-    beforeValidate: [wordingBeforeValidate],
     // OSR: a publish/update invalidates the project's detail tag, the collection
     // domain tag, the sitemap AND the listing (a publish moves the project
     // between pages). A slug rename additionally flushes the OLD detail URL so
