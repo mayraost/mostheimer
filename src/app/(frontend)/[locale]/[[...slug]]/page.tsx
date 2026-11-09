@@ -20,6 +20,7 @@ import type { JsonLdObject } from '@/components/StructuredData';
 import { derivePageDescription } from '@/cms/aeo/pageMetadata';
 import { ogImageUrl } from '@/components/og/ogCard';
 import { loadPersonJsonLd } from '@/lib/identity.server';
+import { getCachedTranslation } from '@/lib/translations.server';
 
 /**
  * About-me-like slugs render as ProfilePage JSON-LD; the homepage itself is a
@@ -125,7 +126,8 @@ export async function generateMetadata({
   // Brand from the CMS (site-settings), never a literal: title suffix and
   // `og:site_name` are public brand copy.
   const siteSettings = await getCachedSiteSettings(locale);
-  return buildPageMetadata(locale, slug, page, siteSettings.siteName ?? '');
+  const brandTitle = await getCachedTranslation(locale, 'seo.title');
+  return buildPageMetadata(locale, slug, page, siteSettings.siteName ?? '', brandTitle);
 }
 
 export default async function Page({ params }: PageProps<'/[locale]/[[...slug]]'>) {
@@ -223,6 +225,7 @@ function buildPageMetadata(
   slug: string,
   page: CmsPage,
   siteName: string,
+  brandTitle: string,
 ): Metadata {
   const baseUrl = envConfig.serverUrl;
   const canonical = baseUrl + pagePath(locale, slug);
@@ -230,11 +233,25 @@ function buildPageMetadata(
   const enUrl = baseUrl + '/en' + (slug === 'home' ? '' : '/' + slug);
   const deUrl = baseUrl + '/de' + (slug === 'home' ? '' : '/' + slug);
 
+  // Homepage: the BRAND title (`seo.title`, e.g. "Mayra Ostheimer — Web &
+  // Application Architect"). The CMS page title there is a short label
+  // ("Startseite"); appending the site name to it produced the duplicated
+  // "… Architect - Mayra Ostheimer", and using it alone dropped the brand.
+  // Every other page gets "<Page title> - <site name>".
+  const isHomePage = slug === 'home';
+  const title = isHomePage
+    ? brandTitle || page.title
+    : siteName
+      ? `${page.title} - ${siteName}`
+      : page.title;
+
   return {
-    title: siteName ? { absolute: `${page.title} - ${siteName}` } : page.title,
+    title: { absolute: title },
     ...(description ? { description } : {}),
     openGraph: {
-      title: page.title,
+      // Share cards show the same headline as the document title, so a shared
+      // homepage link never reads "Startseite".
+      title,
       type: 'website',
       siteName,
       url: canonical,
