@@ -174,6 +174,26 @@ const nextConfig: NextConfig = {
   // through Payload hooks + revalidateTag.
   cacheComponents: true,
   partialPrefetching: true,
+  // Payload's upload MIME detection (`file-type`) resolves `strtok3` through a
+  // runtime `import(specifier)` with a non-literal specifier, which no bundler
+  // can trace. Turbopack then copied only the statically imported subpath
+  // (`strtok3/core`) into the standalone output and left `lib/index.js`,
+  // `types.js` and `FileTokenizer.js` behind → production threw
+  // `Cannot find module '/app/node_modules/strtok3/lib/index.js'` on every
+  // `/api/media/file/*` request and answered **500** on every image, although
+  // the uploads were present and intact on disk.
+  //
+  // Two pieces are required together (each alone verified insufficient):
+  //   1. these packages stay external, so whole package files are copied
+  //      verbatim instead of being bundled/partially traced, and
+  //   2. a static `import 'strtok3'` in the Payload REST route
+  //      (src/app/(payload)/api/[...slug]/route.ts) makes Turbopack trace the
+  //      package entry as well.
+  // `outputFileTracingIncludes` is NOT an option: Next 16 skips the whole
+  // include/exclude pass under Turbopack, so such globs are a silent no-op.
+  // `@tokenizer/token` is types-only and `peek-readable` is not a dep of
+  // strtok3 v10 — neither is listed.
+  serverExternalPackages: ['file-type', 'strtok3', 'token-types', '@tokenizer/inflate'],
   experimental: {
     // global-not-found (docs: 01-app/03-api-reference/03-file-conventions/
     // not-found.md, § "global-not-found.js (experimental)"):
