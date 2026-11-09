@@ -446,6 +446,25 @@ await payload.delete({ collection: 'posts', id: '123' });
   (erste `{` bis letzte `}`).
 - Seiten-Updates brauchen `_status: 'published'` + `draft: false`, sonst kippt das
   Dokument in den Draft (siehe Abschnitt „Produktive Payload-Writes").
+- **Ein `updateGlobal`/`updateDocument`, das nur ein Array-Feld schickt, ERSETZT das
+  ganze Array — es merged nicht.** Ein Write mit nur `copy: [<1 neue Zeile>]` gegen
+  `translations` hat in dieser Session alle bestehenden `copy`-Zeilen vernichtet
+  (16 Keys → 1), obwohl die Antwort „updated successfully" lautete und die API keinen
+  Fehler meldete. Dasselbe gilt für jedes `array`/`blocks`/`hasMany`-Feld, auch bei
+  `localized` Arrays. **Regel: vollständigen Datensatz lesen (`locale: 'all'`), im
+  Speicher das EINE Element anfügen/ersetzen, dann das komplette Array zurückschreiben**
+  und per Re-Read die Zeilenzahl prüfen — nicht nur den geänderten Wert. Payload merged
+  bei Arrays nur nach `id` bei `array`-Rows; ein Eintrag ohne `id` ist immer „neu".
+- **`_status` wird pro Locale ausgewertet.** Ein `locale: 'all'`-Read liefert
+  `_status: { de: 'published', en: 'draft' }`. Die public Queries filtern
+  `_status: { equals: 'published' }` **in der angefragten Locale**, deshalb kann ein
+  Dokument im DE-Listing erscheinen und unter `/en/...` trotzdem 404 liefern. Nach
+  Content-Writes immer **beide** Locales prüfen, nicht nur die, die man gerade
+  bearbeitet hat.
+- Lokale MCP-Antworten können **mehrere** JSON-Objekte in einem einzigen
+  `json`-Code-Fence enthalten (eine Zeile pro Dokument). Ein `JSON.parse` auf den ganzen
+  Fence scheitert dann (`Unexpected non-whitespace character`); Objekte einzeln per
+  Klammern-Balancing (Strings/Escapes beachten) herausschneiden.
 
 ## Security: `users` darf nie öffentlich ausgeliefert werden (Stand 07.11.2026)
 
