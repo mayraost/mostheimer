@@ -9,8 +9,8 @@ import { fileURLToPath } from 'url';
 import { Users } from './cms/collections/Users';
 import { Media } from './cms/collections/Media';
 import { Pages } from './cms/collections/Pages';
-import { VibeProjects } from './cms/collections/VibeProjects';
-import { VibeTags } from './cms/collections/VibeTags';
+import { Projects } from './cms/collections/Projects';
+import { ProjectTags } from './cms/collections/ProjectTags';
 import { Navigation } from './cms/globals/Navigation';
 import { NotFound } from './cms/globals/NotFound';
 import { SiteSettings } from './cms/globals/SiteSettings';
@@ -51,10 +51,10 @@ export default buildConfig({
       actions: ['/cms/admin/components/CacheClearNavLink'],
     },
   },
-  // Order matters for the admin nav only. `vibeTags` before `vibeProjects`:
+  // Order matters for the admin nav only. `projectTags` before `projects`:
   // a project references tags, and the admin list should offer the referenced
   // collection first.
-  collections: [Users, Media, Pages, VibeTags, VibeProjects],
+  collections: [Users, Media, Pages, ProjectTags, Projects],
   globals: [Navigation, NotFound, SiteSettings, Translations],
   localization: {
     locales: ['en', 'de'],
@@ -99,24 +99,24 @@ export default buildConfig({
                 height: 1024,
                 position: 'centre',
               },
-              // Vibe-coding showcase (design doc § 4). Tile = 16:9 grid card,
+              // Project-Showcase (design doc § 4). Tile = 16:9 grid card,
               // wide = featured tile spanning two columns, hero = wide detail
               // header (12:5). Uploads that predate these variants fall back to
-              // the original file in `pickVibeImage`.
+              // the original file in `pickProjectImage`.
               {
-                name: 'vibeTile',
+                name: 'tile',
                 width: 768,
                 height: 432,
                 position: 'centre',
               },
               {
-                name: 'vibeTileWide',
+                name: 'tileWide',
                 width: 1280,
                 height: 720,
                 position: 'centre',
               },
               {
-                name: 'vibeHero',
+                name: 'hero',
                 width: 1920,
                 height: 800,
                 position: 'centre',
@@ -173,13 +173,13 @@ export default buildConfig({
             'Mediathek (Bilder/Uploads, WebP-Transformationen). CRUD ohne delete — Loeschung nur via Admin/REST.',
           tools: { delete: false },
         },
-        vibeTags: {
+        projectTags: {
           description:
-            'Filter-Tags der Vibe-Coding-Showcase (slug + lokalisierter Label). Anlegen/Umbenennen per MCP: Slug bleibt stabil, Label je Locale.',
+            'Filter-Tags der Projekt-Showcase (slug + lokalisierter Label). Anlegen/Umbenennen per MCP: Slug bleibt stabil, Label je Locale.',
         },
-        vibeProjects: {
+        projects: {
           description:
-            'Vibe-Coding-Projekte (ein Dokument = /{locale}/vibe-coding/<slug>). Drafts + Versionen; Cover-Bild/Relationen (tags) referenzieren media bzw. vibeTags.',
+            'Projekte (ein Dokument = /{locale}/projects/<slug>). Drafts + Versionen; Cover-Bild/Relationen (tags) referenzieren media bzw. projectTags.',
         },
       },
       globals: {

@@ -1,12 +1,12 @@
 import type { CollectionConfig, FieldHook } from 'payload';
 
 import { protectedAuthorshipFields } from '../security/authorship';
-import { revalidateVibeTagsCache } from '../cache/frontend/frontendCache';
+import { revalidateProjectTagsCache } from '../cache/frontend/frontendCache';
 import { toUrlSlug } from '../slugField';
 import { wordingBeforeValidate } from '../wording/beforeValidateWordingCheck';
 
 /**
- * Filter tags for the vibe-coding showcase (`vibeProjects.tags`, design doc § 10).
+ * Filter tags for the projects showcase (`projects.tags`, design doc § 10).
  *
  * A small collection, not an enum: a tag needs a STABLE url slug (`?tag=<slug>`),
  * one place to rename the visible label per locale, and creation without a
@@ -17,8 +17,8 @@ import { wordingBeforeValidate } from '../wording/beforeValidateWordingCheck';
  */
 const slugFromLabel: FieldHook = ({ value, data }) => toUrlSlug(value ?? data?.label);
 
-export const VibeTags: CollectionConfig = {
-  slug: 'vibeTags',
+export const ProjectTags: CollectionConfig = {
+  slug: 'projectTags',
   labels: { singular: 'Tag', plural: 'Tags' },
   admin: {
     useAsTitle: 'label',
@@ -34,8 +34,10 @@ export const VibeTags: CollectionConfig = {
     // A rename or delete changes every `?tag=<slug>` variant and the chip row
     // itself, so the listing projection is flushed as well. The previous slug
     // is the one whose URLs exist on the edge after a rename.
-    afterChange: [({ doc, previousDoc }) => revalidateVibeTagsCache(previousDoc?.slug ?? doc.slug)],
-    afterDelete: [({ doc }) => revalidateVibeTagsCache(doc.slug)],
+    afterChange: [
+      ({ doc, previousDoc }) => revalidateProjectTagsCache(previousDoc?.slug ?? doc.slug),
+    ],
+    afterDelete: [({ doc }) => revalidateProjectTagsCache(doc.slug)],
   },
   fields: [
     {

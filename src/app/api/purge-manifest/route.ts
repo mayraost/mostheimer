@@ -1,10 +1,10 @@
 import { connection } from 'next/server';
 import { PAGINATED_ROUTES, paginatedRoutePaths } from '@/cms/cache/frontend/routes';
-import { getCachedAllVibeProjects, primeRouteRegistries } from '@/cms/cache/frontend/queries';
+import { getCachedAllProjects, primeRouteRegistries } from '@/cms/cache/frontend/queries';
 import {
   registeredPageSlugs,
-  registeredVibeDetailPaths,
-  registeredVibeProjectSlugs,
+  registeredProjectDetailPaths,
+  registeredProjectSlugs,
 } from '@/cms/cache/frontend/revalidate';
 
 /**
@@ -32,10 +32,10 @@ import {
  *
  * FIELDS
  *
- * - `paginatedRoutes` — bare route paths (`/vibe-coding`), the source of truth.
- * - `paginatedPaths` — `/en/vibe-coding`, `/de/vibe-coding`: what the purge
+ * - `paginatedRoutes` — bare route paths (`/projects`), the source of truth.
+ * - `paginatedPaths` — `/en/projects`, `/de/projects`: what the purge
  *   turns into `host+path` prefixes.
- * - `pageSlugs` / `vibeProjects` / `vibeDetailPaths` — the ops view of the route
+ * - `pageSlugs` / `projects` / `projectDetailPaths` — the ops view of the route
  *   registries. Optional for the caller (fail-soft), useful for diagnosing a
  *   broad flush.
  */
@@ -51,16 +51,16 @@ export async function GET() {
   // degrades to empty lists instead of failing the manifest (the deploy purge
   // must never abort on an optional field).
   let pageSlugs: string[] = [];
-  let vibeProjects: string[] = [];
-  let vibeDetailPaths: string[] = [];
+  let projects: string[] = [];
+  let projectDetailPaths: string[] = [];
   try {
     // `primeRouteRegistries` reads the page list; the project reads are served
     // from the data cache when a render already populated them.
     await primeRouteRegistries();
-    await getCachedAllVibeProjects();
+    await getCachedAllProjects();
     pageSlugs = registeredPageSlugs();
-    vibeProjects = registeredVibeProjectSlugs();
-    vibeDetailPaths = registeredVibeDetailPaths();
+    projects = registeredProjectSlugs();
+    projectDetailPaths = registeredProjectDetailPaths();
   } catch (error) {
     console.warn(
       '[purge-manifest] Route-Registry nicht lesbar — leere Zusatzlisten:',
@@ -75,8 +75,8 @@ export async function GET() {
       // map); the manifest stays a pure route model: paths only.
       paginatedPaths: paginatedRoutePaths(PAGINATED_ROUTES),
       pageSlugs,
-      vibeProjects,
-      vibeDetailPaths,
+      projects,
+      projectDetailPaths,
     },
     { status: 200, headers: { 'Cache-Control': 'no-store' } },
   );

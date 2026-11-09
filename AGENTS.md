@@ -1604,7 +1604,7 @@ Vor jedem Commit wird diese Datei auf Aktualität geprüft und bei Bedarf ergän
 - **[ESLint/FlatConfig Overrides]** Spätere Entries in `eslint.config.mjs` gewinnen per-File: `files: ['src/migrations/**']` → `unused-imports/no-unused-vars: 'off'` für Payload-Codegen-Hook-Signaturen (`payload/req/db` ungebraucht). Override VOR dem globalen Plugin-Block wird stillschweigend von dessen Regel-Definition zugeschlagen (21 Warnings blieben) — Exemption gehört ans Array-Ende.
 - **[Next-16/Metadata-File-Conventions]** `opengraph-image.tsx` (und alle Metadata-Dateikonventionen) sind im optionalen Catch-All `[locale]/[[...slug]]` NICHT colocierbar — Build bricht mit `Optional catch-all must be the last part of the URL` (die interne Metadata-Route `opengraph-image-<hash>` wird als Kind-Segment hinter den optionalen Catch-All gehängt; verifiziert 16.4.5). Per-Page-OG-Images stattdessen: explizite `openGraph.images` in `generateMetadata` → dedizierte Route `/og` (src/app/og/route.tsx; Query-Params t/s/loc, searchParams = on-demand ƒ). Zwei Folge-Constraints: (a) der Proxy (src/proxy.ts) redirectet `/og` sonst ins Locale-Format (307 für OG-Crawler) — exakt `/og` in die Skip-Liste (matcher skipped nur `_next`/`admin`/`api`/dot-Paths); (b) die `/og`-Route legitimiert die API-Route-Ausnahme (PNG-Byte-Response für externe OG-Fetcher, kein Write, daher keine Server Action). Zusätzlich: `src/public` ist im Dev-Server NICHT erreichbar (Docker kopiert es erst in den Runner unter /app/public) — statische Text-Assets wie `llms.txt` gehören als Route-Handler (`src/app/llms.txt/route.ts`, default-cached ○, kein DB-Read, Konstante in `src/cms/aeo/llmsTxt.ts`).
 - **[Turbopack/Stale-Cache]** `Error: Cannot find module '@tailwindcss/turbopack'` beim Build, obwohl das Package installiert ist (npm ls sauber) → Stale-Turbopack-Build-Cache aus der Phase VOR `npm ci`/Node-Modules-Wechsel (Worktree über hart kopiertes node_modules, Concurrent-Prune am Main). Fix: `rm -rf .next` vor Dep-Debugging (verifiziert 03.11.2026).
-- **[AEO/SEO-Schema]** JSON-LD- und Metadata-Layer (04.11.2026, Branch `feat/seo-schema-lighthouse`): `Person` (`src/components/StructuredData.tsx`) trägt `jobTitle` (Senior Fullstack Developer), `description`, `sameAs` (GitHub + LinkedIn), `email`/`telephone` (plain — NICHT `mailto:` in `contactPoint.email`, schema.org erwartet die nackte Adresse), `address`, `worksFor` (valantic DXA), `knowsLanguage`; bewusst KEIN `image`, `seeks` oder Verfügbarkeits-Claim. Per-Page-Aufbau: home → `WebSite` + `Person`-Graph; career → `ProfilePage` mit `Person.hasOccupation` aus den Timeline-Einträgen (`parsePeriod` versteht `09/2024`, `Seit 09/2024 – Heute`, `2012 – 2014`; offene Enden liefern nur `startDate`, unklare Strings gar nichts); case-studies → `WebPage` + `ItemList` aus den `caseStudy`-Blöcken; tech-radar/leadership/contact → schlanke `WebPage` (contact zusätzlich mit `Person`-Kontaktknoten); alle übrigen (privacy/imprint) neutraler `WebPage`. Metadaten: `pages` hat KEIN description-Feld → `derivePageDescription` (`src/cms/aeo/pageMetadata.ts`) leitet pro Seite aus dem ersten Block mit ≥ 40 Zeichen ab (hero.subheading → statusBlock.description → techSection.body → caseStudy → lexical richText), kürzt auf ~155 Zeichen an einer Wortgrenze; Seiten ohne verwertbaren Text erben die Layout-Default-Description (kein leeres Tag). `title: { absolute }` verhindert doppelte Brand-Suffixe; `alternates.languages` enthält `x-default` → `/de` (Primäraudienz) — `x-default` IST in Next 16 als `UnmatchedLang` im Metadata-Typ verifiziert (`node_modules/next/dist/lib/metadata/types/alternative-urls-types.d.ts`), die frühere held-back-Notiz war ein false negative. `llms.txt` listet die acht aktuellen Slugs statt der gelöschten (skills/tech-stack/engineering/ai-vibe-coding/off-screen/track-record).
+- **[AEO/SEO-Schema]** JSON-LD- und Metadata-Layer (04.11.2026, Branch `feat/seo-schema-lighthouse`): `Person` (`src/components/StructuredData.tsx`) trägt `jobTitle` (Senior Fullstack Developer), `description`, `sameAs` (GitHub + LinkedIn), `email`/`telephone` (plain — NICHT `mailto:` in `contactPoint.email`, schema.org erwartet die nackte Adresse), `address`, `worksFor` (valantic DXA), `knowsLanguage`; bewusst KEIN `image`, `seeks` oder Verfügbarkeits-Claim. Per-Page-Aufbau: home → `WebSite` + `Person`-Graph; career → `ProfilePage` mit `Person.hasOccupation` aus den Timeline-Einträgen (`parsePeriod` versteht `09/2024`, `Seit 09/2024 – Heute`, `2012 – 2014`; offene Enden liefern nur `startDate`, unklare Strings gar nichts); case-studies → `WebPage` + `ItemList` aus den `caseStudy`-Blöcken; tech-radar/leadership/contact → schlanke `WebPage` (contact zusätzlich mit `Person`-Kontaktknoten); alle übrigen (privacy/imprint) neutraler `WebPage`. Metadaten: `pages` hat KEIN description-Feld → `derivePageDescription` (`src/cms/aeo/pageMetadata.ts`) leitet pro Seite aus dem ersten Block mit ≥ 40 Zeichen ab (hero.subheading → statusBlock.description → techSection.body → caseStudy → lexical richText), kürzt auf ~155 Zeichen an einer Wortgrenze; Seiten ohne verwertbaren Text erben die Layout-Default-Description (kein leeres Tag). `title: { absolute }` verhindert doppelte Brand-Suffixe; `alternates.languages` enthält `x-default` → `/de` (Primäraudienz) — `x-default` IST in Next 16 als `UnmatchedLang` im Metadata-Typ verifiziert (`node_modules/next/dist/lib/metadata/types/alternative-urls-types.d.ts`), die frühere held-back-Notiz war ein false negative. `llms.txt` listet die acht aktuellen Slugs statt der gelöschten (skills/tech-stack/engineering/ai-projects/off-screen/track-record).
 - **[Perf/CLS] Hero-Typing-Animation = CLS-Treiber** (04.11.2026, Lighthouse-Snapshot: Performance 85, alle anderen Metriken 100): `TypingHeading` tippte den LCP-Text zeichenweise und ließ die `h1` zeilenweise wachsen — der komplette Content darunter wurde mitgeschoben (gemessen 0.257 Layout-Shift bei 1280×900, ~1/3 Viewport). Fix: Der Wrapper reserviert die **Endhöhe** des Textes an einer unsichtbaren Volltext-Kopie (`ResizeObserver` + `document.fonts.ready` für Resize/Font-Swap) und die Animation läuft darin als reiner Paint-Effekt ohne Reflow; bis zur Messung `min-height: 1em`. Verifiziert im Kontrollharness: 0.115 → 0.000, identische Endhöhe. Merke: Tipp-/Reveal-Animationen auf mehrzeiligen Headings immer gegen die finale Geometrie klemmen.
 
 - **[Perf/CLS] Verbleibender CLS auf `/de` + `/en` = Font-Swap der Hero-Subheadline, NICHT die Typing-Animation** (05.11.2026, Lighthouse mobil). Die H1-Höhenreservierung funktioniert (verifiziert: H1-Höhe konstant 166 px, während der Text von 205 → 297 Zeichen wächst — **keine** Reflow-Bewegung). Der Shift kommt eine Ebene tiefer: `p.mb-8` (Hero-Subheadline, `text-base`) wird zunächst mit `"Space Grotesk Fallback"` gemessen und bricht nach dem Laden der Web-Font auf eine Zeile mehr um.
@@ -2124,28 +2124,76 @@ FREMDE Version und überschreibt lokale Arbeit. Wenn eine Config-Datei plötzlic
 (`maintenanceMode`) oder ein `pick()`-Leck hat, ist genau das passiert — die Datei gegen
 `origin/main` zurücksetzen und die eigene Erweiterung neu einfügen.
 
-## Projekt-Showcase: `vibeProjects` + `vibeShowcase` (09.11.2026)
+## Projekt-Showcase: `projects` + `projectShowcase` (09.11.2026)
 
 Ein paginierbares, tag-filterbares Projekt-Listing mit eigener Detailroute. Design:
-`docs/design/vibe-coding-showcase.md` (Routing, Felder, Cache, Copy, Migrationen, Tag-Filter).
+`docs/design/projects-showcase.md` (Routing, Felder, Cache, Copy, Migrationen, Tag-Filter).
+
+### Naming: `vibe*` → `project*` (Umbau 09.11.2026, verbindlich)
+
+Das Feature hieß zuerst `vibeProjects`/`vibeTags`/`vibeShowcase` unter `/vibe-coding`. Der
+Repo-Owner hat den Begriff **verworfen**: die Projekte entstehen MIT KI-Unterstützung, werden
+aber an professionellen Standards gemessen (Regelwerk im Repo, Gates vor jedem Merge,
+automatisierter Audit, Incidents werden diagnostiziert und behoben) — „vibe" transportiert
+genau das Gegenteil. Deshalb ist „vibe" nirgends mehr erlaubt: keine Feld-, Collection-, Block-,
+Typ-, URL-, Cache-Tag- oder Varianten-Namen, keine Copy.
+
+Aktuelles Vokabular (exakt so verwenden): Collection `projects` / `projectTags`, Block
+`projectShowcase`, Route `/[locale]/projects` + `/[locale]/projects/[project]`, Media-Varianten
+`tile`/`tileWide`/`hero`, Cache-Tags `cms:projects`, `cms:projects:<slug>`, `cms:project-showcase`,
+`cms:project-tags`, Copy-Keys `blocks.projectShowcase.*`, `routes.project.*`,
+`commandItems.projects.*`.
+
+**Alt-Slug ist absichtlich NICHT unterstützt:** kein Redirect (weder Proxy noch Traefik noch
+Cloudflare), kein Eintrag in `PAGINATED_ROUTES`/Purge-Manifest/Sitemap/`llms.txt`. `/vibe-coding`
+ist nach dem Umbenennen des CMS-Slugs auf `projects` schlicht ein normaler 404 — das Feature war
+zum Zeitpunkt des Umbaus erst ~1 h live und die Rollout-Phase noch nicht abgeschlossen.
+
+Rest-Vorkommen von „vibe" sind **nur** Historie und dürfen nicht angefasst werden:
+
+| Stelle                                                                                                                                                                                    | Warum bleibt sie                                                                                                   |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Migrationen `20261109_171931_add_vibe_projects`, `20261109_175000_add_vibe_showcase_block`, `20261109_180000_seed_vibe_showcase_copy`, `20261109_183000_seed_command_palette_vibe_coding` | Prod identifiziert Migrationen am NAMEN (`payload_migrations`); Dateien byte-identisch halten und nicht umbenennen |
+| `src/migrations/20261109_190000_rename_vibe_to_project.*`                                                                                                                                 | Die Umbenennungs-Migration selbst (Name beschreibt, was sie tut)                                                   |
+| `src/migrations/index.ts`                                                                                                                                                                 | Importiert die obigen Dateien unter ihren historischen Namen                                                       |
+
+### Umbenennungs-Migration `20261109_190000_rename_vibe_to_project`
+
+Reines `ALTER … RENAME`, **kein** `migrate:create`-DROP/CREATE (der würde Daten vernichten).
+Wichtig und gemessen (09.11.2026): `ALTER TABLE … RENAME` benennt **nur** die Tabelle und ihre
+composite row types um — **nicht** Indexes, Constraints, Sequences oder Enum-Typen. Alles davon
+wird einzeln umbenannt (Indexes/Constraints über die Payload-Namensregel `<tabelle><suffix>`,
+Sequenzen `<tabelle>_id_seq`, Enums per `ALTER TYPE … RENAME`, nie DROP/CREATE). 216 Objekte
+tragen den alten Namen, **jede** Anweisung ist per `to_regclass`/`pg_type`/`information_schema`
+auf „alter Name existiert UND neuer nicht" gegated → idempotent und `down()`-fähig.
+
+Medien-Varianten-Indexes: die neuen Namen sind NICHT ableitbar, weil Postgres bei 63 Zeichen
+abschneidet; sie stehen deshalb explizit in der Migration und stammen aus Payloads eigener Diff
+(`migrate:create` gegen das Live-Schema). Der Snapshot `20261109_190000_…json` ist Payloads
+Generat — danach meldet `migrate:create` **„No schema changes detected"** (verifiziert).
+
+Verifikation ohne Prod-Risiko: voller `pg_dump --schema-only -n public` + Fixture-Zeilen in eine
+Scratch-DB, Migration dort laufen lassen, Inventar (Tabellen/Indexes/Constraints/Enums/Spalten/
+Sequenzen) **vor/nach** vergleichen — 216 → 0, Zeilenzahlen identisch, `down()` stellt exakt 216
+wieder her, zweiter `up()` ist ein No-op.
 
 ### Datenmodell
 
-| Objekt                                  | Rolle                                                                                                                                                                                                                                                                                                                                                    |
-| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Collection `vibeProjects`               | Ein Projekt = ein Dokument. Drafts/Versionen, Live Preview, `wordingBeforeValidate`, `protectedAuthorshipFields()`, Cover (`vibe_tile`/`vibe_tile_wide`/`vibe_hero`-Varianten), `tags` (Relationship), `stack`, `kind`, `githubUrl`, `liveUrl`, `featured`, `order`, Case-Study-Felder (context/approach/learnings/outcome), alles Text-Feld `localized` |
-| Collection `vibeTags`                   | `slug` (unique) + lokalisiertes `label`. Bewusst eine Collection statt `select`-Enum: neue Tags ohne Migration, URL-stabile Slugs, immer gleiche Schreibweise                                                                                                                                                                                            |
-| Block `vibeShowcase`                    | Wird auf der CMS-Seite `vibe-coding` platziert, rendert Raster + Tag-Filter + Pagination. **Nur der ERSTE Block rendert** — ein zweiter würde `?page=`, das Pagination-Landmark und das `ItemList` verdoppeln                                                                                                                                            |
-| Route `/[locale]/vibe-coding/[project]` | Detailseite, `◐` Partial Prerender                                                                                                                                                                                                                                                                                                                       |
+| Objekt                               | Rolle                                                                                                                                                                                                                                                                                                                                    |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Collection `projects`                | Ein Projekt = ein Dokument. Drafts/Versionen, Live Preview, `wordingBeforeValidate`, `protectedAuthorshipFields()`, Cover (`tile`/`tileWide`/`hero`-Varianten), `tags` (Relationship), `stack`, `kind`, `githubUrl`, `liveUrl`, `featured`, `order`, Case-Study-Felder (context/approach/learnings/outcome), alles Text-Feld `localized` |
+| Collection `projectTags`             | `slug` (unique) + lokalisiertes `label`. Bewusst eine Collection statt `select`-Enum: neue Tags ohne Migration, URL-stabile Slugs, immer gleiche Schreibweise                                                                                                                                                                            |
+| Block `projectShowcase`              | Wird auf der CMS-Seite `projects` platziert, rendert Raster + Tag-Filter + Pagination. **Nur der ERSTE Block rendert** — ein zweiter würde `?page=`, das Pagination-Landmark und das `ItemList` verdoppeln                                                                                                                               |
+| Route `/[locale]/projects/[project]` | Detailseite, `◐` Partial Prerender                                                                                                                                                                                                                                                                                                       |
 
 ### Vierte Navigationsfläche: Command-Palette (09.11.2026)
 
-Das Listing erscheint in ⌘K als Eintrag **`vibe-coding`** (`href: '/vibe-coding'`, Gruppe `pages`,
+Das Listing erscheint in ⌘K als Eintrag **`projects`** (`href: '/projects'`, Gruppe `pages`,
 Position direkt nach `case-studies`). Das war die letzte Fläche ohne den Eintrag — Drawer und
 Footer lesen das `navigation`-Global, die Palette dagegen `src/components/ui/commandItems.ts`
 (Struktur) + `translations.copy` (Label/Keywords).
 
-- Label/Keywords: `commandItems.vibe-coding.label` / `.keywords`, Seeds in Migration
+- Label/Keywords: `commandItems.projects.label` / `.keywords`, Seeds in Migration
   `20261109_183000_seed_command_palette_vibe_coding` (de + en, `WHERE NOT EXISTS`).
 - **Keine `COPY_KEYS`-/`COPY_LIST_KEYS`-Einträge** — `commandItems.*` wird per id zur Laufzeit
   adressiert (`commandItemCopy`) und ist dort bewusst nicht enumeriert (siehe Kommentar an
@@ -2164,8 +2212,8 @@ Footer lesen das `navigation`-Global, die Palette dagegen `src/components/ui/com
 Die Palette kennt das Listing über Code, das **Menü kennt es nur, wenn es im `navigation`-Global
 steht** — das ist Content, kein Code. Ein späterer MCP-Write muss je Locale zwei Zeilen setzen
 (Feldpfad `headerLinks` bzw. `footerLinks`, Array-of-`{ label, link, newTab }` bzw.
-`{ label, link }`): DE `{ label: 'Vibe Coding', link: '/de/vibe-coding' }` und EN
-`{ label: 'Vibe Coding', link: '/en/vibe-coding' }`; `newTab` bleibt `false` (interner Link).
+`{ label, link }`): DE `{ label: 'Projects', link: '/de/projects' }` und EN
+`{ label: 'Projects', link: '/en/projects' }`; `newTab` bleibt `false` (interner Link).
 Position: direkt nach dem Case-Studies-Eintrag, damit Menü und Palette dieselbe Reihenfolge haben.
 
 ### Listing: Pagination + Tag-Filter (SEO-Vertrag)
@@ -2192,5 +2240,5 @@ Position: direkt nach dem Case-Studies-Eintrag, damit Menü und Palette dieselbe
 - **[Typen] `PageProps`/`LayoutProps` existieren erst nach `npx next typegen`** — ohne `.next/types` meldet `tsc --noEmit` `Cannot find name 'PageProps'`, obwohl der Code korrekt ist. Vor jeder Typecheck-Diagnose einmal typegen laufen lassen.
 - **[Cache/Barrel] Ein modul-level `const Set` (z. B. `KNOWN_SLUGS`), das durch das `frontendCache`-Barrel sternexportiert wird, kann unter esbuild `Cannot access … before initialization` werfen** (Zirkularität über den Barrel). Registries liegen deshalb in einem `globalThis`-gekeyten Record.
 - **[Cloudflare/Purge] „Prefix-Purge geht auf dem Free-Plan nicht" ist falsch** (seit 04/2025 für alle Pläne). Die frühere Notiz „`success: true`, evictet nichts" gilt nur für **fremde Hosts** in einer Zone — ein Prefix derselben Zone evictet sehr wohl, inklusive Query-Varianten. Auf Add-on/Pionier-Doku nicht verlassen, API-Format beachten: `host+path`, **kein** Schema, **kein** Query/Fragment (wird sonst abgelehnt).
-- **[Prozess] Verifizierte Zahlen vor dem Schreiben prüfen.** Zwei Copy-Pässe lieferten abweichende Werte (Dashboard-Karten 79 vs. 155 → real 149; „43 PRs über 9 Repos" → real 8 Repos). Jede Zahl in Case-Study-Texten braucht eine Quelle; das Evidence-Log liegt in `/tmp/opencode/vibe-copy-final.md`.
-- **[Marken-/Positionierungs-Wording] „Vibe Coding" ist als Selbstbezeichnung unerwünscht.** Die Projekte entstehen MIT KI-Unterstützung, werden aber an professionellen Standards gemessen (Regelwerk im Repo, Gates vor jedem Merge, automatisierter Audit über den erzeugten Code, Incidents werden diagnostiziert und behoben). Copy formuliert entsprechend — nie als „schnell, niemand prüft".
+- **[Prozess] Verifizierte Zahlen vor dem Schreiben prüfen.** Zwei Copy-Pässe lieferten abweichende Werte (Dashboard-Karten 79 vs. 155 → real 149; „43 PRs über 9 Repos" → real 8 Repos). Jede Zahl in Case-Study-Texten braucht eine Quelle; das Evidence-Log liegt in `/tmp/opencode/project-copy-final.md`.
+- **[Marken-/Positionierungs-Wording] „Projects" ist als Selbstbezeichnung unerwünscht.** Die Projekte entstehen MIT KI-Unterstützung, werden aber an professionellen Standards gemessen (Regelwerk im Repo, Gates vor jedem Merge, automatisierter Audit über den erzeugten Code, Incidents werden diagnostiziert und behoben). Copy formuliert entsprechend — nie als „schnell, niemand prüft".

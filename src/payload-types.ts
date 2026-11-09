@@ -62,31 +62,31 @@ export type SupportedTimezones =
   | 'Pacific/Fiji';
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "LexicalNodes_0CF1C165".
+ * via the `definition` "LexicalNodes_8BF8C994".
  */
-export type LexicalNodes_0CF1C165 =
+export type LexicalNodes_8BF8C994 =
   | SerializedTextNode
   | SerializedTabNode
   | SerializedLineBreakNode
-  | SerializedParagraphNode<LexicalNodes_0CF1C165>
+  | SerializedParagraphNode<LexicalNodes_8BF8C994>
   | SerializedHorizontalRuleNode
   | SerializedUploadNode<'media'>
-  | SerializedQuoteNode<LexicalNodes_0CF1C165>
+  | SerializedQuoteNode<LexicalNodes_8BF8C994>
   | SerializedRelationshipNode<
       | 'users'
       | 'pages'
-      | 'vibeTags'
-      | 'vibeProjects'
+      | 'projectTags'
+      | 'projects'
       | 'payload-kv'
       | 'payload-locked-documents'
       | 'payload-preferences'
       | 'payload-migrations'
     >
-  | SerializedAutoLinkNode<LexicalNodes_0CF1C165, LexicalLinkFields>
-  | SerializedLinkNode<LexicalNodes_0CF1C165, LexicalLinkFields>
-  | SerializedListNode<LexicalNodes_0CF1C165>
-  | SerializedListItemNode<LexicalNodes_0CF1C165>
-  | SerializedHeadingNode<LexicalNodes_0CF1C165>;
+  | SerializedAutoLinkNode<LexicalNodes_8BF8C994, LexicalLinkFields>
+  | SerializedLinkNode<LexicalNodes_8BF8C994, LexicalLinkFields>
+  | SerializedListNode<LexicalNodes_8BF8C994>
+  | SerializedListItemNode<LexicalNodes_8BF8C994>
+  | SerializedHeadingNode<LexicalNodes_8BF8C994>;
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "LexicalNodes_3DE324E4".
@@ -109,8 +109,8 @@ export interface Config {
     users: User;
     media: Media;
     pages: Page;
-    vibeTags: VibeTag;
-    vibeProjects: VibeProject;
+    projectTags: ProjectTag;
+    projects: Project;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -122,8 +122,8 @@ export interface Config {
     users: UsersSelect<false> | UsersSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     pages: PagesSelect<false> | PagesSelect<true>;
-    vibeTags: VibeTagsSelect<false> | VibeTagsSelect<true>;
-    vibeProjects: VibeProjectsSelect<false> | VibeProjectsSelect<true>;
+    projectTags: ProjectTagsSelect<false> | ProjectTagsSelect<true>;
+    projects: ProjectsSelect<false> | ProjectsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -275,7 +275,7 @@ export interface Media {
       prefix?: string | null;
       _objectKey?: string | null;
     };
-    vibeTile?: {
+    tile?: {
       url?: string | null;
       width?: number | null;
       height?: number | null;
@@ -285,7 +285,7 @@ export interface Media {
       prefix?: string | null;
       _objectKey?: string | null;
     };
-    vibeTileWide?: {
+    tileWide?: {
       url?: string | null;
       width?: number | null;
       height?: number | null;
@@ -295,7 +295,7 @@ export interface Media {
       prefix?: string | null;
       _objectKey?: string | null;
     };
-    vibeHero?: {
+    hero?: {
       url?: string | null;
       width?: number | null;
       height?: number | null;
@@ -331,7 +331,7 @@ export interface Page {
         | ImageText
         | RichText
         | CallToAction
-        | VibeShowcaseBlock
+        | ProjectShowcaseBlock
       )[]
     | null;
   createdBy?: {
@@ -2767,7 +2767,7 @@ export interface FeatureGrid {
  */
 export interface ImageText {
   heading?: string | null;
-  text?: LexicalRichText<LexicalNodes_0CF1C165> | null;
+  text?: LexicalRichText<LexicalNodes_8BF8C994> | null;
   image: number | Media;
   imagePosition?: ('left' | 'right') | null;
   id?: string | null;
@@ -2779,7 +2779,7 @@ export interface ImageText {
  * via the `definition` "RichText".
  */
 export interface RichText {
-  content: LexicalRichText<LexicalNodes_0CF1C165>;
+  content: LexicalRichText<LexicalNodes_8BF8C994>;
   id?: string | null;
   blockName?: string | null;
   blockType: 'richText';
@@ -2800,11 +2800,11 @@ export interface CallToAction {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "VibeShowcaseBlock".
+ * via the `definition` "ProjectShowcaseBlock".
  */
-export interface VibeShowcaseBlock {
+export interface ProjectShowcaseBlock {
   /**
-   * Mono-Zeile über der Überschrift. Leer = Copy-Fallback (`blocks.vibeShowcase.eyebrow`)
+   * Mono-Zeile über der Überschrift. Leer = Copy-Fallback (`blocks.projectShowcase.eyebrow`)
    */
   eyebrow?: string | null;
   heading?: string | null;
@@ -2813,7 +2813,7 @@ export interface VibeShowcaseBlock {
    */
   intro?: string | null;
   /**
-   * Text, wenn kein Projekt veröffentlicht ist. Leer = Copy-Fallback (`blocks.vibeShowcase.emptyLabel`)
+   * Text, wenn kein Projekt veröffentlicht ist. Leer = Copy-Fallback (`blocks.projectShowcase.emptyLabel`)
    */
   emptyState?: string | null;
   /**
@@ -2830,13 +2830,13 @@ export interface VibeShowcaseBlock {
   featureFirst?: boolean | null;
   id?: string | null;
   blockName?: string | null;
-  blockType: 'vibeShowcase';
+  blockType: 'projectShowcase';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "vibeTags".
+ * via the `definition` "projectTags".
  */
-export interface VibeTag {
+export interface ProjectTag {
   id: number;
   /**
    * Sichtbarer Chip-Text (je Locale)
@@ -2863,13 +2863,13 @@ export interface VibeTag {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "vibeProjects".
+ * via the `definition` "projects".
  */
-export interface VibeProject {
+export interface Project {
   id: number;
   title: string;
   /**
-   * URL-Segment /de/vibe-coding/<slug> (nicht übersetzen)
+   * URL-Segment /de/projects/<slug> (nicht übersetzen)
    */
   slug: string;
   /**
@@ -2878,7 +2878,7 @@ export interface VibeProject {
   teaser: string;
   kind: 'experiment' | 'tool' | 'product';
   /**
-   * Tile-Preview (16:9 — Varianten vibeTile / vibeTileWide / vibeHero); Alt-Text ist im Media-Dokument Pflicht
+   * Tile-Preview (16:9 — Varianten tile / tileWide / hero); Alt-Text ist im Media-Dokument Pflicht
    */
   coverImage: number | Media;
   gallery?: (number | Media)[] | null;
@@ -2894,7 +2894,7 @@ export interface VibeProject {
    * Repo (https://github.com/…)
    */
   githubUrl?: string | null;
-  tags?: (number | VibeTag)[] | null;
+  tags?: (number | ProjectTag)[] | null;
   featured?: boolean | null;
   /**
    * Aufsteigend; Gleichstand → neueste zuerst
@@ -2905,9 +2905,9 @@ export interface VibeProject {
    */
   context: string;
   /**
-   * Wie gebaut / vibe-coded: Schleifen, Prompts, Werkzeuge
+   * Wie gebaut / AI-assisted: Schleifen, Prompts, Werkzeuge
    */
-  approach?: LexicalRichText<LexicalNodes_0CF1C165> | null;
+  approach?: LexicalRichText<LexicalNodes_8BF8C994> | null;
   /**
    * Was lief schief, was würde ich anders machen
    */
@@ -2965,12 +2965,12 @@ export interface PayloadLockedDocument {
         value: number | Page;
       } | null)
     | ({
-        relationTo: 'vibeTags';
-        value: number | VibeTag;
+        relationTo: 'projectTags';
+        value: number | ProjectTag;
       } | null)
     | ({
-        relationTo: 'vibeProjects';
-        value: number | VibeProject;
+        relationTo: 'projects';
+        value: number | Project;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -3125,7 +3125,7 @@ export interface MediaSelect<T extends boolean = true> {
               prefix?: T;
               _objectKey?: T;
             };
-        vibeTile?:
+        tile?:
           | T
           | {
               url?: T;
@@ -3137,7 +3137,7 @@ export interface MediaSelect<T extends boolean = true> {
               prefix?: T;
               _objectKey?: T;
             };
-        vibeTileWide?:
+        tileWide?:
           | T
           | {
               url?: T;
@@ -3149,7 +3149,7 @@ export interface MediaSelect<T extends boolean = true> {
               prefix?: T;
               _objectKey?: T;
             };
-        vibeHero?:
+        hero?:
           | T
           | {
               url?: T;
@@ -3394,7 +3394,7 @@ export interface PagesSelect<T extends boolean = true> {
               id?: T;
               blockName?: T;
             };
-        vibeShowcase?: T | VibeShowcaseBlockSelect<T>;
+        projectShowcase?: T | ProjectShowcaseBlockSelect<T>;
       };
   createdBy?: T;
   updatedBy?: T;
@@ -3404,9 +3404,9 @@ export interface PagesSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "VibeShowcaseBlock_select".
+ * via the `definition` "ProjectShowcaseBlock_select".
  */
-export interface VibeShowcaseBlockSelect<T extends boolean = true> {
+export interface ProjectShowcaseBlockSelect<T extends boolean = true> {
   eyebrow?: T;
   heading?: T;
   intro?: T;
@@ -3419,9 +3419,9 @@ export interface VibeShowcaseBlockSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "vibeTags_select".
+ * via the `definition` "projectTags_select".
  */
-export interface VibeTagsSelect<T extends boolean = true> {
+export interface ProjectTagsSelect<T extends boolean = true> {
   label?: T;
   slug?: T;
   description?: T;
@@ -3432,9 +3432,9 @@ export interface VibeTagsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "vibeProjects_select".
+ * via the `definition` "projects_select".
  */
-export interface VibeProjectsSelect<T extends boolean = true> {
+export interface ProjectsSelect<T extends boolean = true> {
   title?: T;
   slug?: T;
   teaser?: T;
@@ -3952,7 +3952,7 @@ export interface CollectionsWidget {
 export interface CollectionQueryWidget {
   data?: {
     title?: string | null;
-    relatedCollection: 'users' | 'media' | 'pages' | 'vibeTags' | 'vibeProjects';
+    relatedCollection: 'users' | 'media' | 'pages' | 'projectTags' | 'projects';
     where?:
       | {
           [k: string]: unknown;
@@ -3974,7 +3974,7 @@ export interface CollectionQueryWidget {
  */
 export interface ActivityWidget {
   data?: {
-    excludedCollections?: ('users' | 'media' | 'pages' | 'vibeTags' | 'vibeProjects')[] | null;
+    excludedCollections?: ('users' | 'media' | 'pages' | 'projectTags' | 'projects')[] | null;
   };
   width: 'small' | 'medium' | 'large' | 'x-large' | 'full';
 }

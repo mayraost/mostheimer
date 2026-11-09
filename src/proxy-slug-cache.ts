@@ -19,7 +19,7 @@ import { normalizeSlug } from '@/cms/cache/frontend/utils';
  * TWO INDEPENDENT SNAPSHOTS (one document = one route)
  *
  * - `pages`        → the page slugs (`/de/<slug>`, `[[...slug]]`)
- * - `vibeProjects` → the vibe-coding detail slugs (`/de/vibe-coding/<slug>`)
+ * - `projects` → the projects detail slugs (`/de/projects/<slug>`)
  * They are separate Sets with their own fingerprint, so a project publish never
  * invalidates the page snapshot (and vice versa). Both use the same policy code.
  *
@@ -112,7 +112,7 @@ type SlugStatus = 'exists' | 'missing' | 'unknown';
 type SlugEntry = { status: SlugStatus; expiresAt: number };
 
 /** Collection with a public route per document (`slug` column). */
-type SlugCollection = 'pages' | 'vibeProjects';
+type SlugCollection = 'pages' | 'projects';
 
 type SlugSnapshot = {
   statusCache: Map<string, SlugEntry>;
@@ -140,7 +140,7 @@ function createSignature(): SlugSnapshot {
 }
 
 const PAGE_SIGNATURE = createSignature();
-const VIBE_SIGNATURE = createSignature();
+const PROJECT_SIGNATURE = createSignature();
 
 async function payload() {
   return getPayload({ config: configPromise });
@@ -378,7 +378,7 @@ async function snapshotStatus(
 
 /** Drops every cached slug + both snapshots (same-process callers, tests). */
 export function invalidatePublishedSlugs(): void {
-  for (const snapshot of [PAGE_SIGNATURE, VIBE_SIGNATURE]) {
+  for (const snapshot of [PAGE_SIGNATURE, PROJECT_SIGNATURE]) {
     snapshot.statusCache.clear();
     snapshot.knownSlugs = null;
     snapshot.knownCountAt = -1;
@@ -419,13 +419,13 @@ export async function publishedSlugStatus(slug: string): Promise<SlugStatus | 'u
 }
 
 /**
- * Status of one vibe-coding project slug (`/[locale]/vibe-coding/<slug>`)
+ * Status of one project detail slug (`/[locale]/projects/<slug>`)
  * against the (cached) published project set.
  *
  * Own snapshot, own fingerprint, same policy: 60 s negative TTL, single-flight,
  * fail-open — so a newly published project is reachable within 60 s and a DB
  * outage never 404s an existing one.
  */
-export async function publishedVibeProjectStatus(slug: string): Promise<SlugStatus | 'unknown'> {
-  return snapshotStatus(VIBE_SIGNATURE, 'vibeProjects', slug);
+export async function publishedProjectStatus(slug: string): Promise<SlugStatus | 'unknown'> {
+  return snapshotStatus(PROJECT_SIGNATURE, 'projects', slug);
 }

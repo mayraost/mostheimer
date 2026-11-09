@@ -350,8 +350,8 @@ function toPrefix(origin: string, path: string): string | null {
  *   possible way to violate it),
  * - a query/fragment is stripped (Cloudflare rejects `?`/`#` in `prefixes`),
  * - a trailing `/` is stripped, because a prefix purge matches "starts with"
- *   and `/de/vibe-coding/` would miss the bare listing while
- *   `/de/vibe-coding` covers its whole subtree,
+ *   and `/de/projects/` would miss the bare listing while
+ *   `/de/projects` covers its whole subtree,
  * - anything that is not a path (`http://…`, `//host/…`) → `null`.
  */
 function normalizePrefixPath(pathname: string): string | null {

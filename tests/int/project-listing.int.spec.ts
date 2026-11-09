@@ -9,8 +9,8 @@ import {
   paginatedRoutePaths,
   paginatedRoutePrefixes,
   resolvePageRequest,
-  vibeListingPath,
-  vibeProjectPath,
+  projectListingPath,
+  projectPath,
 } from '@/cms/cache/frontend/routes';
 import {
   chunkOps,
@@ -20,7 +20,7 @@ import {
 } from '@/cms/cache/frontend/cloudflare';
 
 /**
- * Contract of the vibe-coding LISTING/PURGE layer — pure, no network, no DB,
+ * Contract of the projects LISTING/PURGE layer — pure, no network, no DB,
  * no React.
  *
  * This file is the cache/purge side of the pagination + tag-filter design
@@ -41,18 +41,18 @@ import {
 
 describe('listing route model', () => {
   it('declares exactly one paginated route and matches it by segment', () => {
-    expect(PAGINATED_ROUTES).toEqual(['/vibe-coding']);
-    expect(isPaginatedRoute('/vibe-coding')).toBe(true);
-    expect(isPaginatedRoute('vibe-coding')).toBe(true);
-    expect(isPaginatedRoute('/vibe-coding/audit-scanner')).toBe(true);
+    expect(PAGINATED_ROUTES).toEqual(['/projects']);
+    expect(isPaginatedRoute('/projects')).toBe(true);
+    expect(isPaginatedRoute('projects')).toBe(true);
+    expect(isPaginatedRoute('/projects/audit-scanner')).toBe(true);
     // Never a string prefix: a neighbouring route stays untouched.
-    expect(isPaginatedRoute('/vibe-coding-old')).toBe(false);
+    expect(isPaginatedRoute('/projects-old')).toBe(false);
     expect(isPaginatedRoute('/career')).toBe(false);
   });
 
   it('builds one path per route and locale (no query, no asset)', () => {
     const paths = paginatedRoutePaths();
-    expect(paths).toEqual(['/en/vibe-coding', '/de/vibe-coding']);
+    expect(paths).toEqual(['/en/projects', '/de/projects']);
     for (const path of paths) {
       expect(path.startsWith('/')).toBe(true);
       expect(path).not.toContain('?');
@@ -64,10 +64,10 @@ describe('listing route model', () => {
   it('builds host+path prefixes per host and locale — never scheme/query/fragment', () => {
     const prefixes = paginatedRoutePrefixes(['https://mostheimer.de', 'https://www.mostheimer.de']);
     expect(prefixes).toEqual([
-      'mostheimer.de/en/vibe-coding',
-      'mostheimer.de/de/vibe-coding',
-      'www.mostheimer.de/en/vibe-coding',
-      'www.mostheimer.de/de/vibe-coding',
+      'mostheimer.de/en/projects',
+      'mostheimer.de/de/projects',
+      'www.mostheimer.de/en/projects',
+      'www.mostheimer.de/de/projects',
     ]);
     // ONE op per route × locale × host — not one per `?page=N` variant.
     expect(prefixes).toHaveLength(4);
@@ -81,10 +81,10 @@ describe('listing route model', () => {
   });
 
   it('builds the listing and detail paths from one normalizer', () => {
-    expect(vibeListingPath('de')).toBe('/de/vibe-coding');
-    expect(vibeProjectPath('de', 'Audit Scanner')).toBe('/de/vibe-coding/audit-scanner');
-    expect(vibeProjectPath('en', '/audit-scanner/')).toBe('/en/vibe-coding/audit-scanner');
-    expect(vibeProjectPath('de', 'Umlaut Ärger')).toBe('/de/vibe-coding/umlaut-arger');
+    expect(projectListingPath('de')).toBe('/de/projects');
+    expect(projectPath('de', 'Audit Scanner')).toBe('/de/projects/audit-scanner');
+    expect(projectPath('en', '/audit-scanner/')).toBe('/en/projects/audit-scanner');
+    expect(projectPath('de', 'Umlaut Ärger')).toBe('/de/projects/umlaut-arger');
   });
 });
 
@@ -144,7 +144,7 @@ describe('parseTagParam degrades safely', () => {
 });
 
 describe('buildListingHref never emits ?page=1', () => {
-  const base = '/de/vibe-coding';
+  const base = '/de/projects';
 
   it('page 1 is the bare listing URL', () => {
     expect(buildListingHref({ basePath: base })).toBe(base);
@@ -201,7 +201,7 @@ describe('purge batching', () => {
 
   it('plans one body per 100 files and rides prefixes in the trailing request', () => {
     const files = Array.from({ length: 60 }, (_, index) => `/de/page-${index + 1}`);
-    const prefixes = ['mostheimer.de/de/vibe-coding', 'www.mostheimer.de/de/vibe-coding'];
+    const prefixes = ['mostheimer.de/de/projects', 'www.mostheimer.de/de/projects'];
     // 60 paths × 2 hosts = 120 files, 2 prefixes.
     const plan = planPurgeRequests(
       files.flatMap((path) => [`https://mostheimer.de${path}`, `https://www.mostheimer.de${path}`]),
@@ -217,8 +217,8 @@ describe('purge batching', () => {
 
   it('never yields an empty request body', () => {
     expect(planPurgeRequests([], [])).toEqual([]);
-    expect(planPurgeRequests([], ['mostheimer.de/de/vibe-coding'])).toEqual([
-      { prefixes: ['mostheimer.de/de/vibe-coding'] },
+    expect(planPurgeRequests([], ['mostheimer.de/de/projects'])).toEqual([
+      { prefixes: ['mostheimer.de/de/projects'] },
     ]);
   });
 });
@@ -243,19 +243,19 @@ describe('asset paths are never prefixable', () => {
   });
 
   it('keeps the route prefix when mixed with an asset prefix', () => {
-    expect(toPurgePrefixes(['/_next/static', '/de/vibe-coding'])).toEqual([
-      'mostheimer.de/de/vibe-coding',
-      'www.mostheimer.de/de/vibe-coding',
+    expect(toPurgePrefixes(['/_next/static', '/de/projects'])).toEqual([
+      'mostheimer.de/de/projects',
+      'www.mostheimer.de/de/projects',
     ]);
   });
 
   it('strips a query and a trailing slash from a prefix candidate', () => {
-    expect(toPurgePrefixes(['/de/vibe-coding/?page=2'])).toEqual([
-      'mostheimer.de/de/vibe-coding',
-      'www.mostheimer.de/de/vibe-coding',
+    expect(toPurgePrefixes(['/de/projects/?page=2'])).toEqual([
+      'mostheimer.de/de/projects',
+      'www.mostheimer.de/de/projects',
     ]);
     // An absolute URL is not a prefix path: the scheme makes it invalid, and the
     // host in a prefix always comes from the zone, never from the input.
-    expect(toPurgePrefixes(['https://mostheimer.de/de/vibe-coding'])).toEqual([]);
+    expect(toPurgePrefixes(['https://mostheimer.de/de/projects'])).toEqual([]);
   });
 });

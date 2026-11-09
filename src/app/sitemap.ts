@@ -1,8 +1,8 @@
 import type { MetadataRoute } from 'next';
 import { connection } from 'next/server';
 import { envConfig } from '@/envConfig';
-import { getCachedAllPages, getCachedAllVibeProjects } from '@/cms/cache/frontend/frontendCache';
-import { VIBE_SHOWCASE_SLUG, normalizeRouteSlug } from '@/cms/cache/frontend/routes';
+import { getCachedAllPages, getCachedAllProjects } from '@/cms/cache/frontend/frontendCache';
+import { PROJECT_SHOWCASE_SLUG, normalizeRouteSlug } from '@/cms/cache/frontend/routes';
 import type { FrontendLocale } from '@/cms/cache/frontend/routes';
 
 // Pages come from the DB, which only exists at runtime (the Coolify build has
@@ -12,9 +12,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   await connection();
 
   let docs: Awaited<ReturnType<typeof getCachedAllPages>>;
-  let vibeProjects: Awaited<ReturnType<typeof getCachedAllVibeProjects>>;
+  let projects: Awaited<ReturnType<typeof getCachedAllProjects>>;
   try {
-    [docs, vibeProjects] = await Promise.all([getCachedAllPages(), getCachedAllVibeProjects()]);
+    [docs, projects] = await Promise.all([getCachedAllPages(), getCachedAllProjects()]);
   } catch {
     // DB not reachable or not migrated yet (first request on a fresh volume):
     // serve an empty sitemap instead of failing the request.
@@ -48,21 +48,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
   });
 
-  // Vibe-coding showcase: the listing itself comes from the `pages` loop above
-  // (it IS a page document with the slug `vibe-coding`). Details are one entry
+  // Project-Showcase: the listing itself comes from the `pages` loop above
+  // (it IS a page document with the slug `projects`). Details are one entry
   // per project per locale — the FULL unfiltered set, never a page slice.
   //
   // NEVER list a `?page=N` or `?tag=<slug>` URL here: those are faceted
   // variants that declare the bare listing as canonical and carry
   // `noindex, follow` (design §10.2) — putting them in the sitemap would ask
   // crawlers for pages we explicitly ask them to drop.
-  vibeProjects.forEach((project) => {
+  projects.forEach((project) => {
     if (!project) return;
     // The slug is normalized the same way the route builder normalizes it, so
     // the sitemap URL is byte-identical to the rendered path.
     const slug = normalizeRouteSlug(project.slug ?? '');
     if (!slug) return;
-    const slugPath = `/${VIBE_SHOWCASE_SLUG}/${slug}`;
+    const slugPath = `/${PROJECT_SHOWCASE_SLUG}/${slug}`;
     const lastModified = project.updatedAt ? new Date(project.updatedAt) : undefined;
     locales.forEach((locale) => {
       sitemapEntries.push({

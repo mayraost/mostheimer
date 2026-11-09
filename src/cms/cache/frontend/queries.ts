@@ -7,11 +7,11 @@ import { CACHE_TAGS } from './constants';
 import {
   LISTING_SLUGS,
   registerPageSlugs,
-  registerVibeProjectSlugs,
-  registerVibeShowcasePageCount,
+  registerProjectSlugs,
+  registerProjectShowcasePageCount,
 } from './revalidate';
 import type { FrontendLocale } from './routes';
-import { LISTING_ROUTE, normalizePageNumber, normalizeTagSlug, vibeListingPath } from './routes';
+import { LISTING_ROUTE, normalizePageNumber, normalizeTagSlug, projectListingPath } from './routes';
 import { normalizeSlug } from './utils';
 
 export type { FrontendLocale } from './routes';
@@ -64,7 +64,7 @@ async function getPayloadClient() {
 /**
  * Listing-slug registration that does NOT depend on a DB read. Runs at module
  * load, so the very first `cms:pages` / `cms:global:*` / `cms:all` flush on a
- * cold process already purges `/de/vibe-coding` and `/en/vibe-coding` — the
+ * cold process already purges `/de/projects` and `/en/projects` — the
  * listing is a `pages` document, but the edge cache must not wait for the page
  * list to have rendered once before it becomes purgeable.
  *
@@ -116,7 +116,7 @@ export function getCachedRouteRegistry(): Promise<void> {
  *
  * The reader is already `'use cache'`-tagged; this wrapper adds no new tag and
  * performs no extra DB read of its own. It also (re)registers the listing slug,
- * so the manifest's `pageSlugs` always contains `vibe-coding`.
+ * so the manifest's `pageSlugs` always contains `projects`.
  */
 export function primeRouteRegistries(): Promise<void> {
   // DB-less build guard — see getCachedPageBySlug.
@@ -282,41 +282,41 @@ export function getCachedNotFound(locale: FrontendLocale) {
   return getCachedNotFoundStatic(locale);
 }
 
-// -- Vibe-Coding showcase ----------------------------------------------------
+// -- Project showcase --------------------------------------------------------
 
 /**
- * Vibe projects (`vibeProjects`) are public documents with a route of their own
- * (`/[locale]/vibe-coding/<slug>`). Every reader here is PUBLISHED-only: the
+ * Projects (`projects`) are public documents with a route of their own
+ * (`/[locale]/projects/<slug>`). Every reader here is PUBLISHED-only: the
  * public path must never see a draft, and drafts are served exclusively by the
  * preview route (`draft: true` + `overrideAccess: false` + user).
  *
  * Tag contract (§6 of the design):
- * - one project   → `cms:all`, `cms:vibeprojects`, `cms:vibeprojects:<slug>`
- * - listing slice → `cms:all`, `cms:vibeshowcase`
- * - chip row      → `cms:all`, `cms:vibetags`
+ * - one project   → `cms:all`, `cms:projects`, `cms:projects:<slug>`
+ * - listing slice → `cms:all`, `cms:project-showcase`
+ * - chip row      → `cms:all`, `cms:project-tags`
  * A project edit therefore flushes the detail tag AND the listing tag; a tag
  * rename flushes the chip row AND the listing (every `?tag=` variant).
  */
 
-const DEFAULT_VIBE_PAGE_SIZE = 6;
+const DEFAULT_PROJECT_PAGE_SIZE = 6;
 
 const PUBLISHED_ONLY = { _status: { equals: 'published' } } as const;
 
 /**
- * Published `vibeProjects` document returned by the payload client (typed from
- * the generated `Config` collection union). `VibeProject` is the nullable
+ * Published `projects` document returned by the payload client (typed from
+ * the generated `Config` collection union). `Project` is the nullable
  * variant a "lookup by slug" reader returns.
  */
-type VibeProjectDoc = DataFromCollectionSlug<'vibeProjects'>;
+type ProjectDoc = DataFromCollectionSlug<'projects'>;
 
 /**
  * Unfiltered published count (`totalDocs` only, no document transfer). The one
  * query that feeds both the paginated reader's page count and the standalone
  * count reader, so the purge never sees two different totals.
  */
-async function publishedVibeProjectCount(payload: Awaited<ReturnType<typeof getPayloadClient>>) {
+async function publishedProjectCount(payload: Awaited<ReturnType<typeof getPayloadClient>>) {
   return payload.find({
-    collection: 'vibeProjects',
+    collection: 'projects',
     draft: false,
     limit: 0,
     pagination: false,
@@ -326,12 +326,12 @@ async function publishedVibeProjectCount(payload: Awaited<ReturnType<typeof getP
   });
 }
 
-export type VibeProject = VibeProjectDoc | null;
-export type VibeTagDoc = DataFromCollectionSlug<'vibeTags'>;
+export type Project = ProjectDoc | null;
+export type ProjectTagDoc = DataFromCollectionSlug<'projectTags'>;
 
 /** One page of the listing projection. */
-export type VibeProjectPage = {
-  docs: VibeProject[];
+export type ProjectPage = {
+  docs: Project[];
   totalDocs: number;
   /** Total pages for the CURRENT filter (≥ 1); drives `?page=N` and the purge. */
   totalPages: number;
@@ -342,13 +342,13 @@ export type VibeProjectPage = {
   tagSlug: string | null;
 };
 
-async function fetchVibeProjectBySlug(
+async function fetchProjectBySlug(
   slug: string,
   locale: FrontendLocale,
-): Promise<VibeProjectDoc | null> {
+): Promise<ProjectDoc | null> {
   const payload = await getPayloadClient();
   const result = await payload.find({
-    collection: 'vibeProjects',
+    collection: 'projects',
     draft: false,
     limit: 1,
     locale,
@@ -359,13 +359,13 @@ async function fetchVibeProjectBySlug(
       and: [{ slug: { equals: normalizeSlug(slug) } }, PUBLISHED_ONLY],
     },
   });
-  const doc: VibeProjectDoc | undefined = result.docs?.[0];
+  const doc: ProjectDoc | undefined = result.docs?.[0];
   return doc ?? null;
 }
 
-/** One page of a vibe-coding listing render, including the request state. */
-export type VibeListingPage = {
-  docs: VibeProject[];
+/** One page of a projects listing render, including the request state. */
+export type ProjectListingPage = {
+  docs: Project[];
   totalDocs: number;
   /** Pages of the CURRENT filter (≥ 1) and of the UNFILTERED set (purge). */
   totalPages: number;
@@ -386,7 +386,7 @@ export type VibeListingPage = {
  * Empty listing result for the DB-less build phase: page 1, no docs, and no
  * `?page=` request outstanding.
  */
-export function emptyListingPage(pageSize: number, tagSlug: string | null): VibeListingPage {
+export function emptyListingPage(pageSize: number, tagSlug: string | null): ProjectListingPage {
   return {
     docs: [],
     totalDocs: 0,
@@ -401,18 +401,18 @@ export function emptyListingPage(pageSize: number, tagSlug: string | null): Vibe
   };
 }
 
-async function fetchVibeProjectPage(
+async function fetchProjectPage(
   locale: FrontendLocale,
   page: number,
   pageSize: number,
   tagSlug: string | null,
-): Promise<VibeProjectPage> {
+): Promise<ProjectPage> {
   const payload = await getPayloadClient();
   const tagFilter = tagSlug ? [{ 'tags.slug': { equals: tagSlug } }] : [];
 
   const [result, unfiltered] = await Promise.all([
     payload.find({
-      collection: 'vibeProjects',
+      collection: 'projects',
       draft: false,
       limit: pageSize,
       page,
@@ -428,7 +428,7 @@ async function fetchVibeProjectPage(
     // Unfiltered page count: the purge needs it even when the visitor looks at
     // a filtered view (the filtered set may fit on one page while the
     // unfiltered listing has many).
-    publishedVibeProjectCount(payload),
+    publishedProjectCount(payload),
   ]);
 
   const totalDocs = result.totalDocs ?? 0;
@@ -451,10 +451,10 @@ async function fetchVibeProjectPage(
   };
 }
 
-async function fetchVibeTags(locale: FrontendLocale): Promise<VibeTagDoc[]> {
+async function fetchProjectTags(locale: FrontendLocale): Promise<ProjectTagDoc[]> {
   const payload = await getPayloadClient();
   const result = await payload.find({
-    collection: 'vibeTags',
+    collection: 'projectTags',
     locale,
     depth: 0,
     limit: 100,
@@ -465,10 +465,10 @@ async function fetchVibeTags(locale: FrontendLocale): Promise<VibeTagDoc[]> {
   return result.docs ?? [];
 }
 
-async function fetchAllVibeProjects(): Promise<VibeProject[]> {
+async function fetchAllProjects(): Promise<Project[]> {
   const payload = await getPayloadClient();
   const result = await payload.find({
-    collection: 'vibeProjects',
+    collection: 'projects',
     draft: false,
     limit: 1000,
     pagination: false,
@@ -481,67 +481,67 @@ async function fetchAllVibeProjects(): Promise<VibeProject[]> {
   const docs = result.docs ?? [];
   // Route registry for the sibling edge purge (detail URLs of a broad or
   // set-level flush). Never the source of truth for the 404 decision.
-  registerVibeProjectSlugs(docs.map((doc) => doc.slug).filter(Boolean));
+  registerProjectSlugs(docs.map((doc) => doc.slug).filter(Boolean));
   // The query projects `slug` + `updatedAt` only, which is exactly what the
   // sitemap reads; the declared element type is the full document.
-  return docs as VibeProject[];
+  return docs as Project[];
 }
 
-/** Registers the listing slug so the bare `/de/vibe-coding` path is purgeable. */
+/** Registers the listing slug so the bare `/de/projects` path is purgeable. */
 function registerListingRoute(): void {
   registerPageSlugs([LISTING_ROUTE]);
 }
 
-/** Internal 'use cache' variant — callers go through getCachedVibeProjectBySlug. */
-export async function getCachedVibeProjectBySlugStatic(
+/** Internal 'use cache' variant — callers go through getCachedProjectBySlug. */
+export async function getCachedProjectBySlugStatic(
   slug: string,
   locale: FrontendLocale,
-): Promise<VibeProject | null> {
+): Promise<Project | null> {
   'use cache';
   const normalized = normalizeSlug(slug);
-  cacheTag(CACHE_TAGS.ALL, CACHE_TAGS.vibeProjects, CACHE_TAGS.vibeProject(normalized));
+  cacheTag(CACHE_TAGS.ALL, CACHE_TAGS.projects, CACHE_TAGS.project(normalized));
   cacheLife(CACHE_PROFILES.page);
   registerListingRoute();
-  if (normalized) registerVibeProjectSlugs([normalized]);
-  return fetchVibeProjectBySlug(normalized, locale);
+  if (normalized) registerProjectSlugs([normalized]);
+  return fetchProjectBySlug(normalized, locale);
 }
 
-export function getCachedVibeProjectBySlug(slug: string, locale: FrontendLocale) {
+export function getCachedProjectBySlug(slug: string, locale: FrontendLocale) {
   // DB-less build guard — see getCachedPageBySlug.
   if (process.env.NEXT_PHASE === 'phase-production-build') {
     return Promise.resolve(null);
   }
-  return getCachedVibeProjectBySlugStatic(slug, locale);
+  return getCachedProjectBySlugStatic(slug, locale);
 }
 
 /**
- * One page of the vibe-coding listing, optionally filtered by tag.
+ * One page of the projects listing, optionally filtered by tag.
  *
  * `tagSlug` must already be validated by the caller (unknown tags render the
  * UNFILTERED listing, §10.1) — a non-matching tag would simply yield an empty
  * slice, which is the one state the design forbids.
  */
-export async function getCachedVibeProjectPageStatic(
+export async function getCachedProjectPageStatic(
   locale: FrontendLocale,
   page: number,
-  pageSize: number = DEFAULT_VIBE_PAGE_SIZE,
+  pageSize: number = DEFAULT_PROJECT_PAGE_SIZE,
   tagSlug: string | null = null,
-): Promise<VibeProjectPage> {
+): Promise<ProjectPage> {
   'use cache';
-  const safeSize = Math.min(12, Math.max(3, Math.trunc(pageSize) || DEFAULT_VIBE_PAGE_SIZE));
+  const safeSize = Math.min(12, Math.max(3, Math.trunc(pageSize) || DEFAULT_PROJECT_PAGE_SIZE));
   const safePage = Math.max(1, Math.trunc(page) || 1);
   // `normalizeTagSlug` (./routes.ts) is the SAME check the render side applies
   // to `?tag=`: the cache key, the query and the URL can never disagree.
   const safeTag = normalizeTagSlug(tagSlug);
-  cacheTag(CACHE_TAGS.ALL, CACHE_TAGS.vibeShowcase);
+  cacheTag(CACHE_TAGS.ALL, CACHE_TAGS.projectShowcase);
   cacheLife(CACHE_PROFILES.page);
   registerListingRoute();
 
-  const result = await fetchVibeProjectPage(locale, safePage, safeSize, safeTag);
-  registerVibeProjectSlugs(result.docs.flatMap((doc) => doc?.slug ?? []));
+  const result = await fetchProjectPage(locale, safePage, safeSize, safeTag);
+  registerProjectSlugs(result.docs.flatMap((doc) => doc?.slug ?? []));
   // Route registry for the paginated listing: the page count the purge
-  // fallback (`vibeShowcaseVariantPaths`) needs when the DB is unavailable.
-  registerVibeShowcasePageCount(vibeListingPath(locale), result.unfilteredTotalPages);
+  // fallback (`projectShowcaseVariantPaths`) needs when the DB is unavailable.
+  registerProjectShowcasePageCount(projectListingPath(locale), result.unfilteredTotalPages);
   return result;
 }
 
@@ -555,14 +555,14 @@ export async function getCachedVibeProjectPageStatic(
  * `?page=1` and `?page=2` are canonical (`noindex, follow` + canonical → bare
  * listing only for the non-canonical variants).
  */
-export function getCachedVibeProjectPage(
+export function getCachedProjectPage(
   locale: FrontendLocale,
   {
     rawPage,
     rawTag,
-    pageSize = DEFAULT_VIBE_PAGE_SIZE,
+    pageSize = DEFAULT_PROJECT_PAGE_SIZE,
   }: { rawPage?: string | string[]; rawTag?: string | string[]; pageSize?: number } = {},
-): Promise<VibeListingPage> {
+): Promise<ProjectListingPage> {
   // Both parsers accept the array form themselves (one shared shape check).
   const tagSlug = normalizeTagSlug(rawTag ?? null);
   const rawPageValue = Array.isArray(rawPage) ? rawPage[0] : rawPage;
@@ -591,7 +591,7 @@ export function getCachedVibeProjectPage(
  * `hasTagParam` records that the URL carried `?tag=` at all — an UNKNOWN tag
  * renders the unfiltered listing but must stay `noindex`.
  */
-type VibeListingRequestState = {
+type ProjectListingRequestState = {
   requestedPage: number;
   isCanonicalPage: boolean;
   hasTagParam: boolean;
@@ -612,15 +612,10 @@ async function resolveListingPage(
   locale: FrontendLocale,
   tagSlug: string | null,
   pageSize: number,
-  state: VibeListingRequestState,
+  state: ProjectListingRequestState,
   attempt = 0,
-): Promise<VibeListingPage> {
-  const slice = await getCachedVibeProjectPageStatic(
-    locale,
-    state.requestedPage,
-    pageSize,
-    tagSlug,
-  );
+): Promise<ProjectListingPage> {
+  const slice = await getCachedProjectPageStatic(locale, state.requestedPage, pageSize, tagSlug);
   if (slice.page !== state.requestedPage && attempt < MAX_LISTING_PAGE_PASSES) {
     return resolveListingPage(
       locale,
@@ -640,54 +635,54 @@ async function resolveListingPage(
   };
 }
 
-/** All tags for the chip row (public labels, `cms:vibetags`). */
-/** All tags for the chip row (public labels, `cms:vibetags`). */
-export async function getCachedVibeTagsStatic(locale: FrontendLocale): Promise<VibeTagDoc[]> {
+/** All tags for the chip row (public labels, `cms:project-tags`). */
+/** All tags for the chip row (public labels, `cms:project-tags`). */
+export async function getCachedProjectTagsStatic(locale: FrontendLocale): Promise<ProjectTagDoc[]> {
   'use cache';
-  cacheTag(CACHE_TAGS.ALL, CACHE_TAGS.vibeTags);
+  cacheTag(CACHE_TAGS.ALL, CACHE_TAGS.projectTags);
   cacheLife(CACHE_PROFILES.page);
-  return fetchVibeTags(locale);
+  return fetchProjectTags(locale);
 }
 
-export function getCachedVibeTags(locale: FrontendLocale) {
+export function getCachedProjectTags(locale: FrontendLocale) {
   if (process.env.NEXT_PHASE === 'phase-production-build') {
-    return Promise.resolve([] as VibeTagDoc[]);
+    return Promise.resolve([] as ProjectTagDoc[]);
   }
-  return getCachedVibeTagsStatic(locale);
+  return getCachedProjectTagsStatic(locale);
 }
 
-/** Published project slugs + sitemap entries (`cms:vibeprojects` + `cms:sitemap`). */
-export async function getCachedAllVibeProjectsStatic(): Promise<VibeProject[]> {
+/** Published project slugs + sitemap entries (`cms:projects` + `cms:sitemap`). */
+export async function getCachedAllProjectsStatic(): Promise<Project[]> {
   'use cache';
-  cacheTag(CACHE_TAGS.ALL, CACHE_TAGS.vibeProjects, CACHE_TAGS.sitemap);
+  cacheTag(CACHE_TAGS.ALL, CACHE_TAGS.projects, CACHE_TAGS.sitemap);
   cacheLife(CACHE_PROFILES.sitemap);
   registerListingRoute();
-  return fetchAllVibeProjects();
+  return fetchAllProjects();
 }
 
-export function getCachedAllVibeProjects() {
+export function getCachedAllProjects() {
   if (process.env.NEXT_PHASE === 'phase-production-build') {
-    return Promise.resolve([] as VibeProject[]);
+    return Promise.resolve([] as Project[]);
   }
-  return getCachedAllVibeProjectsStatic();
+  return getCachedAllProjectsStatic();
 }
 
 /**
  * Total count of published projects — the one reader the paginated purge needs
- * without rendering anything (`vibeShowcaseVariantPaths` in ./revalidate.ts).
+ * without rendering anything (`projectShowcaseVariantPaths` in ./revalidate.ts).
  */
-export async function getCachedVibeProjectCountStatic(): Promise<number> {
+export async function getCachedProjectCountStatic(): Promise<number> {
   'use cache';
-  cacheTag(CACHE_TAGS.ALL, CACHE_TAGS.vibeProjects);
+  cacheTag(CACHE_TAGS.ALL, CACHE_TAGS.projects);
   cacheLife(CACHE_PROFILES.sitemap);
   const payload = await getPayloadClient();
-  const result = await publishedVibeProjectCount(payload);
+  const result = await publishedProjectCount(payload);
   return result.totalDocs ?? 0;
 }
 
-export function getCachedVibeProjectCount(): Promise<number> {
+export function getCachedProjectCount(): Promise<number> {
   if (process.env.NEXT_PHASE === 'phase-production-build') {
     return Promise.resolve(0);
   }
-  return getCachedVibeProjectCountStatic();
+  return getCachedProjectCountStatic();
 }

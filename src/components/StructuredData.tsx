@@ -1,6 +1,6 @@
 import type { FrontendLocale } from '@/cms/cache/frontend/frontendCache';
 import type { Page } from '@/payload-types';
-import type { VibeProjectView } from '@/components/vibe/projectView';
+import type { ProjectView } from '@/components/projects/projectView';
 import { envConfig } from '@/envConfig';
 
 /**
@@ -393,7 +393,7 @@ export function buildCaseStudiesJsonLd(input: CaseStudiesJsonLdInput): JsonLdObj
   return { '@context': 'https://schema.org', '@graph': graph };
 }
 
-// -- Vibe coding showcase ----------------------------------------------------
+// -- Project showcase ----------------------------------------------------
 
 /**
  * One project as a `CreativeWork`.
@@ -402,7 +402,7 @@ export function buildCaseStudiesJsonLd(input: CaseStudiesJsonLdInput): JsonLdObj
  * public source tree — halloween-counter's repo is private), NOT `TechArticle`
  * (that is documentation) and NOT `Product` (needs an offer, invalid without).
  */
-function vibeProjectNode(project: VibeProjectView): JsonLdObject {
+function projectNode(project: ProjectView): JsonLdObject {
   const image = project.hero?.url ?? project.cover?.url ?? null;
   return {
     '@type': 'CreativeWork',
@@ -418,7 +418,7 @@ function vibeProjectNode(project: VibeProjectView): JsonLdObject {
 }
 
 /** Home → listing → project breadcrumb (the listing name is the CMS page title). */
-function vibeBreadcrumb(listingName: string, project: VibeProjectView): JsonLdObject {
+function projectBreadcrumb(listingName: string, project: ProjectView): JsonLdObject {
   const listingUrl = `${BASE_URL}${project.listingPath}`;
   return {
     '@type': 'BreadcrumbList',
@@ -427,7 +427,7 @@ function vibeBreadcrumb(listingName: string, project: VibeProjectView): JsonLdOb
       {
         '@type': 'ListItem',
         position: 1,
-        name: listingName || 'Vibe coding',
+        name: listingName || 'Project',
         item: listingUrl,
       },
       {
@@ -440,15 +440,15 @@ function vibeBreadcrumb(listingName: string, project: VibeProjectView): JsonLdOb
   };
 }
 
-export interface VibeProjectJsonLdInput {
+export interface ProjectJsonLdInput {
   locale: FrontendLocale;
-  project: VibeProjectView;
+  project: ProjectView;
   /** Visible title of the listing page (CMS `pages.title`). */
   listingName?: string | null;
 }
 
 /** Detail page: `WebPage` + `mainEntity: CreativeWork` + `BreadcrumbList`. */
-export function buildVibeProjectJsonLd(input: VibeProjectJsonLdInput): JsonLdObject {
+export function buildProjectJsonLd(input: ProjectJsonLdInput): JsonLdObject {
   const url = `${BASE_URL}${input.project.path}`;
   const page: JsonLdObject = {
     '@type': 'WebPage',
@@ -461,22 +461,22 @@ export function buildVibeProjectJsonLd(input: VibeProjectJsonLdInput): JsonLdObj
     name: input.project.title,
     ...(input.project.teaser ? { description: input.project.teaser } : {}),
     ...(input.project.updatedAt ? { dateModified: input.project.updatedAt } : {}),
-    mainEntity: vibeProjectNode(input.project),
+    mainEntity: projectNode(input.project),
   };
   return {
     '@context': 'https://schema.org',
-    '@graph': [page, vibeBreadcrumb(input.listingName ?? '', input.project)],
+    '@graph': [page, projectBreadcrumb(input.listingName ?? '', input.project)],
   };
 }
 
-export interface VibeListingJsonLdInput {
+export interface ProjectListingJsonLdInput {
   locale: FrontendLocale;
-  /** Listing route of this locale (`/de/vibe-coding`). */
+  /** Listing route of this locale (`/de/projects`). */
   path: string;
   name?: string | null;
   description?: string | null;
   /** The projects of the RENDERED page (never the whole set). */
-  items: readonly VibeProjectView[];
+  items: readonly ProjectView[];
   /** Published projects in the whole listing (`numberOfItems`). */
   totalDocs: number;
 }
@@ -488,7 +488,7 @@ export interface VibeListingJsonLdInput {
  * Never emitted for a filtered / `?page>=2` URL (design § 10.3): an ItemList on
  * a page we ask Google to drop is noise.
  */
-export function buildVibeListingJsonLd(input: VibeListingJsonLdInput): JsonLdObject {
+export function buildProjectListingJsonLd(input: ProjectListingJsonLdInput): JsonLdObject {
   const url = `${BASE_URL}${input.path}`;
   const graph: JsonLdObject[] = [
     {
@@ -512,7 +512,7 @@ export function buildVibeListingJsonLd(input: VibeListingJsonLdInput): JsonLdObj
       itemListElement: input.items.map((project, index) => ({
         '@type': 'ListItem',
         position: index + 1,
-        item: vibeProjectNode(project),
+        item: projectNode(project),
       })),
     });
   }
