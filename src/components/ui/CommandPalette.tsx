@@ -202,7 +202,7 @@ export function CommandPalette({ locale, items }: { locale: string; items: Comma
         aria-label={t.triggerLabel}
         aria-haspopup="dialog"
       >
-        <Search className="h-3.5 w-3.5" aria-hidden="true" />
+        <Search className="h-4 w-4" aria-hidden="true" />
         <span className="hidden lg:inline">{t.triggerText}</span>
         {/* The keycap is decoration: without `aria-hidden` the "K" becomes part
             of the button's accessible name ("SearchK — …"). */}
