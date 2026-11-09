@@ -16,6 +16,13 @@ import { normalizeSlug } from '@/cms/cache/frontend/utils';
  * `unstable_cache` is a silent no-op there (both measured 05.11.2026 — every
  * request still hit Postgres). So the Proxy needs its own cache layer.
  *
+ * TWO INDEPENDENT SNAPSHOTS (one document = one route)
+ *
+ * - `pages`        → the page slugs (`/de/<slug>`, `[[...slug]]`)
+ * - `vibeProjects` → the vibe-coding detail slugs (`/de/vibe-coding/<slug>`)
+ * They are separate Sets with their own fingerprint, so a project publish never
+ * invalidates the page snapshot (and vice versa). Both use the same policy code.
+ *
  * WHY THIS SHAPE
  * - One query returns the whole slug list; every check afterwards is a Set
  *   lookup. Next's docs ask exactly for that ("avoid fetching full content"):
@@ -104,64 +111,63 @@ type SlugStatus = 'exists' | 'missing' | 'unknown';
 
 type SlugEntry = { status: SlugStatus; expiresAt: number };
 
-const statusCache = new Map<string, SlugEntry>();
-let knownSlugs: Set<string> | null = null;
-let knownCountAt = -1;
-let knownNewestUpdatedAt = -1;
-let loadedAt = 0;
-let inFlight: Promise<Set<string> | null> | null = null;
+/** Collection with a public route per document (`slug` column). */
+type SlugCollection = 'pages' | 'vibeProjects';
 
-/** Remembers a decision per slug, bounded LRU (Map keeps insert order). */
-function remember(slug: string, status: SlugStatus): void {
-  if (statusCache.has(slug)) statusCache.delete(slug);
-  const ttl =
-    status === 'exists' ? maxAgeMs() : status === 'missing' ? missingTtlMs() : refreshMs();
-  statusCache.set(slug, { status, expiresAt: Date.now() + ttl });
-  if (statusCache.size > MAX_ENTRIES) {
-    const oldest = statusCache.keys().next();
-    if (!oldest.done) statusCache.delete(oldest.value);
-  }
-}
-
-/** Drops every cached slug + the snapshot (same-process callers, tests). */
-export function invalidatePublishedSlugs(): void {
-  statusCache.clear();
-  knownSlugs = null;
-  knownCountAt = -1;
-  knownNewestUpdatedAt = -1;
-  loadedAt = 0;
-  inFlight = null;
-}
-
-/** Snapshot of the loaded state — for diagnostics and tests. */
-export function publishedSlugCacheStats(): {
-  entries: number;
-  slugCount: number;
+type SlugSnapshot = {
+  statusCache: Map<string, SlugEntry>;
+  knownSlugs: Set<string> | null;
+  knownCountAt: number;
+  knownNewestUpdatedAt: number;
   loadedAt: number;
-  stale: boolean;
-} {
+  inFlight: Promise<Set<string> | null> | null;
+};
+
+/**
+ * One independent snapshot per collection. A factory (not a hook into the
+ * payload's own state) keeps the two sets completely decoupled: a burst on a
+ * project route can never reload the page list.
+ */
+function createSignature(): SlugSnapshot {
   return {
-    entries: statusCache.size,
-    slugCount: knownSlugs?.size ?? 0,
-    loadedAt,
-    stale: knownSlugs === null || Date.now() - loadedAt > refreshMs(),
+    statusCache: new Map<string, SlugEntry>(),
+    knownSlugs: null,
+    knownCountAt: -1,
+    knownNewestUpdatedAt: -1,
+    loadedAt: 0,
+    inFlight: null,
   };
 }
+
+const PAGE_SIGNATURE = createSignature();
+const VIBE_SIGNATURE = createSignature();
 
 async function payload() {
   return getPayload({ config: configPromise });
 }
 
 /**
+ * The collection types are generated from `payload.config.ts` (`generate:types`)
+ * by the collection owner. Until then — and to keep this module independent of
+ * the generated union — the document shape is the minimum this cache needs.
+ */
+type SlugDocument = { slug?: unknown; updatedAt?: unknown };
+
+/**
  * `slug` column only, published rows only: the whole point of the design is
  * that this query carries no page content (docs: "avoid fetching full
  * content").
  */
-async function loadSlugs(): Promise<Set<string> | null> {
+async function loadSlugsInto(
+  snapshot: SlugSnapshot,
+  collection: SlugCollection,
+): Promise<Set<string> | null> {
   try {
     const client = await payload();
     const result = await client.find({
-      collection: 'pages',
+      // Payload's collection slug union is generated from the CMS config; the
+      // snapshot only ever receives the two route-bearing collections above.
+      collection: collection as 'pages',
       draft: false,
       limit: 10_000,
       depth: 0,
@@ -169,11 +175,15 @@ async function loadSlugs(): Promise<Set<string> | null> {
       select: { slug: true },
       where: { _status: { equals: 'published' } },
     });
-    const slugs = new Set<string>((result.docs ?? []).map((doc) => normalizeSlug(doc.slug)));
+    const slugs = new Set<string>(
+      (result.docs ?? [])
+        .map((doc) => normalizeSlug(String((doc as { slug?: unknown }).slug ?? '')))
+        .filter(Boolean),
+    );
 
     // Remember the cheap fingerprint the freshness probe compares against.
     const probe = await client.find({
-      collection: 'pages',
+      collection: collection as 'pages',
       draft: false,
       depth: 0,
       limit: 1,
@@ -182,18 +192,21 @@ async function loadSlugs(): Promise<Set<string> | null> {
       where: { _status: { equals: 'published' } },
       sort: '-updatedAt',
     });
-    const newest = probe.docs?.[0]?.updatedAt;
+    const newest = (probe.docs?.[0] as SlugDocument | undefined)?.updatedAt;
 
-    knownSlugs = slugs;
-    knownCountAt = (result as { totalDocs?: number }).totalDocs ?? slugs.size;
-    knownNewestUpdatedAt = newest ? Date.parse(newest) : -1;
-    loadedAt = Date.now();
-    statusCache.clear();
+    snapshot.knownSlugs = slugs;
+    snapshot.knownCountAt = (result as { totalDocs?: number }).totalDocs ?? slugs.size;
+    snapshot.knownNewestUpdatedAt = newest ? Date.parse(String(newest)) : -1;
+    snapshot.loadedAt = Date.now();
+    snapshot.statusCache.clear();
     return slugs;
   } catch (error) {
     // Fail-open: keep whatever snapshot exists (a stale one is still better
     // than 404s), and report "no fresh answer" to the caller.
-    console.warn('[proxy-cache] Slug-Liste nicht ladbar — Fail-open:', (error as Error)?.message);
+    console.warn(
+      `[proxy-cache] Slug-Liste (${collection}) nicht ladbar — Fail-open:`,
+      (error as Error)?.message,
+    );
     return null;
   }
 }
@@ -202,13 +215,16 @@ async function loadSlugs(): Promise<Set<string> | null> {
  * Single-flight refresh: concurrent callers share one promise, so a cold start
  * or a burst of CMS edits produces exactly one query.
  */
-function refresh(): Promise<Set<string> | null> {
-  if (!inFlight) {
-    inFlight = loadSlugs().finally(() => {
-      inFlight = null;
+function refreshSnapshot(
+  snapshot: SlugSnapshot,
+  collection: SlugCollection,
+): Promise<Set<string> | null> {
+  if (!snapshot.inFlight) {
+    snapshot.inFlight = loadSlugsInto(snapshot, collection).finally(() => {
+      snapshot.inFlight = null;
     });
   }
-  return inFlight;
+  return snapshot.inFlight;
 }
 
 /**
@@ -217,12 +233,15 @@ function refresh(): Promise<Set<string> | null> {
  * `updatedAt`. A rename that keeps the count stable changes `updatedAt`, so
  * both are needed. Any failure counts as "unchanged" (fail-open).
  */
-async function snapshotStillValid(): Promise<boolean> {
+async function snapshotStillValid(
+  snapshot: SlugSnapshot,
+  collection: SlugCollection,
+): Promise<boolean> {
   try {
     const client = await payload();
     const [countResult, newestResult] = await Promise.all([
       client.find({
-        collection: 'pages',
+        collection: collection as 'pages',
         draft: false,
         depth: 0,
         limit: 0,
@@ -230,7 +249,7 @@ async function snapshotStillValid(): Promise<boolean> {
         where: { _status: { equals: 'published' } },
       }),
       client.find({
-        collection: 'pages',
+        collection: collection as 'pages',
         draft: false,
         depth: 0,
         limit: 1,
@@ -241,14 +260,15 @@ async function snapshotStillValid(): Promise<boolean> {
       }),
     ]);
     const count = (countResult as { totalDocs?: number }).totalDocs ?? -1;
-    const newest = newestResult.docs?.[0]?.updatedAt;
-    const newestAt = newest ? Date.parse(newest) : -1;
-    const same = count === knownCountAt && newestAt === knownNewestUpdatedAt;
+    const newest = (newestResult.docs?.[0] as SlugDocument | undefined)?.updatedAt;
+    const newestAt = typeof newest === 'string' ? Date.parse(newest) : -1;
+    const same = count === snapshot.knownCountAt && newestAt === snapshot.knownNewestUpdatedAt;
     console.info('[proxy-cache-probe]', {
+      collection,
       count,
-      knownCountAt,
+      knownCountAt: snapshot.knownCountAt,
       newestAt,
-      knownNewestUpdatedAt,
+      knownNewestUpdatedAt: snapshot.knownNewestUpdatedAt,
       same,
     });
     return same;
@@ -268,13 +288,15 @@ async function snapshotStillValid(): Promise<boolean> {
  *                                         instead of trusting a 30-day-old set.
  * Single-flight guarantees one query for concurrent callers.
  */
-async function currentSlugs({
-  probe = false,
-}: { probe?: boolean } = {}): Promise<Set<string> | null> {
-  if (!knownSlugs) return refresh();
+async function currentSnapshot(
+  snapshot: SlugSnapshot,
+  collection: SlugCollection,
+  { probe = false }: { probe?: boolean } = {},
+): Promise<Set<string> | null> {
+  if (!snapshot.knownSlugs) return refreshSnapshot(snapshot, collection);
 
-  const age = Date.now() - loadedAt;
-  if (age < refreshMs() && !probe) return knownSlugs;
+  const age = Date.now() - snapshot.loadedAt;
+  if (age < refreshMs() && !probe) return snapshot.knownSlugs;
 
   if (age < maxAgeMs()) {
     // Background refresh: a changed set is picked up, an unchanged one costs
@@ -287,48 +309,55 @@ async function currentSlugs({
     // A positive probe must NOT reset `loadedAt`: the probe only compares count
     // + newest `updatedAt`, so it cannot see every publish — but the per-slug
     // decisions keep their own short expiry and are re-evaluated.
-    if (!(await snapshotStillValid())) {
-      const reloaded = await refresh();
+    if (!(await snapshotStillValid(snapshot, collection))) {
+      const reloaded = await refreshSnapshot(snapshot, collection);
       if (reloaded) return reloaded;
     }
-    return knownSlugs;
+    return snapshot.knownSlugs;
   }
 
   // Snapshot older than its maximum lifetime: correctness of a 404 check is no
   // longer guaranteed, so fail open until a reload succeeds.
-  return refresh();
+  return refreshSnapshot(snapshot, collection);
+}
+
+/** Remembers a decision per slug, bounded LRU (Map keeps insert order). */
+function remember(snapshot: SlugSnapshot, slug: string, status: SlugStatus): void {
+  if (snapshot.statusCache.has(slug)) snapshot.statusCache.delete(slug);
+  const ttl =
+    status === 'exists' ? maxAgeMs() : status === 'missing' ? missingTtlMs() : refreshMs();
+  snapshot.statusCache.set(slug, { status, expiresAt: Date.now() + ttl });
+  if (snapshot.statusCache.size > MAX_ENTRIES) {
+    const oldest = snapshot.statusCache.keys().next();
+    if (!oldest.done) snapshot.statusCache.delete(oldest.value);
+  }
 }
 
 /**
- * Published slugs for the Proxy check. `null` = unknown (cache disabled, DB
- * down, nothing loaded yet) — callers must let the request through.
- */
-export async function getPublishedSlugs(): Promise<Set<string> | null> {
-  if (!cacheEnabled()) return loadSlugs();
-  return currentSlugs();
-}
-
-/**
- * Status of one slug against the (cached) published set.
+ * Status of one slug against a (cached) published set.
  *
  * `'exists'` / `'missing'` are both remembered — negative caching is the point:
  * a crawler walking unknown paths must not produce a DB read per request.
  * `'unknown'` means the set could not be produced (fail-open: never 404 on it).
  */
-export async function publishedSlugStatus(slug: string): Promise<SlugStatus | 'unknown'> {
+async function snapshotStatus(
+  snapshot: SlugSnapshot,
+  collection: SlugCollection,
+  slug: string,
+): Promise<SlugStatus> {
   if (!cacheEnabled()) {
-    const slugs = await loadSlugs();
+    const slugs = await loadSlugsInto(snapshot, collection);
     return slugs === null ? 'unknown' : slugs.has(slug) ? 'exists' : 'missing';
   }
 
-  const cached = statusCache.get(slug);
+  const cached = snapshot.statusCache.get(slug);
   if (cached && cached.expiresAt > Date.now()) {
     // Refresh LRU position without re-inserting.
-    statusCache.delete(slug);
-    statusCache.set(slug, cached);
+    snapshot.statusCache.delete(slug);
+    snapshot.statusCache.set(slug, cached);
     return cached.status;
   }
-  if (cached) statusCache.delete(slug);
+  if (cached) snapshot.statusCache.delete(slug);
 
   // A re-evaluated NEGATIVE answer must be checked against a snapshot that is
   // known to be current: inside the 5-minute refresh window the cached set
@@ -336,13 +365,67 @@ export async function publishedSlugStatus(slug: string): Promise<SlugStatus | 'u
   // a new page stayed 404 forever (measured 05.11.2026 — the negative entry
   // expired, the stale snapshot re-confirmed it).
   const needsFreshProbe = cached?.status === 'missing' || cached?.status === 'unknown';
-  const slugs = await currentSlugs({ probe: needsFreshProbe });
+  const slugs = await currentSnapshot(snapshot, collection, { probe: needsFreshProbe });
   if (slugs === null) {
-    remember(slug, 'unknown');
+    remember(snapshot, slug, 'unknown');
     return 'unknown';
   }
 
   const status: SlugStatus = slugs.has(slug) ? 'exists' : 'missing';
-  remember(slug, status);
+  remember(snapshot, slug, status);
   return status;
+}
+
+/** Drops every cached slug + both snapshots (same-process callers, tests). */
+export function invalidatePublishedSlugs(): void {
+  for (const snapshot of [PAGE_SIGNATURE, VIBE_SIGNATURE]) {
+    snapshot.statusCache.clear();
+    snapshot.knownSlugs = null;
+    snapshot.knownCountAt = -1;
+    snapshot.knownNewestUpdatedAt = -1;
+    snapshot.loadedAt = 0;
+    snapshot.inFlight = null;
+  }
+}
+
+/** Snapshot of the loaded state — for diagnostics and tests. */
+export function publishedSlugCacheStats(): {
+  entries: number;
+  slugCount: number;
+  loadedAt: number;
+  stale: boolean;
+} {
+  const snapshot = PAGE_SIGNATURE;
+  return {
+    entries: snapshot.statusCache.size,
+    slugCount: snapshot.knownSlugs?.size ?? 0,
+    loadedAt: snapshot.loadedAt,
+    stale: snapshot.knownSlugs === null || Date.now() - snapshot.loadedAt > refreshMs(),
+  };
+}
+
+/**
+ * Published page slugs for the Proxy check. `null` = unknown (cache disabled, DB
+ * down, nothing loaded yet) — callers must let the request through.
+ */
+export async function getPublishedSlugs(): Promise<Set<string> | null> {
+  if (!cacheEnabled()) return loadSlugsInto(PAGE_SIGNATURE, 'pages');
+  return currentSnapshot(PAGE_SIGNATURE, 'pages');
+}
+
+/** Status of one page slug against the (cached) published page set. */
+export async function publishedSlugStatus(slug: string): Promise<SlugStatus | 'unknown'> {
+  return snapshotStatus(PAGE_SIGNATURE, 'pages', slug);
+}
+
+/**
+ * Status of one vibe-coding project slug (`/[locale]/vibe-coding/<slug>`)
+ * against the (cached) published project set.
+ *
+ * Own snapshot, own fingerprint, same policy: 60 s negative TTL, single-flight,
+ * fail-open — so a newly published project is reachable within 60 s and a DB
+ * outage never 404s an existing one.
+ */
+export async function publishedVibeProjectStatus(slug: string): Promise<SlugStatus | 'unknown'> {
+  return snapshotStatus(VIBE_SIGNATURE, 'vibeProjects', slug);
 }

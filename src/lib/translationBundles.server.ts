@@ -12,6 +12,8 @@ import type { TimelineCopy } from '@/components/blocks/TimelineBlock';
 import type { TechRadarCopy } from '@/components/blocks/TechRadarBlock';
 import type { CtaCopy } from '@/components/blocks/CallToActionBlock';
 import type { ArchitectureCopy } from '@/components/blocks/ArchitectureDiagramBlock';
+import type { VibeShowcaseCopy } from '@/components/blocks/VibeShowcaseBlock';
+import type { VibeDetailCopy } from '@/components/vibe/VibeProjectDetail';
 import type { PreviewCopy } from '@/components/preview/PreviewBlocks';
 
 /**
@@ -290,6 +292,144 @@ export async function loadArchitectureCopy(locale: FrontendLocale): Promise<Arch
   return { defaultSectionLabel, layerSingular, layerPlural, tablistAria, stackLabel };
 }
 
+/**
+ * Vibe-showcase listing copy (`blocks.vibeShowcase.*`): tiles, filter row,
+ * pagination, empty and count labels.
+ *
+ * The DETAIL labels are a separate bundle (`loadVibeDetailCopy`): the listing
+ * never renders a detail page, and the detail route renders no pagination. Both
+ * are still part of `PreviewCopy`, because a preview iframe can show either.
+ */
+export async function loadVibeShowcaseCopy(locale: FrontendLocale): Promise<VibeShowcaseCopy> {
+  const [
+    eyebrow,
+    countSingular,
+    countPlural,
+    featuredLabel,
+    detailLabel,
+    liveLabel,
+    githubLabel,
+    stackLabel,
+    newTabHint,
+    emptyLabel,
+    paginationAria,
+    prevLabel,
+    nextLabel,
+    pageLabel,
+    ofLabel,
+    kindExperiment,
+    kindTool,
+    kindProduct,
+    filterLabel,
+    filterAll,
+    filterEmpty,
+    filterResultCountSingular,
+    filterResultCountPlural,
+  ] = await Promise.all([
+    getCachedTranslation(locale, 'blocks.vibeShowcase.eyebrow'),
+    getCachedTranslation(locale, 'blocks.vibeShowcase.countSingular'),
+    getCachedTranslation(locale, 'blocks.vibeShowcase.countPlural'),
+    getCachedTranslation(locale, 'blocks.vibeShowcase.featuredLabel'),
+    getCachedTranslation(locale, 'blocks.vibeShowcase.detailLabel'),
+    getCachedTranslation(locale, 'blocks.vibeShowcase.liveLabel'),
+    getCachedTranslation(locale, 'blocks.vibeShowcase.githubLabel'),
+    getCachedTranslation(locale, 'blocks.vibeShowcase.stackLabel'),
+    getCachedTranslation(locale, 'blocks.vibeShowcase.newTabHint'),
+    getCachedTranslation(locale, 'blocks.vibeShowcase.emptyLabel'),
+    getCachedTranslation(locale, 'blocks.vibeShowcase.paginationAria'),
+    getCachedTranslation(locale, 'blocks.vibeShowcase.prevLabel'),
+    getCachedTranslation(locale, 'blocks.vibeShowcase.nextLabel'),
+    getCachedTranslation(locale, 'blocks.vibeShowcase.pageLabel'),
+    getCachedTranslation(locale, 'blocks.vibeShowcase.ofLabel'),
+    getCachedTranslation(locale, 'blocks.vibeShowcase.kindExperiment'),
+    getCachedTranslation(locale, 'blocks.vibeShowcase.kindTool'),
+    getCachedTranslation(locale, 'blocks.vibeShowcase.kindProduct'),
+    getCachedTranslation(locale, 'blocks.vibeShowcase.filterLabel'),
+    getCachedTranslation(locale, 'blocks.vibeShowcase.filterAll'),
+    getCachedTranslation(locale, 'blocks.vibeShowcase.filterEmpty'),
+    getCachedTranslation(locale, 'blocks.vibeShowcase.filterResultCount'),
+    getCachedTranslation(locale, 'blocks.vibeShowcase.filterResultCountPlural'),
+  ]);
+  return {
+    eyebrow,
+    countSingular,
+    countPlural,
+    featuredLabel,
+    detailLabel,
+    liveLabel,
+    githubLabel,
+    stackLabel,
+    newTabHint,
+    emptyLabel,
+    paginationAria,
+    prevLabel,
+    nextLabel,
+    pageLabel,
+    ofLabel,
+    kindLabels: { experiment: kindExperiment, tool: kindTool, product: kindProduct },
+    filterLabel,
+    filterAll,
+    filterEmpty,
+    filterResultCountSingular,
+    filterResultCountPlural,
+  };
+}
+
+/** Vibe-project detail copy (`routes.vibeProject.*`). */
+export async function loadVibeDetailCopy(locale: FrontendLocale): Promise<VibeDetailCopy> {
+  const [
+    eyebrow,
+    contextLabel,
+    approachLabel,
+    learningsLabel,
+    outcomeLabel,
+    stackLabel,
+    tagsLabel,
+    liveCta,
+    githubCta,
+    backToList,
+    noCover,
+    empty,
+    newTabHint,
+    kindExperiment,
+    kindTool,
+    kindProduct,
+  ] = await Promise.all([
+    getCachedTranslation(locale, 'routes.vibeProject.eyebrow'),
+    getCachedTranslation(locale, 'routes.vibeProject.contextLabel'),
+    getCachedTranslation(locale, 'routes.vibeProject.approachLabel'),
+    getCachedTranslation(locale, 'routes.vibeProject.learningsLabel'),
+    getCachedTranslation(locale, 'routes.vibeProject.outcomeLabel'),
+    getCachedTranslation(locale, 'routes.vibeProject.stackLabel'),
+    getCachedTranslation(locale, 'routes.vibeProject.tagsLabel'),
+    getCachedTranslation(locale, 'routes.vibeProject.liveCta'),
+    getCachedTranslation(locale, 'routes.vibeProject.githubCta'),
+    getCachedTranslation(locale, 'routes.vibeProject.backToList'),
+    getCachedTranslation(locale, 'routes.vibeProject.noCover'),
+    getCachedTranslation(locale, 'routes.vibeProject.empty'),
+    getCachedTranslation(locale, 'blocks.vibeShowcase.newTabHint'),
+    getCachedTranslation(locale, 'blocks.vibeShowcase.kindExperiment'),
+    getCachedTranslation(locale, 'blocks.vibeShowcase.kindTool'),
+    getCachedTranslation(locale, 'blocks.vibeShowcase.kindProduct'),
+  ]);
+  return {
+    eyebrow,
+    contextLabel,
+    approachLabel,
+    learningsLabel,
+    outcomeLabel,
+    stackLabel,
+    tagsLabel,
+    liveCta,
+    githubCta,
+    backToList,
+    noCover,
+    empty,
+    newTabHint,
+    kindLabels: { experiment: kindExperiment, tool: kindTool, product: kindProduct },
+  };
+}
+
 /** Imprint frame copy (`routes.imprint.*`). */
 export async function loadImprintCopy(locale: FrontendLocale) {
   const [title, eyebrow, empty, metaDescription] = await Promise.all([
@@ -325,6 +465,10 @@ export async function loadPreviewCopy(
       eyebrow: await getCachedTranslation(locale, 'blocks.imageText.eyebrow'),
       imagePlaceholder: await getCachedTranslation(locale, 'blocks.imageText.imagePlaceholder'),
     },
+    // The preview can frame either the listing page (it renders the
+    // `vibeShowcase` block) or a project document, so both bundles ship.
+    vibeShowcase: await loadVibeShowcaseCopy(locale),
+    vibeDetail: await loadVibeDetailCopy(locale),
   };
 }
 

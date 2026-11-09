@@ -13,7 +13,7 @@ import { headers } from 'next/headers';
 import { getPayload } from 'payload';
 import configPromise from '@payload-config';
 import { CACHE_TAGS } from './constants';
-import { collectRevalidationResults } from './revalidate';
+import { collectRevalidationResults, revalidateVibeListingCache } from './revalidate';
 
 type ClearCachesResult = { ok: true; tags: string[] } | { ok: false; error: string };
 
@@ -49,6 +49,11 @@ export async function clearAllFrontendCaches(): Promise<ClearCachesResult> {
   // as a safety net for special cases like the home route. Blocking
   // invalidation ({ expire: 0 }, see revalidate.ts): the next request must see
   // fresh CMS data for certain.
+  //
+  // The vibe-coding showcase is part of it: the listing projection
+  // (`cms:vibeshowcase`, `cms:vibetags`) and the collection domain tag
+  // (`cms:vibeprojects`) — a manual flush that skipped them would keep serving
+  // listing tiles from the previous edit.
   const tags = [
     { tag: CACHE_TAGS.ALL, label: `manual flush by user ${user.email}` },
     { tag: CACHE_TAGS.pages, label: 'manual flush: pages' },
@@ -57,8 +62,15 @@ export async function clearAllFrontendCaches(): Promise<ClearCachesResult> {
     { tag: CACHE_TAGS.navigation, label: 'manual flush: navigation' },
     { tag: CACHE_TAGS.translations, label: 'manual flush: translations' },
     { tag: CACHE_TAGS.notFound, label: 'manual flush: not-found' },
+    { tag: CACHE_TAGS.vibeProjects, label: 'manual flush: vibe projects' },
+    { tag: CACHE_TAGS.vibeShowcase, label: 'manual flush: vibe listing' },
+    { tag: CACHE_TAGS.vibeTags, label: 'manual flush: vibe tags' },
   ];
   const { done } = collectRevalidationResults(tags);
+
+  // The listing subtree (`?page=N`, `?tag=`) is a set of query variants no tag
+  // maps to: one prefix op per locale/host evicts all of them.
+  revalidateVibeListingCache('manual flush: vibe listing variants');
 
   try {
     revalidatePath('/', 'layout');

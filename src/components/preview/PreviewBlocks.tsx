@@ -49,6 +49,10 @@ import { TechRadarBlock } from '@/components/blocks/TechRadarBlock';
 import type { TechRadarCopy } from '@/components/blocks/TechRadarBlock';
 import { ArchitectureDiagramBlock } from '@/components/blocks/ArchitectureDiagramBlock';
 import type { ArchitectureCopy } from '@/components/blocks/ArchitectureDiagramBlock';
+import { VibeShowcaseBlock } from '@/components/blocks/VibeShowcaseBlock';
+import type { VibeShowcaseCopy, VibeShowcaseView } from '@/components/blocks/VibeShowcaseBlock';
+import type { VibeDetailCopy } from '@/components/vibe/VibeProjectDetail';
+import { VIBE_SHOWCASE_SLUG } from '@/cms/cache/frontend/routes';
 
 export type PreviewBlock = NonNullable<Page['layout']>[number];
 
@@ -64,17 +68,30 @@ export type PreviewCopy = {
   architecture: ArchitectureCopy;
   status: { gaugeLabel: string };
   imageText: { eyebrow: string; imagePlaceholder: string };
+  vibeShowcase: VibeShowcaseCopy;
+  vibeDetail: VibeDetailCopy;
 };
 
 export function PreviewBlockRenderer({
   block,
   locale,
   copy,
+  vibeListing,
 }: {
   block: PreviewBlock;
   locale?: string;
   /** Resolved shell copy (`PreviewCopy`), from the server page. */
   copy: PreviewCopy;
+  /**
+   * Listing data for the `vibeShowcase` block.
+   *
+   * The preview renders the FIRST page, unfiltered and without the pagination
+   * chrome: `?page=`/`?tag=` are URL state of the published listing, the admin
+   * iframe has its own query string (`?slug=`), and a preview must never show a
+   * different slice than the editor's draft page. Without data the block
+   * renders nothing at all (never an invented page).
+   */
+  vibeListing?: VibeShowcaseView;
 }) {
   switch (block.blockType) {
     case 'hero':
@@ -112,6 +129,16 @@ export function PreviewBlockRenderer({
       return <TechRadarBlock block={block} copy={copy.techRadar} />;
     case 'architectureDiagram':
       return <ArchitectureDiagramBlock block={block} copy={copy.architecture} />;
+    case 'vibeShowcase':
+      // First page, no filter, no pagination (see the `vibeListing` prop).
+      return vibeListing ? (
+        <VibeShowcaseBlock
+          block={block}
+          view={vibeListing}
+          basePath={`/${locale === 'de' ? 'de' : 'en'}/${VIBE_SHOWCASE_SLUG}`}
+          copy={copy.vibeShowcase}
+        />
+      ) : null;
     default:
       return null;
   }

@@ -22,6 +22,9 @@ import * as migration_20261108_150000_seed_ui_copy_translations from './20261108
 import * as migration_20261108_151500_de_command_palette_copy from './20261108_151500_de_command_palette_copy';
 import * as migration_20261108_164101_add_site_identity from './20261108_164101_add_site_identity';
 import * as migration_20261108_170000_seed_seo_copy from './20261108_170000_seed_seo_copy';
+import * as migration_20261109_171931_add_vibe_projects from './20261109_171931_add_vibe_projects';
+import * as migration_20261109_175000_add_vibe_showcase_block from './20261109_175000_add_vibe_showcase_block';
+import * as migration_20261109_180000_seed_vibe_showcase_copy from './20261109_180000_seed_vibe_showcase_copy';
 
 export const migrations = [
   {
@@ -143,5 +146,20 @@ export const migrations = [
     up: migration_20261108_170000_seed_seo_copy.up,
     down: migration_20261108_170000_seed_seo_copy.down,
     name: '20261108_170000_seed_seo_copy',
+  },
+  {
+    up: migration_20261109_171931_add_vibe_projects.up,
+    down: migration_20261109_171931_add_vibe_projects.down,
+    name: '20261109_171931_add_vibe_projects',
+  },
+  {
+    up: migration_20261109_175000_add_vibe_showcase_block.up,
+    down: migration_20261109_175000_add_vibe_showcase_block.down,
+    name: '20261109_175000_add_vibe_showcase_block',
+  },
+  {
+    up: migration_20261109_180000_seed_vibe_showcase_copy.up,
+    down: migration_20261109_180000_seed_vibe_showcase_copy.down,
+    name: '20261109_180000_seed_vibe_showcase_copy',
   },
 ];

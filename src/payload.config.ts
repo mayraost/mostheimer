@@ -9,6 +9,8 @@ import { fileURLToPath } from 'url';
 import { Users } from './cms/collections/Users';
 import { Media } from './cms/collections/Media';
 import { Pages } from './cms/collections/Pages';
+import { VibeProjects } from './cms/collections/VibeProjects';
+import { VibeTags } from './cms/collections/VibeTags';
 import { Navigation } from './cms/globals/Navigation';
 import { NotFound } from './cms/globals/NotFound';
 import { SiteSettings } from './cms/globals/SiteSettings';
@@ -49,7 +51,10 @@ export default buildConfig({
       actions: ['/cms/admin/components/CacheClearNavLink'],
     },
   },
-  collections: [Users, Media, Pages],
+  // Order matters for the admin nav only. `vibeTags` before `vibeProjects`:
+  // a project references tags, and the admin list should offer the referenced
+  // collection first.
+  collections: [Users, Media, Pages, VibeTags, VibeProjects],
   globals: [Navigation, NotFound, SiteSettings, Translations],
   localization: {
     locales: ['en', 'de'],
@@ -92,6 +97,28 @@ export default buildConfig({
                 name: 'card',
                 width: 768,
                 height: 1024,
+                position: 'centre',
+              },
+              // Vibe-coding showcase (design doc § 4). Tile = 16:9 grid card,
+              // wide = featured tile spanning two columns, hero = wide detail
+              // header (12:5). Uploads that predate these variants fall back to
+              // the original file in `pickVibeImage`.
+              {
+                name: 'vibeTile',
+                width: 768,
+                height: 432,
+                position: 'centre',
+              },
+              {
+                name: 'vibeTileWide',
+                width: 1280,
+                height: 720,
+                position: 'centre',
+              },
+              {
+                name: 'vibeHero',
+                width: 1920,
+                height: 800,
                 position: 'centre',
               },
             ],
@@ -145,6 +172,14 @@ export default buildConfig({
           description:
             'Mediathek (Bilder/Uploads, WebP-Transformationen). CRUD ohne delete — Loeschung nur via Admin/REST.',
           tools: { delete: false },
+        },
+        vibeTags: {
+          description:
+            'Filter-Tags der Vibe-Coding-Showcase (slug + lokalisierter Label). Anlegen/Umbenennen per MCP: Slug bleibt stabil, Label je Locale.',
+        },
+        vibeProjects: {
+          description:
+            'Vibe-Coding-Projekte (ein Dokument = /{locale}/vibe-coding/<slug>). Drafts + Versionen; Cover-Bild/Relationen (tags) referenzieren media bzw. vibeTags.',
         },
       },
       globals: {
