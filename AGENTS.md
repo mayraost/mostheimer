@@ -2138,6 +2138,36 @@ Ein paginierbares, tag-filterbares Projekt-Listing mit eigener Detailroute. Desi
 | Block `vibeShowcase`                    | Wird auf der CMS-Seite `vibe-coding` platziert, rendert Raster + Tag-Filter + Pagination. **Nur der ERSTE Block rendert** — ein zweiter würde `?page=`, das Pagination-Landmark und das `ItemList` verdoppeln                                                                                                                                            |
 | Route `/[locale]/vibe-coding/[project]` | Detailseite, `◐` Partial Prerender                                                                                                                                                                                                                                                                                                                       |
 
+### Vierte Navigationsfläche: Command-Palette (09.11.2026)
+
+Das Listing erscheint in ⌘K als Eintrag **`vibe-coding`** (`href: '/vibe-coding'`, Gruppe `pages`,
+Position direkt nach `case-studies`). Das war die letzte Fläche ohne den Eintrag — Drawer und
+Footer lesen das `navigation`-Global, die Palette dagegen `src/components/ui/commandItems.ts`
+(Struktur) + `translations.copy` (Label/Keywords).
+
+- Label/Keywords: `commandItems.vibe-coding.label` / `.keywords`, Seeds in Migration
+  `20261109_183000_seed_command_palette_vibe_coding` (de + en, `WHERE NOT EXISTS`).
+- **Keine `COPY_KEYS`-/`COPY_LIST_KEYS`-Einträge** — `commandItems.*` wird per id zur Laufzeit
+  adressiert (`commandItemCopy`) und ist dort bewusst nicht enumeriert (siehe Kommentar an
+  `COPY_LIST_KEYS`). Neuer Palette-Eintrag = Struktur-Eintrag + Seed-Migration, nichts sonst.
+- **Ein leerer Label-Wert löscht den Eintrag still** (`getCommandItems` droppt ihn statt einen
+  Blank zu rendern). Ein fehlender Seed sieht also nicht wie ein Fehler aus, sondern wie eine
+  fehlende Seite — beim Anlegen neuer Palette-Einträge immer beide Locales seeden.
+- **Projekt-Detailseiten sind NICHT in der Palette** (bewusste Entscheidung): die Palette wird im
+  Layout server-seitig aus `'use cache'`-Daten gebaut und als Prop in eine Client-Komponente
+  gereicht; jedes Projekt einzeln aufzunehmen hieße, die Collection bei jedem Shell-Render zu
+  lesen und die Trefferliste unbegrenzt wachsen zu lassen. Das Listing ist die stabile
+  Einstiegsfläche; die Suche nach Projekten gehört aufs Listing (Tag-Filter).
+
+### Offener CMS-Schritt: `navigation.headerLinks`/`footerLinks`
+
+Die Palette kennt das Listing über Code, das **Menü kennt es nur, wenn es im `navigation`-Global
+steht** — das ist Content, kein Code. Ein späterer MCP-Write muss je Locale zwei Zeilen setzen
+(Feldpfad `headerLinks` bzw. `footerLinks`, Array-of-`{ label, link, newTab }` bzw.
+`{ label, link }`): DE `{ label: 'Vibe Coding', link: '/de/vibe-coding' }` und EN
+`{ label: 'Vibe Coding', link: '/en/vibe-coding' }`; `newTab` bleibt `false` (interner Link).
+Position: direkt nach dem Case-Studies-Eintrag, damit Menü und Palette dieselbe Reihenfolge haben.
+
 ### Listing: Pagination + Tag-Filter (SEO-Vertrag)
 
 - URL-Schema: `?page=N` und `?tag=<slug>`, kombinierbar; Seitenwechsel behält den Tag, Tag-Wechsel springt auf Seite 1.

@@ -25,6 +25,7 @@ import * as migration_20261108_170000_seed_seo_copy from './20261108_170000_seed
 import * as migration_20261109_171931_add_vibe_projects from './20261109_171931_add_vibe_projects';
 import * as migration_20261109_175000_add_vibe_showcase_block from './20261109_175000_add_vibe_showcase_block';
 import * as migration_20261109_180000_seed_vibe_showcase_copy from './20261109_180000_seed_vibe_showcase_copy';
+import * as migration_20261109_183000_seed_command_palette_vibe_coding from './20261109_183000_seed_command_palette_vibe_coding';
 
 export const migrations = [
   {
@@ -161,5 +162,10 @@ export const migrations = [
     up: migration_20261109_180000_seed_vibe_showcase_copy.up,
     down: migration_20261109_180000_seed_vibe_showcase_copy.down,
     name: '20261109_180000_seed_vibe_showcase_copy',
+  },
+  {
+    up: migration_20261109_183000_seed_command_palette_vibe_coding.up,
+    down: migration_20261109_183000_seed_command_palette_vibe_coding.down,
+    name: '20261109_183000_seed_command_palette_vibe_coding',
   },
 ];
