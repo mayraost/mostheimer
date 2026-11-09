@@ -108,11 +108,34 @@ import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { pathToFileURL } from 'node:url';
 
-// Single source of truth for the route model. Imported straight from the app:
-// `routes.ts` has no imports of its own, so this stays a plain-Node script (no
-// Next/Payload module graph) while the paginated-route list and the
-// never-purge-assets rule cannot drift from src/cms/cache/frontend.
-import { PAGINATED_ROUTES, isPurgeablePath } from '../src/cms/cache/frontend/routes.ts';
+// NO IMPORTS FROM src/**. This file is shipped standalone into `/app/scripts/`
+// and loaded by the entrypoint BEFORE anything else — the standalone bundle
+// contains only `server.js` + bundled deps, never the TS source tree. A restart
+// of the refactor that pointed this script at
+// `../src/cms/cache/frontend/routes.ts` crashed EVERY deploy boot with
+// `Cannot find module '/app/src/cms/cache/frontend/routes.ts'` (while staying
+// green everywhere src/ existed locally) and every deploy purge silently
+// never ran. The route list therefore arrives at RUNTIME from
+// `/api/purge-manifest` (local origin first); the constants below are only the
+// fail-soft last resort and must match what the manifest serves.
+const FALLBACK_PAGINATED_ROUTES = Object.freeze(['/projects']);
+
+/** Mirrors `isStaticAssetPath` in src/cms/cache/frontend/routes.ts. */
+function isStaticAssetPath(pathname) {
+  return /^\/_next\/static\b/i.test(pathname);
+}
+
+/**
+ * Mirrors `isPurgeablePath` in src/cms/cache/frontend/routes.ts — the whole
+ * never-purge-assets rule (see the header INVARIANT note). A deliberate
+ * plain-Node copy: the script may not import the TS source, and the invariant
+ * is additionally enforced inside the app (`toPurgeUrls`/`toPurgePrefixes`
+ * filter assets before any purge request leaves the process), so a drift here
+ * cannot turn an asset into a purge from the app side.
+ */
+function isPurgeable(pathname) {
+  return !isStaticAssetPath(pathname);
+}
 
 const API_BASE = 'https://api.cloudflare.com/client/v4';
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -312,8 +335,8 @@ async function fetchPaginatedRoutes(port) {
         });
         if (response.ok) {
           const body = await response.json();
-          // The manifest is the primary source (it is per-image); the imported
-          // constant is the fallback for a partially booted container.
+          // The manifest is the primary source (it is per-image); the
+          // FALLBACK_PAGINATED_ROUTES constant is for a partially booted
           const routes = Array.isArray(body?.paginatedRoutes) ? body.paginatedRoutes : [];
           const clean = routes.filter(
             (route) =>
@@ -326,7 +349,7 @@ async function fetchPaginatedRoutes(port) {
           // purging zero prefixes.
           if (clean.length === 0) {
             warn('purge manifest returned no usable paginated route — using the built-in list');
-            return [...PAGINATED_ROUTES];
+            return [...FALLBACK_PAGINATED_ROUTES];
           }
           return clean;
         }
@@ -339,7 +362,7 @@ async function fetchPaginatedRoutes(port) {
   // Fail-soft fallback: the constant the manifest serves, so a manifest hiccup
   // costs a log line, not the prefix purge.
   warn('purge manifest unavailable — using the built-in paginated route list');
-  return [...PAGINATED_ROUTES];
+  return [...FALLBACK_PAGINATED_ROUTES];
 }
 
 /** Locale prefixes of this app; paginated routes exist once per locale. */
@@ -569,11 +592,12 @@ async function warmCache(paths, { origin = SITE_ORIGIN, concurrency = WARM_CONCU
 
 /**
  * Static assets are immutable and content-addressed; a purge must never touch
- * them (see header). This is THE rule from src/cms/cache/frontend/routes.ts,
- * imported instead of mirrored: a second copy drifted the moment the rule
- * learned about `/_next/static` without a trailing slash.
+ * them (see header). This mirrors the rule from src/cms/cache/frontend/routes.ts
+ * (`isPurgeablePath`, defined at the top of this file as a plain-Node copy: the
+ * script may not import the TS source — see the no-src-imports note). The app
+ * side additionally enforces the same rule before any purge request leaves the
+ * process.
  */
-const isPurgeable = isPurgeablePath;
 
 /** Cloudflare accepts at most 100 URLs / prefixes per purge request. */
 const MAX_OPS_PER_REQUEST = 100;
