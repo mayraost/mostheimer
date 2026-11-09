@@ -214,15 +214,21 @@ export function CommandPalette({ locale, items }: { locale: string; items: Comma
         </kbd>
       </button>
 
-      {/* Mobile trigger */}
+      {/*
+       * Mobile trigger. The box MUST match the language switch and the burger
+       * beside it (`h-11 w-11`) — at `h-9 w-9` it read as a shrunken button in
+       * the same row. The glyph is a step larger than the 16px desktop one
+       * because a magnifier carries more internal whitespace than the burger's
+       * three lines at the same nominal size.
+       */}
       <button
         type="button"
         onClick={openPalette}
-        className="flex h-9 w-9 items-center justify-center rounded-[6px] border border-border bg-surface-raised/60 text-muted-foreground transition-colors hover:border-primary/60 hover:text-foreground md:hidden"
+        className="flex h-11 w-11 items-center justify-center rounded-[6px] border border-border bg-surface-raised/60 text-muted-foreground transition-colors hover:border-primary/60 hover:text-foreground md:hidden"
         aria-label={t.triggerLabel}
         aria-haspopup="dialog"
       >
-        <Search className="h-4 w-4" aria-hidden="true" />
+        <Search className="h-5 w-5" aria-hidden="true" />
       </button>
 
       {open && (
