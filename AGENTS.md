@@ -1236,6 +1236,34 @@ Budget leer und CMS-Edits purgen nicht mehr. `scripts/entrypoint.sh` setzt
 Zweitsicherung: Marker `/app/.cf-state/.cf-purge-<sha16>.done` (existiert → „already
 purged — skipping").
 
+### `.mjs`-Skripte im Standalone-Image importieren NIEMALS aus `src/**` (Fix 09.11.2026)
+
+`scripts/cf-purge.mjs` (Entrypoint-Purge) importierte `PAGINATED_ROUTES`/
+`isPurgeablePath` aus `../src/cms/cache/frontend/routes.ts`. Das Standalone-Image
+bettet nur `server.js` + gebündelte Deps ein — `src/**` wird **nicht
+ausgeliefert** → jeder Deploy bootte mit `Error [ERR_MODULE_NOT_FOUND]: Cannot
+find module '/app/src/cms/cache/frontend/routes.ts'` in `docker logs`, das Skript
+starb VOR dem ersten Purge und der Deploy-Purge lief seither still gar nicht.
+Das sichtbarste Symptom: veraltete Edge-Objekte überleben Deploys (`/de/projects`
+lieferte weiter das alte HTML des vorherigen Builds — `last-modified` des alten
+Commits im Edge-Cache-Header prüfen).
+
+- **Regel:** jedes `.mjs`-Skript, das nach `/app/scripts/` kommt, hängt nur von
+  plain Node + eigenen Konstanten ab. Nie `src/**`, `@/**`, TS-relative Pfade.
+- Routendaten kommen zur Laufzeit: `/api/purge-manifest` am **lokalen** Origin
+  zuerst (`http://127.0.0.1:<port>`), Fallback Public-Host, letzte Rettung
+  `FALLBACK_PAGINATED_ROUTES` als Hard-Copy-Konstante im Skript (fail-soft,
+  nie throw).
+- Lokal war alles grün, weil `src/` existierte — der Crash trat nur im Container
+  auf und nur beim Boot-Restart sichtbar, weshalb er lange unbemerkt blieb.
+
+### [Cache/Deploy] „Deploy-Purge feuerte, aber der Edge bleibt alt" erst nach dem BOOT-Log prüfen
+
+Vor jeder Edge-Purge-Diagnose `docker logs` des App-Containers auf
+`ERR_MODULE_NOT_FOUND` bzw. die `[cf-purge]`-Zeilen prüfen — der Entrypoint
+startet das Skript als Hintergrundprozess; ein stiller Import-Crash sieht in der
+App perpektivisch wie „Purge klappt nicht" aus, nicht wie „Purge skript tot".
+
 ### `/_next/static` bleibt ein Restrisiko (Client-Bundle-Skew)
 
 Static-Chunks werden 1 Jahr `immutable` gearbeitet, und **zwei Builds erzeugen
