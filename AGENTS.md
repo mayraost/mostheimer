@@ -1761,13 +1761,24 @@ Beide filtern `navLinks` vor dem Mappen über `safeHrefOrNull()` — ein ungült
 verschwindet aus dem Menü, statt mit kaputtem `href` zu rendern. TypeScript sieht den
 Non-Null nach `filter()` nicht, deshalb `href as string | UrlObject` am `next/link`.
 
-## Bekannter vorbestehender Typecheck-Fehler
+## `next typegen` gehört vor jeden Typecheck (10.11.2026, korrigiert)
 
-`src/app/(frontend)/[locale]/projects/[project]/page.tsx` (Zeilen 73/74 und 121/125) wirft
-`TS2344`/`TS2345` auf `/[locale]/projects/[project]` gegen `AppRoutes` — **auch ohne jede
-Änderung** (mit `git stash` verifiziert). Ursache ist die fehlende `next typegen`-Route-Registry;
-laut „[Typen]"-Eintrag oben einmal `npx next typegen` laufen lassen. Nicht durch Code-Änderung
-an der Page „lösen".
+`src/app/(frontend)/[locale]/projects/[project]/page.tsx` meldete im Advisory-Typecheck
+(TS 7) `TS2344`/`TS2345` auf `PageProps<'/[locale]/projects/[project]'>`, während
+**TS 6 fehlerfrei blieb**.
+
+**Ursache war NICHT der Code und nicht TS 7:** `.next/types/routes.d.ts` war veraltet
+(Build vom Vortag, vor dem Projects-Feature) und enthielt die Route nicht. `AppRoutes` ist
+generiert; `tsconfig.json` inkludiert `.next/types/**/*.ts`, also prüft `tsc` dagegen.
+Nach `npx next typegen` waren beide Compiler bei **0 Fehlern**.
+
+- **Deshalb hängt `pretypecheck` jetzt an `npm run typegen`** (`next typegen` →
+  `generate:css`) — `npm run typecheck` regeneriert die Route-Registry selbst.
+- Diagnose-Regel: **`page.tsx`-Fehler auf `AppRoutes`/`PageProps` zuerst mit `next typegen`
+  prüfen**, bevor am Code gedreht wird. Ein TS6/TS7-Unterschied ist bei `packageId`-Drift
+  der generierten Dateien möglich — aber erst nach dem Generator-Lauf bewerten.
+- `next-env.d.ts` ist gitignored; `.next/types` ebenfalls — beide entstehen lokal.
+  Ein Worktree ohne frischen Build hat diesen Fehler immer.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
