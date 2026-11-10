@@ -1,5 +1,6 @@
 import type { Block } from 'payload';
 import { ICON_NAMES } from '../../components/blocks/Icon';
+import { validateHref } from '../../lib/safeHref';
 
 export const BentoGrid: Block = {
   slug: 'bentoGrid',
@@ -44,6 +45,7 @@ export const BentoGrid: Block = {
         {
           name: 'ctaLink',
           type: 'text',
+          validate: validateHref,
         },
         {
           name: 'iconName',

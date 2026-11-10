@@ -1701,6 +1701,74 @@ Vor jedem Commit wird diese Datei auf Aktualität geprüft und bei Bedarf ergän
 
 - **[Beiwerk statt Verifikation] `ReleaseGuard` + `sessionStorage` erzeugte beim Messen eine Navigationsschleife** (05.11.2026). Nach mehreren Server-Neustarts mit unterschiedlichen Build-IDs hielt der Tab eine alte Release-ID; der Guard lädt bei Mismatch hart neu, was in der Messsitzung wie ein Endlos-Redirect aussah (`Execution context was destroyed` / „interrupted by another navigation"). Vor Browser-Verifikation daher `sessionStorage.clear()` + `localStorage.clear()` im Tab (oder frischer Context). Kein Produktbug — aber es kostet Messzeit, wenn man ihn nicht kennt.
 
+## CMS-Linkfelder: Scheme-Allowlist (10.11.2026)
+
+**Jedes CMS-Feld, dessen Wert in ein `href` geht, hat `validate: validateHref`** aus
+`src/lib/safeHref.ts` — und jeder Renderer prüft zusätzlich mit `safeHrefOrNull()`.
+
+- **Warum zwei Schichten:** der `validate` stoppt neue Writes, aber Altbestand (oder ein
+  direkter DB-Write) würde weiter gerendert. `safeHrefOrNull()` gibt `null` zurück, und der
+  Renderer lässt den Link weg (bzw. `StatusScreen` rendert ein `<span>`). Ein schlechter Wert
+  kann so nie ein klickbares `javascript:` werden.
+- **Erlaubt:** `#anchor`, `/pfad`, `./`/`../`, `http(s):`, `mailto:` (mit Ziel), `tel:`
+  (nur Ziffern/Formatierung). **Abgelehnt:** jedes andere Schema, `//host`, Steuerzeichen
+  (`java\tscript:`-Schmuggel), Nicht-Strings.
+- **Betroffene Felder:** `hero.ctaLink`/`ctaLink2`, `callToAction.buttonLink`,
+  `bentoGrid.items[].ctaLink`, `skillset.ctaLink`, `caseStudy.link`,
+  `navigation.headerLinks[].link`/`footerLinks[].link`, `translations.cookies.privacyLink`,
+  `not-found.buttonLink`. **Neues Linkfeld → Validator mitgeben**, sonst ist die Lücke wieder offen.
+- Der Home-Hero nutzt `#architektur` (de) / `#architecture` (en) — Anker **müssen** gültig
+  bleiben, ein „nur relative Pfade"-Validator würde ihn brechen.
+- Tests: `tests/int/safe-href.int.spec.ts`.
+
+## Payload-CSRF-Allowlist (10.11.2026)
+
+`src/payload.config.ts` setzt jetzt **`serverURL`, `csrf` und `cors`** auf `CONTENT_ORIGINS`
+(`envConfig.serverUrl` + `https://www.mostheimer.de`).
+
+- **Warum:** ohne `serverURL` bleibt `config.csrf` ein leeres Array, und Payloads Cookie-
+  Extraktion (`extractJWT`) akzeptiert das `payload-token`-Cookie dann für **jeden** `Origin`
+  und für Requests ohne Origin, bevor `Sec-Fetch-Site`/`Referer` überhaupt geprüft werden.
+  Damit war SameSite im Browser die einzige CSRF-Kontrolle.
+- `cors` bleibt auf dieselben Origins begrenzt — keine öffentliche API, kein Wildcard.
+- Test: `tests/int/csrf-allowlist.int.spec.ts` (pint die Allowlist und den Gate).
+
+## Cookie-Serialisierung: NICHT „reparieren" (10.11.2026, gemessen)
+
+Payloads REST-Login serialisiert wörtlich
+`payload-token=…; Path=/; Secure=true; HttpOnly=true; SameSite=Strict`.
+
+**Alle drei Attribute greifen** — bitte nicht auf „kleingeschriebene Werte" umstellen:
+
+- `SameSite` wird laut RFC 6265bis **case-insensitiv** verglichen; Chromium, Firefox und
+  WebKit akzeptieren `Strict`.
+- `Secure`/`HttpOnly` werden per **Attribut-Namen** gematcht (§5.2.5/§5.2.6), der Wert `true`
+  ist irrelevant.
+- `'strict'` wäre außerdem in den gepinnten Typings kein gültiger Wert
+  (`'Lax' | 'None' | 'Strict' | boolean`) → TS-Fehler.
+- Die normalisierende Stelle (`auth/serverFunctions/cookies.js`, `toLowerCase()`) liegt im
+  Server-Function-Pfad, den die REST-Endpunkte nicht nutzen — das ist Payload-Verhalten, kein
+  Projekt-Defekt.
+- `secure` leitet sich auch aus `sameSite === 'None'` ab, deshalb ist die Schreibweise im
+  Config-Wert konsistent zu lassen.
+
+Gemessen mit einem reinen Funktionsaufruf von `generatePayloadCookie` (kein DB/Netz nötig):
+`env -i node -e "…"` im Repo-Root.
+
+## `MobileNavPortal`/`Footer`: gefilterte Linkliste (10.11.2026)
+
+Beide filtern `navLinks` vor dem Mappen über `safeHrefOrNull()` — ein ungültiger CMS-Link
+verschwindet aus dem Menü, statt mit kaputtem `href` zu rendern. TypeScript sieht den
+Non-Null nach `filter()` nicht, deshalb `href as string | UrlObject` am `next/link`.
+
+## Bekannter vorbestehender Typecheck-Fehler
+
+`src/app/(frontend)/[locale]/projects/[project]/page.tsx` (Zeilen 73/74 und 121/125) wirft
+`TS2344`/`TS2345` auf `/[locale]/projects/[project]` gegen `AppRoutes` — **auch ohne jede
+Änderung** (mit `git stash` verifiziert). Ursache ist die fehlende `next typegen`-Route-Registry;
+laut „[Typen]"-Eintrag oben einmal `npx next typegen` laufen lassen. Nicht durch Code-Änderung
+an der Page „lösen".
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 ## This is NOT the Next.js you know

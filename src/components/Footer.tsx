@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ConsentSettingsLink } from '@/components/consent/ConsentSettingsLink';
 import { isActiveNavLink } from '@/components/navLinkState';
+import { safeHrefOrNull } from '@/lib/safeHref';
 import { getPathname } from '@/components/serverPathname';
 import type { Translation } from '@/payload-types';
 
@@ -65,31 +66,37 @@ export async function Footer({
         {navLinks && navLinks.length > 0 && (
           <nav aria-label={navAria}>
             <ul className="flex flex-wrap items-center gap-x-5 gap-y-2">
-              {navLinks.map((item, index) => {
-                const active = isActiveNavLink(item.link, pathname);
-                return (
-                  <li key={item.id || index}>
-                    <Link
-                      href={item.link}
-                      /*
-                       * Same active rule as the drawer (one source:
-                       * `isActiveNavLink`). The footer is a quiet surface, so the
-                       * signal is emerald text + a leading dot instead of a rail.
-                       */
-                      className={[
-                        'mono-label inline-flex items-center gap-1.5 transition-colors',
-                        active ? 'text-primary' : 'text-muted-foreground hover:text-primary',
-                      ].join(' ')}
-                      aria-current={active ? 'page' : undefined}
-                    >
-                      {active && (
-                        <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-primary" />
-                      )}
-                      {item.label}
-                    </Link>
-                  </li>
-                );
-              })}
+              {navLinks
+                .map((item, index) => ({ item, index, href: safeHrefOrNull(item.link) }))
+                .filter(({ href }) => href)
+                .map(({ item, index, href }) => {
+                  const active = isActiveNavLink(item.link, pathname);
+                  return (
+                    <li key={item.id || index}>
+                      <Link
+                        href={href as string}
+                        /*
+                         * Same active rule as the drawer (one source:
+                         * `isActiveNavLink`). The footer is a quiet surface, so the
+                         * signal is emerald text + a leading dot instead of a rail.
+                         */
+                        className={[
+                          'mono-label inline-flex items-center gap-1.5 transition-colors',
+                          active ? 'text-primary' : 'text-muted-foreground hover:text-primary',
+                        ].join(' ')}
+                        aria-current={active ? 'page' : undefined}
+                      >
+                        {active && (
+                          <span
+                            aria-hidden="true"
+                            className="h-1.5 w-1.5 rounded-full bg-primary"
+                          />
+                        )}
+                        {item.label}
+                      </Link>
+                    </li>
+                  );
+                })}
               <li>
                 {/* Client-Komponente (der Footer ist eine Server-Komponente):
                     oeffnet den Consent-Dialog ueber `CONSENT_OPEN_EVENT`. */}

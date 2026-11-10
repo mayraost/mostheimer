@@ -2,6 +2,7 @@ import React from 'react';
 import type { Page } from '@/payload-types';
 import { Eyebrow, StatusDot } from '../ui/industrial';
 import { ctaArrowClass, ctaArrowHoverClass, ctaMotionClass } from '../ui/ActionLinkButton';
+import { safeHrefOrNull } from '@/lib/safeHref';
 
 type CallToActionBlockData = Extract<
   NonNullable<Page['layout']>[number],
@@ -28,6 +29,7 @@ export function CallToActionBlock({
   copy: CtaCopy;
 }) {
   const isPrimary = block.style !== 'secondary';
+  const buttonHref = safeHrefOrNull(block.buttonLink);
   const eyebrow = isPrimary ? copy.eyebrowPrimary : copy.eyebrowSecondary;
 
   return (
@@ -63,9 +65,9 @@ export function CallToActionBlock({
               )}
             </div>
 
-            {block.buttonLabel && block.buttonLink && (
+            {block.buttonLabel && buttonHref && (
               <a
-                href={block.buttonLink}
+                href={buttonHref}
                 className={[
                   'group mono-label inline-flex min-h-11 shrink-0 items-center gap-2 rounded-[6px] px-5',
                   isPrimary

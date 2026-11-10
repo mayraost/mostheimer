@@ -3,6 +3,7 @@ import type { Page } from '@/payload-types';
 import { Icon } from './Icon';
 import { BentoTile, CardHeader, Chip } from '../ui/industrial';
 import { RevealGrid } from '../ui/MotionWrappers';
+import { safeHrefOrNull } from '@/lib/safeHref';
 
 type SkillsetBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'skillset' }>;
 type SkillsetItem = NonNullable<SkillsetBlockData['items']>[number];
@@ -69,6 +70,8 @@ export function SkillsetBlock({
   /** Shell copy (`blocks.skillset`), read by the dispatcher. */
   copy: SkillsetCopy;
 }) {
+  const blockCtaHref = safeHrefOrNull(block.ctaLink);
+
   return (
     <section className="w-full border-t border-border pt-6 pb-14 lg:py-14">
       <div className="mx-auto w-full max-w-6xl">
@@ -90,10 +93,10 @@ export function SkillsetBlock({
           ))}
         </RevealGrid>
 
-        {block.ctaLabel && block.ctaLink && (
+        {block.ctaLabel && blockCtaHref && (
           <div className="mt-8">
             <a
-              href={block.ctaLink}
+              href={blockCtaHref}
               className="mono-label inline-flex items-center gap-2 text-primary transition-colors hover:text-primary-hover"
             >
               {block.ctaLabel} <span aria-hidden="true">→</span>

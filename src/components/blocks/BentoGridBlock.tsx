@@ -4,6 +4,7 @@ import { Icon, isKnownIcon } from './Icon';
 import { BentoTile, Chip, CornerTicks, Eyebrow, StatusDot } from '../ui/industrial';
 import { SpotlightGrid } from '../ui/MotionWrappers';
 import { Decode } from '../ui/Decode';
+import { safeHrefOrNull } from '@/lib/safeHref';
 
 type BentoGridBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'bentoGrid' }>;
 type BentoItem = NonNullable<BentoGridBlockData['items']>[number];
@@ -129,10 +130,12 @@ function BentoCard({ item, index, copy }: { item: BentoItem; index: number; copy
 
   const spanClass = item.featured ? 'lg:col-span-2' : '';
 
-  if (item.ctaLink) {
+  const tileHref = safeHrefOrNull(item.ctaLink);
+
+  if (tileHref) {
     return (
       <a
-        href={item.ctaLink}
+        href={tileHref}
         className={`${spanClass} block h-full rounded-[6px] focus-visible:outline-none`}
       >
         {card}

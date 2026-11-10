@@ -1,4 +1,5 @@
 import type { Block } from 'payload';
+import { validateHref } from '../../lib/safeHref';
 
 export const CallToAction: Block = {
   slug: 'callToAction',
@@ -19,6 +20,7 @@ export const CallToAction: Block = {
     {
       name: 'buttonLink',
       type: 'text',
+      validate: validateHref,
     },
     {
       name: 'style',

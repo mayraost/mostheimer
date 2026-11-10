@@ -7,6 +7,14 @@ export const Users: CollectionConfig = {
     // Hardened admin cookies: Secure (HTTPS only — fine behind the tunnel and
     // on localhost's secure context) and SameSite=Strict (never sent
     // cross-site). The live-preview iframe is same-origin, so 'Strict' is safe.
+    //
+    // MEASURED 10.11.2026, do not "fix" the capitalisation: Payload serialises
+    // the REST header as `Secure=true; HttpOnly=true; SameSite=Strict` (valued
+    // attributes, capitalised value). All three are honoured — RFC 6265bis
+    // compares SameSite case-insensitively, and §5.2.5/§5.2.6 match Secure and
+    // HttpOnly on the attribute NAME, ignoring the value. The lowercase
+    // variant 'strict' is also not type-legal in the pinned typings, so
+    // changing it here would buy nothing and risk a TS error.
     cookies: {
       secure: true,
       sameSite: 'Strict',

@@ -5,6 +5,7 @@ import { TypingHeading } from '../TypingHeading';
 import { Chip, StatusDot } from '../ui/industrial';
 import { LiveDot } from '../ui/LiveDot';
 import { ctaArrowClass, ctaArrowHoverClass, ctaMotionClass } from '../ui/ActionLinkButton';
+import { safeHrefOrNull } from '@/lib/safeHref';
 
 type HeroBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'hero' }>;
 
@@ -53,6 +54,8 @@ export function HeroBlock({
   /** Breadcrumb eyebrow for subpages (e.g. `Start // Impressum`); home has none. */
   eyebrow?: string;
 }) {
+  const primaryHref = safeHrefOrNull(block.ctaLink);
+  const secondaryHref = safeHrefOrNull(block.ctaLink2);
   const bgImage =
     block.backgroundImage !== null &&
     block.backgroundImage !== undefined &&
@@ -160,9 +163,9 @@ export function HeroBlock({
 
           {(block.ctaLabel || block.ctaLabel2) && (
             <div className="flex flex-wrap items-center gap-2">
-              {block.ctaLabel && block.ctaLink && (
+              {block.ctaLabel && primaryHref && (
                 <a
-                  href={block.ctaLink}
+                  href={primaryHref}
                   className={`group mono-label inline-flex min-h-11 items-center gap-2 rounded-[6px] bg-primary px-5 text-primary-foreground hover:bg-primary-hover ${ctaMotionClass}`}
                 >
                   {block.ctaLabel}
@@ -171,9 +174,9 @@ export function HeroBlock({
                   </span>
                 </a>
               )}
-              {block.ctaLabel2 && block.ctaLink2 && (
+              {block.ctaLabel2 && secondaryHref && (
                 <a
-                  href={block.ctaLink2}
+                  href={secondaryHref}
                   className={`group mono-label inline-flex min-h-11 items-center gap-2 rounded-[6px] border border-border-strong px-5 text-foreground hover:border-secondary hover:text-secondary ${ctaMotionClass}`}
                 >
                   {block.ctaLabel2}

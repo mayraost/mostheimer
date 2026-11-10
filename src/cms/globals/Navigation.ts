@@ -1,6 +1,7 @@
 import type { GlobalConfig } from 'payload';
 import { protectedAuthorshipFields } from '../security/authorship';
 import { revalidateNavigationCache } from '../cache/frontend/frontendCache';
+import { validateHref } from '../../lib/safeHref';
 
 export const Navigation: GlobalConfig = {
   slug: 'navigation',
@@ -25,6 +26,7 @@ export const Navigation: GlobalConfig = {
           name: 'link',
           type: 'text',
           required: true,
+          validate: validateHref,
         },
         {
           name: 'newTab',
@@ -46,6 +48,7 @@ export const Navigation: GlobalConfig = {
           name: 'link',
           type: 'text',
           required: true,
+          validate: validateHref,
         },
       ],
     },

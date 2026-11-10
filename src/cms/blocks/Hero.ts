@@ -1,4 +1,5 @@
 import type { Block } from 'payload';
+import { validateHref } from '../../lib/safeHref';
 
 export const Hero: Block = {
   slug: 'hero',
@@ -33,6 +34,7 @@ export const Hero: Block = {
     {
       name: 'ctaLink',
       type: 'text',
+      validate: validateHref,
     },
     {
       name: 'ctaLabel2',
@@ -44,6 +46,7 @@ export const Hero: Block = {
     {
       name: 'ctaLink2',
       type: 'text',
+      validate: validateHref,
     },
   ],
 };

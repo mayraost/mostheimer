@@ -2,6 +2,7 @@ import React from 'react';
 
 import type { Page } from '@/payload-types';
 import { BentoTile, CardHeader, Chip, splitParagraphs } from '../ui/industrial';
+import { safeHrefOrNull } from '@/lib/safeHref';
 
 type CaseStudyBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'caseStudy' }>;
 
@@ -94,6 +95,8 @@ export function CaseStudyBlock({
   /** Shell copy (`blocks.caseStudy`), read by the dispatcher. */
   copy: CaseStudyCopy;
 }) {
+  const externalHref = safeHrefOrNull(block.link);
+
   return (
     <section className="w-full pt-6 pb-4 lg:py-4">
       <div className="mx-auto w-full max-w-6xl">
@@ -130,12 +133,12 @@ export function CaseStudyBlock({
                   </dd>
                 </>
               )}
-              {block.link && (
+              {block.link && externalHref && (
                 <>
                   <dt className="sr-only">{copy.linkSrLabel}</dt>
                   <dd className="border-t border-border pt-3">
                     <a
-                      href={block.link}
+                      href={externalHref}
                       className="mono-label inline-flex items-center gap-2 text-primary transition-colors hover:text-primary-hover"
                     >
                       {block.linkLabel || copy.linkFallbackLabel} <span aria-hidden="true">→</span>

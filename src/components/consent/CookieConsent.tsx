@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import type { Translation } from '@/payload-types';
 import { useTranslations } from '@/components/TranslationsProvider';
 import { getLegacyCopy } from '@/lib/translations';
+import { safeHrefOrNull } from '@/lib/safeHref';
 import {
   CONSENT_OPEN_EVENT,
   applyConsent,
@@ -236,7 +237,7 @@ export function CookieConsent({ gtmId = '' }: CookieConsentProps) {
     title: getLegacyCopy(t, 'cookies.title'),
     description: getLegacyCopy(t, 'cookies.description'),
     privacyLabel: getLegacyCopy(t, 'cookies.privacyLabel'),
-    privacyLink: getLegacyCopy(t, 'cookies.privacyLink'),
+    privacyLink: safeHrefOrNull(getLegacyCopy(t, 'cookies.privacyLink')),
     necessaryLabel: getLegacyCopy(t, 'cookies.necessaryLabel'),
     necessaryDescription: getLegacyCopy(t, 'cookies.necessaryDescription'),
     necessaryBadge: getLegacyCopy(t, 'cookies.necessaryBadge'),
@@ -283,13 +284,17 @@ export function CookieConsent({ gtmId = '' }: CookieConsentProps) {
               className="text-sm leading-relaxed text-muted-foreground"
             >
               {copy.description}{' '}
-              <a
-                href={copy.privacyLink}
-                onClick={closeIfDecided}
-                className="text-primary underline underline-offset-2 hover:text-primary-hover"
-              >
-                {copy.privacyLabel}
-              </a>
+              {copy.privacyLink ? (
+                <a
+                  href={copy.privacyLink}
+                  onClick={closeIfDecided}
+                  className="text-primary underline underline-offset-2 hover:text-primary-hover"
+                >
+                  {copy.privacyLabel}
+                </a>
+              ) : (
+                copy.privacyLabel
+              )}
             </p>
           </div>
 

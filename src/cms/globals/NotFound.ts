@@ -1,6 +1,7 @@
 import type { GlobalConfig } from 'payload';
 import { protectedAuthorshipFields } from '../security/authorship';
 import { revalidateNotFoundCache } from '../cache/frontend/frontendCache';
+import { validateHref } from '../../lib/safeHref';
 
 export const NotFound: GlobalConfig = {
   slug: 'not-found',
@@ -35,6 +36,7 @@ export const NotFound: GlobalConfig = {
       required: true,
       localized: true,
       defaultValue: '/',
+      validate: validateHref,
     },
     // Authorship is admin-only metadata; public reads must not carry it.
     ...protectedAuthorshipFields(),

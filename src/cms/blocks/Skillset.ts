@@ -1,6 +1,7 @@
 import type { Block } from 'payload';
 
 import { ICON_NAMES } from '../../components/blocks/Icon';
+import { validateHref } from '../../lib/safeHref';
 
 export const Skillset: Block = {
   slug: 'skillset',
@@ -31,6 +32,7 @@ export const Skillset: Block = {
     {
       name: 'ctaLink',
       type: 'text',
+      validate: validateHref,
       admin: {
         description: 'Link target of the block-level CTA (only rendered if ctaLabel is set too)',
       },

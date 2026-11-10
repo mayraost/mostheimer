@@ -4,7 +4,11 @@
  * this, see src/app/global-error.tsx).
  *
  * Styling: Tailwind classes + design tokens from globals.css only.
- */ export function StatusScreen({
+ */
+
+import { safeHrefOrNull } from '@/lib/safeHref';
+
+export function StatusScreen({
   code,
   tone = 'error',
   title,
@@ -24,6 +28,10 @@
   retry?: React.ReactNode;
 }) {
   const accent = tone === 'warning' ? 'text-warning' : 'text-error';
+  // The href comes from the CMS `not-found` global; an unsafe value must never
+  // become a clickable link, so the button degrades to a non-interactive span.
+  const primaryHref = safeHrefOrNull(primary.href);
+  const secondaryHref = secondary ? safeHrefOrNull(secondary.href) : null;
   const dot = tone === 'warning' ? 'bg-warning' : 'bg-error';
 
   return (
@@ -38,15 +46,21 @@
         </h1>
         <p className="mb-8 text-base text-muted-foreground">{message}</p>
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <a
-            href={primary.href}
-            className="mono-label inline-flex min-h-11 items-center justify-center rounded-[6px] bg-primary px-6 text-primary-foreground transition-colors hover:bg-primary-hover"
-          >
-            {primary.label}
-          </a>
-          {secondary ? (
+          {primaryHref ? (
             <a
-              href={secondary.href}
+              href={primaryHref}
+              className="mono-label inline-flex min-h-11 items-center justify-center rounded-[6px] bg-primary px-6 text-primary-foreground transition-colors hover:bg-primary-hover"
+            >
+              {primary.label}
+            </a>
+          ) : (
+            <span className="mono-label inline-flex min-h-11 items-center justify-center rounded-[6px] bg-primary px-6 text-primary-foreground">
+              {primary.label}
+            </span>
+          )}
+          {secondary && secondaryHref ? (
+            <a
+              href={secondaryHref}
               className="mono-label inline-flex min-h-11 items-center justify-center rounded-[6px] border border-border-strong bg-surface-raised px-6 text-foreground transition-colors hover:border-primary"
             >
               {secondary.label}

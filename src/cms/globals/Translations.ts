@@ -1,6 +1,7 @@
 import type { GlobalConfig } from 'payload';
 import { protectedAuthorshipFields } from '../security/authorship';
 import { revalidateTranslationsCache } from '../cache/frontend/frontendCache';
+import { validateHref } from '../../lib/safeHref';
 
 export const Translations: GlobalConfig = {
   slug: 'translations',
@@ -166,6 +167,7 @@ export const Translations: GlobalConfig = {
           type: 'text',
           defaultValue: '/en/privacy',
           required: true,
+          validate: validateHref,
         },
         {
           name: 'necessaryLabel',

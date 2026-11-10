@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { safeHrefOrNull } from '@/lib/safeHref';
+import type { UrlObject } from 'node:url';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
@@ -203,60 +205,69 @@ export function MobileNavPortal({
           style={{ touchAction: 'pan-y' }}
         >
           <ul className="flex flex-col gap-2">
-            {navLinks.map((item, index) => {
-              const active = isActiveNavLink(item.link, pathname);
-              return (
-                <li key={item.id || index}>
-                  <Link
-                    href={item.link}
-                    /*
-                     * Active state is a real signal, not a hover tint: emerald
-                     * rail on the left, filled surface, full-contrast label and
-                     * an emerald index chip. `aria-current="page"` is the only
-                     * thing assistive tech reads — the colour is decoration.
-                     */
-                    className={[
-                      'group relative flex items-center justify-between rounded-[6px] border px-3 py-3 text-base font-medium transition-colors',
-                      active
-                        ? 'border-primary/50 bg-primary-muted text-foreground'
-                        : 'border-transparent text-foreground hover:border-border hover:bg-surface-raised',
-                    ].join(' ')}
-                    aria-current={active ? 'page' : undefined}
-                    onClick={onClose}
-                    target={item.newTab ? '_blank' : undefined}
-                    rel={item.newTab ? 'noopener noreferrer' : undefined}
-                    tabIndex={open ? undefined : -1}
-                  >
-                    {active && (
-                      <span
-                        aria-hidden="true"
-                        className="absolute top-2 bottom-2 left-0 w-[2px] rounded-full bg-primary"
-                      />
-                    )}
-                    <span className="flex min-w-0 items-center gap-2">
-                      <span className="truncate">{item.label}</span>
+            {navLinks
+              .map((item, index) => ({
+                item,
+                index,
+                href: safeHrefOrNull(item.link),
+              }))
+              .filter(({ href }) => href)
+              .map(({ item, index, href }) => {
+                const active = isActiveNavLink(item.link, pathname);
+                return (
+                  <li key={item.id || index}>
+                    <Link
+                      href={href as string | UrlObject}
+                      /*
+                       * Active state is a real signal, not a hover tint: emerald
+                       * rail on the left, filled surface, full-contrast label and
+                       * an emerald index chip. `aria-current="page"` is the only
+                       * thing assistive tech reads — the colour is decoration.
+                       */
+                      className={[
+                        'group relative flex items-center justify-between rounded-[6px] border px-3 py-3 text-base font-medium transition-colors',
+                        active
+                          ? 'border-primary/50 bg-primary-muted text-foreground'
+                          : 'border-transparent text-foreground hover:border-border hover:bg-surface-raised',
+                      ].join(' ')}
+                      aria-current={active ? 'page' : undefined}
+                      onClick={onClose}
+                      target={item.newTab ? '_blank' : undefined}
+                      rel={item.newTab ? 'noopener noreferrer' : undefined}
+                      tabIndex={open ? undefined : -1}
+                    >
                       {active && (
                         <span
-                          className="mono-label shrink-0 text-primary"
                           aria-hidden="true"
-                          title={currentPageLabel}
-                        >
-                          {'//'} now
-                        </span>
+                          className="absolute top-2 bottom-2 left-0 w-[2px] rounded-full bg-primary"
+                        />
                       )}
-                    </span>
-                    <span
-                      className={[
-                        'mono-label shrink-0 transition-colors',
-                        active ? 'text-primary' : 'text-muted-foreground group-hover:text-primary',
-                      ].join(' ')}
-                    >
-                      {String(index + 1).padStart(2, '0')}
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="truncate">{item.label}</span>
+                        {active && (
+                          <span
+                            className="mono-label shrink-0 text-primary"
+                            aria-hidden="true"
+                            title={currentPageLabel}
+                          >
+                            {'//'} now
+                          </span>
+                        )}
+                      </span>
+                      <span
+                        className={[
+                          'mono-label shrink-0 transition-colors',
+                          active
+                            ? 'text-primary'
+                            : 'text-muted-foreground group-hover:text-primary',
+                        ].join(' ')}
+                      >
+                        {String(index + 1).padStart(2, '0')}
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
           </ul>
 
           {/*

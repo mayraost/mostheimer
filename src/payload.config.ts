@@ -25,6 +25,18 @@ const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
 
+/**
+ * Origins allowed to drive cookie-authenticated requests.
+ *
+ * The apex comes from `envConfig` (override via `NEXT_PUBLIC_SERVER_URL`); the
+ * `www` alias is the same site and is the second host the edge serves, so both
+ * must be listed or an admin editing on the alias would be rejected. The
+ * legacy redirect hosts are deliberately absent: they only answer with a 301.
+ */
+const CONTENT_ORIGINS = Array.from(
+  new Set([envConfig.serverUrl.replace(/\/+$/, ''), 'https://www.mostheimer.de']),
+);
+
 export default buildConfig({
   // GraphQL is disabled: Payload is consumed only via the Local API
   // ('use cache' queries) plus the REST preview. Payload 4 expects an object
@@ -63,6 +75,22 @@ export default buildConfig({
   },
   editor: lexicalEditor(),
   secret: envConfig.payloadSecret,
+  /*
+   * CSRF / CORS origin allowlist.
+   *
+   * WHY EXPLICIT: leaving `serverURL` unset makes Payload default `csrf` to an
+   * empty array, and its cookie extraction then accepts the `payload-token`
+   * cookie for ANY `Origin` (and for requests without one, before consulting
+   * Sec-Fetch-Site/Referer). That left the browser SameSite attribute as the
+   * only anti-CSRF control. Declaring the content hosts restores Payload's own
+   * origin gate for every cookie-authenticated REST mutation.
+   *
+   * `cors` stays limited to the same origins: it is not a public API, and an
+   * empty list previously meant "reflect nothing", which is easy to misread.
+   */
+  serverURL: envConfig.serverUrl,
+  csrf: CONTENT_ORIGINS,
+  cors: CONTENT_ORIGINS,
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },

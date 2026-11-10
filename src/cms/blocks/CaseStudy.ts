@@ -1,4 +1,5 @@
 import type { Block } from 'payload';
+import { validateHref } from '../../lib/safeHref';
 
 export const CaseStudy: Block = {
   slug: 'caseStudy',
@@ -53,6 +54,7 @@ export const CaseStudy: Block = {
     {
       name: 'link',
       type: 'text',
+      validate: validateHref,
       admin: {
         description: 'External link (e.g. aduardo.com)',
       },
