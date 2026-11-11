@@ -6,6 +6,7 @@ import { Chip, StatusDot } from '../ui/industrial';
 import { LiveDot } from '../ui/LiveDot';
 import { ctaArrowClass, ctaArrowHoverClass, ctaMotionClass } from '../ui/ActionLinkButton';
 import { safeHrefOrNull } from '@/lib/safeHref';
+import { mediaSrc } from '@/lib/mediaSrc';
 
 type HeroBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'hero' }>;
 
@@ -62,6 +63,9 @@ export function HeroBlock({
     typeof block.backgroundImage === 'object'
       ? (block.backgroundImage as Media)
       : null;
+  // Payload reports absolute URLs; `next/image` rejects them as remote (no
+  // remotePatterns) with 400. `mediaSrc` reduces them to the served path.
+  const bgImageUrl = mediaSrc(bgImage?.url);
 
   return (
     <section className="relative -mx-4 mb-2 overflow-hidden border-b border-border md:-mx-8">
@@ -75,11 +79,11 @@ export function HeroBlock({
         aria-hidden="true"
       />
 
-      {bgImage?.url && (
+      {bgImageUrl && (
         <div className="absolute inset-0 -z-10">
           <Image
-            src={bgImage.url}
-            alt={bgImage.alt || ''}
+            src={bgImageUrl}
+            alt={bgImage?.alt || ''}
             fill
             className="object-cover opacity-15"
           />

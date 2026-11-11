@@ -2,6 +2,7 @@ import React from 'react';
 import Image from 'next/image';
 import { RichText as LexicalRichText } from '@payloadcms/richtext-lexical/react';
 import type { Page, Media } from '@/payload-types';
+import { mediaSrc } from '@/lib/mediaSrc';
 import { CardHeader } from '../ui/industrial';
 
 type ImageTextBlockData = Extract<NonNullable<Page['layout']>[number], { blockType: 'imageText' }>;
@@ -16,6 +17,9 @@ export function ImageTextBlock({
 }) {
   const isImageRight = block.imagePosition === 'right';
   const image = typeof block.image === 'object' ? (block.image as Media) : null;
+  // Payload reports absolute URLs; `next/image` rejects them as remote (no
+  // remotePatterns) with 400. `mediaSrc` reduces them to the served path.
+  const imageUrl = mediaSrc(image?.url);
 
   return (
     <section className="w-full pt-6 pb-12 lg:py-12">
@@ -27,10 +31,10 @@ export function ImageTextBlock({
               isImageRight ? 'md:order-2' : 'md:order-1',
             ].join(' ')}
           >
-            {image?.url ? (
+            {imageUrl ? (
               <Image
-                src={image.url}
-                alt={image.alt || block.heading || ''}
+                src={imageUrl}
+                alt={image?.alt || block.heading || ''}
                 fill
                 className="object-cover"
               />
