@@ -1,4 +1,5 @@
 import type { Media } from '@/payload-types';
+import { mediaSrc } from '@/lib/mediaSrc';
 
 /**
  * Media variants of the projects showcase (design doc § 4), all 16:9-ish
@@ -16,7 +17,10 @@ const VARIANT_NAME: Record<ProjectImageSlot, 'tile' | 'tileWide' | 'hero'> = {
   hero: 'hero',
 };
 
-/** A renderable image: absolute URL plus the intrinsic size `next/image` needs. */
+/**
+ * A renderable image: same-origin PATH plus the intrinsic size `next/image`
+ * needs. Always a path (never the absolute Payload URL) — see `mediaSrc`.
+ */
 export type ProjectImage = { url: string; width: number; height: number; alt: string };
 
 /** Fallback box when neither the variant nor the original reports a size. */
@@ -31,6 +35,8 @@ const FALLBACK_SIZE = { width: 1280, height: 720 } as const;
  * Fallback chain: variant URL → original `url`. Uploads that predate the
  * variants (and every media document created before § 4) only carry the
  * original, and an empty tile is worse than a slightly oversized one.
+ * The URL is reduced to a same-origin path (`mediaSrc`): Payload reports
+ * absolute URLs, which `next/image` treats as remote and rejects.
  * Explicit width/height are passed to `next/image` (never `fill`) so the tile
  * reserves its box and cannot shift the layout.
  */
@@ -40,7 +46,7 @@ export function pickProjectImage(
 ): ProjectImage | null {
   if (!media || typeof media !== 'object') return null;
   const variant = media.variants?.[VARIANT_NAME[slot]];
-  const url = variant?.url ?? media.url;
+  const url = mediaSrc(variant?.url ?? media.url);
   if (!url) return null;
   return {
     url,
