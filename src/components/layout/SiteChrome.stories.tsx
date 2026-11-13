@@ -1,7 +1,3 @@
-// MUSS der erste Import bleiben: `SiteChrome` → `@/envConfig` liest
-// `process.env` beim Modul-Import (Shim: src/stories/fixtures/envShim.ts).
-import '@/stories/fixtures/envShim';
-
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { Suspense } from 'react';
 

@@ -1,4 +1,3 @@
-import '@/stories/fixtures/envShim';
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import type { FrontendLocale } from '@/cms/cache/frontend/frontendCache';
 import {
@@ -36,8 +35,9 @@ import {
  * Leere Felder werden ENTFERNT statt als `""` emittiert — schema.org weist
  * leere Werte zurück.
  *
- * Der Env-Shim-Import oben ist Pflicht: `envConfig` validiert beim Import und
- * wirft im Browser ohne `PAYLOAD_SECRET`/`DATABASE_URL`.
+ * `envConfig` validiert beim Import; die nötigen Build-Time-Werte setzt
+ * `.storybook/main.ts` (`viteFinal.define`) — Vite ersetzt `process.env.*`
+ * statisch, ein Runtime-Shim wäre wirkungslos.
  */
 
 function JsonView({ data }: { data: JsonLdObject }) {
