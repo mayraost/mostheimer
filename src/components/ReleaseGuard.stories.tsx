@@ -88,8 +88,14 @@ export const StorageUnavailable: Story = {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });
-    Storage.prototype.setItem = () => {
-      throw new Error('storage disabled (story)');
+    Storage.prototype.setItem = function setItem(key: string, value: string) {
+      // Nur der Guard-Key ist „nicht schreibbar" — Storybook selbst schreibt
+      // eigene Keys (Panel-State) und würde sonst harmlose Konsolenfehler
+      // produzieren, die wie ein Story-Bug aussehen.
+      if (key.startsWith('mayraostheimer.release')) {
+        throw new Error('storage disabled (story)');
+      }
+      originalSetItem?.call(this, key, value);
     };
   },
   afterEach: () => {
