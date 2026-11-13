@@ -71,6 +71,13 @@ export async function proxy(request: NextRequest) {
     // startsWith, to avoid catching unrelated paths.
     pathname === '/og' ||
     pathname.startsWith('/_next') ||
+    // Storybook: statische Ausgabe aus `src/public/storybook` (siehe
+    // next.config.ts `rewrites`). Ohne den Skip würde `/storybook` als
+    // unbekannter Slug lokalisiert (`307 → /en/storybook`) und der Rewrite
+    // käme nie zum Zug — Next prüft `beforeFiles` erst NACH dem Proxy
+    // (docs: next-config-js/rewrites, Reihenfolge 3 → 4).
+    pathname === '/storybook' ||
+    pathname.startsWith('/storybook/') ||
     pathname.includes('.') // file requests like .json, .js, .png
   ) {
     return NextResponse.next();

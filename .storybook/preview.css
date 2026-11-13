@@ -1,0 +1,39 @@
+/**
+ * Storybook-Brücke zu den Design-Tokens aus `src/app/globals.css`.
+ *
+ * `globals.css` erwartet zwei Variablen, die im App-Betrieb `next/font` als
+ * Klassen auf `<body>` setzt (`--font-space-grotesk`, `--font-jetbrains-mono`).
+ * In Storybook gibt es diese Klassen nicht — ohne Ersatz würde der komplette
+ * Stack (`--font-body`) leer evaluieren und alles fiele auf Systemfonts zurück.
+ * Die Fonts selbst lädt `.storybook/preview-head.html` (Google Fonts); fehlt
+ * das Netz, greift der Fallback im Stack und nichts bricht.
+ */
+:root {
+  --font-space-grotesk: 'Space Grotesk';
+  --font-jetbrains-mono: 'JetBrains Mono';
+}
+
+/* Neutraler Story-Rahmen. Padding/Layout macht der Preview-Decorator, damit
+   `layout: 'fullscreen'` nicht doppelt einrückt. */
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Storybook-eigene Chrome-Elemente (Toolbar/Canvas-Rahmen) auf die
+   Token-Fläche ziehen, damit ein heller Story-Hintergrund nicht neben einem
+   weißen Dokumentrand steht. */
+.sb-show-main,
+.sb-main-padded {
+  background-color: var(--color-background);
+  color: var(--color-text);
+}
+
+.sb-show-main.sb-main-padded {
+  padding: 0;
+}

@@ -135,6 +135,14 @@ export const Projects: CollectionConfig = {
     },
     { name: 'liveUrl', type: 'text', admin: { description: 'Externe Demo (https://…)' } },
     { name: 'githubUrl', type: 'text', admin: { description: 'Repo (https://github.com/…)' } },
+    {
+      name: 'storybookUrl',
+      type: 'text',
+      admin: {
+        description:
+          'Komponenten-Dokumentation (Storybook, https://…). Optional — nur Projekte mit eigenem Storybook.',
+      },
+    },
     // Filter tags — CMS-managed collection (design doc § 10), never a select
     // enum: an enum would mean a migration + deploy per tag.
     {
