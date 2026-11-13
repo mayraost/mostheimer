@@ -20,9 +20,8 @@ import { DocumentShell, MOTION_BOOTSTRAP, THEME_BOOTSTRAP } from './DocumentShel
  * schaltet `html.motion-assets` (bzw. `body.no-animations` bei
  * `prefers-reduced-motion`). Beides ist idempotent und gewollt.
  *
- * `global-not-found.tsx` baut sein eigenes Dokument (Next rendert diese
- * Konvention außerhalb jedes Layouts) und importiert dafür `BODY_FONT_CLASS`
- * und `THEME_BOOTSTRAP` aus diesem Modul — deshalb sind beide exportiert.
+ * `BODY_FONT_CLASS` und `THEME_BOOTSTRAP` sind exportiert, damit Stories und
+ * Tests dieselbe Bootstrap-Logik nutzen können, ohne den String zu kopieren.
  */
 const meta = {
   title: 'Layout/DocumentShell',

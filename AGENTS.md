@@ -2430,3 +2430,21 @@ Generators wurde entfernt). Der Detail-Renderer zeigt es als dritten externen Ch
 
 - **[Storybook/Env] `envConfig` im Storybook-Build braucht Build-Time-Defines, kein Runtime-Shim** (13.11.2026, Prod-Bug). `Layout/SiteChrome` und `Features/StructuredData` importieren `@/envConfig`, das `process.env` beim Modul-Import validiert und im Production-Runtime ohne `PAYLOAD_SECRET` (min. 32 Zeichen) wirft. Vite **ersetzt `process.env.*` statisch** — ein `src/stories/fixtures/envShim.ts`, das `process.env` zur Laufzeit setzt, ist im ausgelieferten Build wirkungslos (Symptom: roter Storybook-Fehlerrahmen „Invalid or missing PAYLOAD_SECRET", obwohl die Story lokal lief). Fix: `viteFinal.define` in `.storybook/main.ts` setzt Attrappen für `PAYLOAD_SECRET`, `DATABASE_URL`, `NEXT_PUBLIC_SERVER_URL`, `NEXT_PUBLIC_GTM_ID` und die Cloudflare-Variablen — keine echten Secrets, keine DB-Verbindung. Merke: **jede** Env-Abhängigkeit einer gestoryten Komponente gehört in dieses `define`, nicht in einen Import-Shim.
 - **[Storybook/CSP] `connect-src` muss die Font-Origins mit erlauben** (13.11.2026). `style-src`/`font-src` allein reichen nicht: der Font-CSS-Request läuft (je nach Lader) als `connect-src`-Fetch und wird sonst blockiert (`violates ... connect-src 'self'`). `STORYBOOK_CSP` führt deshalb `https://fonts.googleapis.com` + `https://fonts.gstatic.com` auch in `connect-src`; die App-Policy bleibt unberührt.
+
+## Consent-Banner: genau EINE Mount-Stelle (13.11.2026)
+
+`SiteChrome` rendert `CookieConsent` selbst (`showConsent` default `true`). Das
+`[locale]`-Layout darf **keine** zweite Instanz daneben setzen — Commit `7066151`
+hatte beides eingebaut, seit 05.11. lagen dadurch **zwei identische Banner**
+exakt übereinander (gemessen auf `mostheimer.de/de`: 2× „Alle akzeptieren",
+gleiche Box `54,4,672×473`), inklusive doppeltem GTM-Init und zwei Focus-Traps.
+Der 404-Fallback schaltet den Banner über `showConsent={false}` ab (kein
+Translations-Provider dort).
+
+- **Regel:** Consent-Mount nur in `SiteChrome`. Wer den Banner auf einer neuen
+  Dokument-Chrome braucht, reicht `showConsent` durch statt eine Kopie zu setzen.
+- Der gelöschte `src/app/global-not-found.tsx` bleibt gelöscht: der 404-Status
+  entsteht im Proxy (`3d02102`), `experimental.globalNotFound` ist `false`.
+- Die ungenutzten Utilities `card-industrial`, `glow-*`, `text-glow-*`,
+  `ring-gauge`, `rule-accent*` wurden mit derselben Aufräumrunde aus
+  `globals.css` entfernt (0 Verwendungen in `src/**`).

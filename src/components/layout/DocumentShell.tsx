@@ -10,8 +10,8 @@ export { BODY_FONT_CLASS };
  * without a flash. SettingsProvider reads the same 'theme' localStorage key on
  * mount.
  *
- * Exported (not duplicated) because `src/app/global-not-found.tsx` also needs it
- * — that document renders its own <html>, so it has no DocumentShell.
+ * Exported so the bootstrap can be reused (stories, tests) without copying
+ * the string; the layout is the only runtime caller.
  */
 export const THEME_BOOTSTRAP = `(function(){try{var s=localStorage.getItem('theme');var t=(s==='light'||s==='dark'||s==='system')?s:'dark';var c=t==='system'?(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):t;var r=document.documentElement;r.classList.remove('light','dark');r.classList.add(c);}catch(e){document.documentElement.classList.add('dark');}})();`;
 
@@ -47,13 +47,6 @@ function SkipLink({ label }: { label: string }) {
  * The <html>/<body> document shell of the APP. Rendered only by the [locale]
  * layout (src/app/(frontend)/[locale]/layout.tsx) — localized 404/error
  * boundaries never duplicate it, they only contribute body content.
- *
- * Documented exception: `src/app/global-not-found.tsx` builds its own
- * <html>/<body>, because Next renders that convention OUTSIDE every layout
- * (docs: file-conventions/not-found.md — global-not-found "bypasses your app's
- * normal rendering, which means you'll need to import any global styles,
- * fonts, or other dependencies"). It reuses BODY_FONT_CLASS and THEME_BOOTSTRAP
- * from this module, so tokens and theme behaviour cannot drift.
  *
  * Same head everywhere: theme bootstrap first, then the Consent Mode v2
  * defaults (they MUST be evaluated before any GTM script).

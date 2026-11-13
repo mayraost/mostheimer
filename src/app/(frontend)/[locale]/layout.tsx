@@ -16,8 +16,6 @@ import {
 import { getCachedTranslation, getCachedTranslationsGlobal } from '@/lib/translations.server';
 import { loadChromeCopy, loadErrorCopy } from '@/lib/translationBundles.server';
 import type { FrontendLocale } from '@/cms/cache/frontend/frontendCache';
-import { envConfig } from '@/envConfig';
-import { CookieConsent } from '@/components/consent/CookieConsent';
 import { ReleaseGuard } from '@/components/ReleaseGuard';
 import { runPendingCloudflarePurges } from '@/cms/cache/frontend/purges';
 import { getCachedRouteRegistry } from '@/cms/cache/frontend/queries';
@@ -203,7 +201,6 @@ async function LayoutShell({
         >
           {children}
         </SiteChrome>
-        <CookieConsent gtmId={envConfig.gtmId} />
         {/* Reloads an open tab once after a deploy, instead of letting it
             navigate with the previous build's client bundle. */}
         <ReleaseGuard />
