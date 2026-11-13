@@ -25,6 +25,8 @@ export type ProjectDetailCopy = {
   tagsLabel: string;
   liveCta: string;
   githubCta: string;
+  /** Optional third link: component documentation (Storybook). */
+  storybookCta: string;
   backToList: string;
   noCover: string;
   empty: string;
@@ -103,7 +105,7 @@ export function ProjectDetail({
   copy: ProjectDetailCopy;
 }) {
   const sections = SECTIONS.filter((section) => hasSection(project, section.key));
-  const hasLinks = Boolean(project.liveUrl || project.githubUrl);
+  const hasLinks = Boolean(project.liveUrl || project.githubUrl || project.storybookUrl);
 
   return (
     <article className="mx-auto w-full max-w-6xl pb-16">
@@ -151,6 +153,12 @@ export function ProjectDetail({
                 <ProjectExternalLink
                   href={project.githubUrl}
                   label={copy.githubCta}
+                  newTabHint={copy.newTabHint}
+                  tone="secondary"
+                />
+                <ProjectExternalLink
+                  href={project.storybookUrl}
+                  label={copy.storybookCta}
                   newTabHint={copy.newTabHint}
                   tone="secondary"
                 />
@@ -243,6 +251,12 @@ export function ProjectDetail({
                 <ProjectExternalLink
                   href={project.githubUrl}
                   label={copy.githubCta}
+                  newTabHint={copy.newTabHint}
+                  tone="secondary"
+                />
+                <ProjectExternalLink
+                  href={project.storybookUrl}
+                  label={copy.storybookCta}
                   newTabHint={copy.newTabHint}
                   tone="secondary"
                 />

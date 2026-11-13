@@ -27,6 +27,7 @@ import * as migration_20261109_175000_add_vibe_showcase_block from './20261109_1
 import * as migration_20261109_180000_seed_vibe_showcase_copy from './20261109_180000_seed_vibe_showcase_copy';
 import * as migration_20261109_183000_seed_command_palette_vibe_coding from './20261109_183000_seed_command_palette_vibe_coding';
 import * as migration_20261109_190000_rename_vibe_to_project from './20261109_190000_rename_vibe_to_project';
+import * as migration_20261113_192301_add_project_storybook_url from './20261113_192301_add_project_storybook_url';
 
 export const migrations = [
   {
@@ -173,5 +174,10 @@ export const migrations = [
     up: migration_20261109_190000_rename_vibe_to_project.up,
     down: migration_20261109_190000_rename_vibe_to_project.down,
     name: '20261109_190000_rename_vibe_to_project',
+  },
+  {
+    up: migration_20261113_192301_add_project_storybook_url.up,
+    down: migration_20261113_192301_add_project_storybook_url.down,
+    name: '20261113_192301_add_project_storybook_url'
   },
 ];

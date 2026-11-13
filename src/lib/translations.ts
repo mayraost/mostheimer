@@ -177,6 +177,7 @@ export const COPY_KEYS = {
   'routes.project.tagsLabel': 'Tags',
   'routes.project.liveCta': 'Open live demo',
   'routes.project.githubCta': 'View source on GitHub',
+  'routes.project.storybookCta': 'Component documentation',
   'routes.project.backToList': 'All projects',
   'routes.project.noCover': '[ screenshot ]',
   'routes.project.empty': 'This project is being documented.',

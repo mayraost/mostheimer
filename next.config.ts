@@ -151,6 +151,26 @@ const FAVICON_CACHE_CONTROL =
  */
 const RELEASE_ID = process.env.SOURCE_COMMIT?.trim() || '';
 
+/**
+ * CSP for the static Storybook build (`/storybook`).
+ *
+ * Same shape as the app policy, plus the two Google-Fonts origins that the
+ * Storybook shell loads in `.storybook/preview-head.html`. Deliberately scoped
+ * to `/storybook*`: the public site keeps `font-src 'self'`.
+ */
+const STORYBOOK_CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' data: https://fonts.gstatic.com",
+  "img-src 'self' data: blob:",
+  "connect-src 'self'",
+  "frame-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "frame-ancestors 'self'",
+].join('; ');
+
 const nextConfig: NextConfig = {
   output: 'standalone',
   env: { NEXT_RELEASE_ID: RELEASE_ID },
@@ -308,7 +328,40 @@ const nextConfig: NextConfig = {
       source: '/:locale(de|en)/:path(preview|settings)(.*)',
       headers: [{ key: 'Cache-Control', value: 'private, no-store' }],
     },
+    // -- Storybook (statische Doku unter /storybook) --------------------------
+    // Eigene CSP NUR für die Storybook-Ausgabe: die Docs-Seiten laden ihre
+    // Schriften (Space Grotesk / JetBrains Mono) über Google Fonts. Die globale
+    // Policy erlaubt `font-src 'self'` — im Storybook fiele die Typografie
+    // sonst still auf Systemfonts zurück. Die App-Seiten bleiben unverändert
+    // streng; Storybook ist eine statische Doku-Seite ohne Nutzerdaten.
+    // Zwei Sources, weil Header pro REQUEST-Pfad matchen: `/storybook` (der
+    // Rewrite auf index.html ändert den Pfad nicht) und alle Assets darunter.
+    {
+      source: '/storybook',
+      headers: [{ key: 'Content-Security-Policy', value: STORYBOOK_CSP }],
+    },
+    {
+      source: '/storybook/:path*',
+      headers: [{ key: 'Content-Security-Policy', value: STORYBOOK_CSP }],
+    },
   ],
+  // ─── Storybook (statische Ausgabe unter /storybook) ──────────────────────
+  // Der Build liegt in `src/public/storybook` und wird vom Dockerfile als
+  // `/app/public` mitkopiert. Next löst für `/public`-VERZEICHNISSE keinen
+  // Directory-Index auf — `/storybook` wäre ein 404, obwohl die Datei als
+  // `/storybook/index.html` existiert. Deshalb genau eine `beforeFiles`-Rewrite
+  // auf die Entry-Datei: die URL bleibt `/storybook` (kein Redirect, kein
+  // sichtbarer `index.html`-Pfad), und die im HTML absolut referenzierten
+  // Assets (`/storybook/assets/…`, gesetzt über `viteFinal.base`) treffen.
+  //
+  // Kanonisch ist `/storybook` OHNE Slash (Site-Regel wie `/de/` → 308 → `/de`).
+  // Den 308 für `/storybook/` erzeugt Next bereits selbst über die
+  // Trailing-Slash-Normalisierung (gemessen); der `redirects()`-Eintrag ist die
+  // explizite Absicherung, falls diese Normalisierung je abgeschaltet wird.
+  rewrites: async () => ({
+    beforeFiles: [{ source: '/storybook', destination: '/storybook/index.html' }],
+  }),
+  redirects: async () => [{ source: '/storybook/', destination: '/storybook', permanent: true }],
 };
 
 /**

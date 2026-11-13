@@ -13,6 +13,7 @@
 | CMS          | Payload CMS 4.0.0-beta.7 mit Lexical Rich Text (alle `@payloadcms/*` + `payload` exakt auf `4.0.0-beta.7`)                                                                                                     |
 | Datenbank    | PostgreSQL (zentrale geteilte coolify-postgres; SQLite entfernt; lokale Dev ebenfalls zentrale Instanz `~/workspace/coolify-postgres` → `DATABASE_URL=postgresql://mostheimer:<pw>@localhost:5432/mostheimer`) |
 | Styling      | Tailwind CSS v4                                                                                                                                                                                                |
+| Doku         | Storybook 11.0.0-beta.3 (`@storybook/nextjs-vite`, Vite-Builder) – statischer Build unter `/storybook`, siehe Abschnitt „Storybook"                                                                            |
 | Icons        | Lucide React                                                                                                                                                                                                   |
 | Node-Version | >= 26 (engine in `package.json`), npm ^11                                                                                                                                                                      |
 
@@ -2357,3 +2358,72 @@ Position: direkt nach dem Case-Studies-Eintrag, damit Menü und Palette dieselbe
 - **[Prozess] Verifizierte Zahlen vor dem Schreiben prüfen.** Zwei Copy-Pässe lieferten abweichende Werte (Dashboard-Karten 79 vs. 155 → real 149; „43 PRs über 9 Repos" → real 8 Repos). Jede Zahl in Case-Study-Texten braucht eine Quelle; das Evidence-Log liegt in `/tmp/opencode/project-copy-final.md`.
 - **[Marken-/Positionierungs-Wording] „Projects" ist als Selbstbezeichnung unerwünscht.** Die Projekte entstehen MIT KI-Unterstützung, werden aber an professionellen Standards gemessen (Regelwerk im Repo, Gates vor jedem Merge, automatisierter Audit über den erzeugten Code, Incidents werden diagnostiziert und behoben). Copy formuliert entsprechend — nie als „schnell, niemand prüft".
 - **[Bilder/next/image] Absolute Media-URLs aus Payload → `400 "url" parameter is not allowed`, ALLE CMS-Bilder leer** (11.11.2026, Prod `/de/projects`). Seit dem `serverURL`-Fix (CSRF-Allowlist, 10.11.2026) liefert Payload `media.url` und jede Variante **absolut** (`https://mostheimer.de/api/media/file/…`). `next/image` klassifiziert das als **remote**; ohne `images.remotePatterns` antwortet der Optimizer `/_next/image` mit 400 und 30 Byte Body — die Dateien selbst sind intakt (`/api/media/file/…` → 200 `image/png`). Fix: `mediaSrc()` (`src/lib/mediaSrc.ts`) reduziert eigene Upload-URLs (`/api/media/file/`, `/media/`) auf den **Pfad**; angewendet in `pickImage.ts` (Showcase + Detail-Hero), `ImageTextBlock`, `HeroBlock`. Bewusst **kein** `remotePatterns`: der Optimizer würde sich selbst per Netz abfragen und auf jeder anderen Origin (dev `localhost:3000`, Preview-Host) brechen. Merke: Bei „Bilder fehlen, Datei ist aber 200" zuerst `/_next/image?url=…` direkt prüfen — der 400 kommt vom Optimizer, nicht vom Upload.
+
+## Storybook (Stand 13.11.2026)
+
+Storybook 11.0.0-beta.3 mit `@storybook/nextjs-vite` (Vite-Builder) dokumentiert **jede**
+UI-Komponente und jeden Content-Block. Es läuft **kein eigener Container**: der statische
+Build liegt im Next-Projekt und wird unter `/storybook` ausgeliefert.
+
+### Befehle & Auslieferung
+
+| Befehl                    | Wirkung                                                                                                  |
+| ------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `npm run storybook`       | Dev-Server auf `:6006` (öffnet keinen Browser — v11-Default)                                             |
+| `npm run build:storybook` | statischer Build nach `src/public/storybook` + `scripts/storybook-absolute-paths.mjs`                    |
+| `npm run build`           | `prebuild` → `generate:css` → `build:storybook` → `next build` (Storybook ist damit **immer** im Deploy) |
+
+- **Kanonische URL: `/storybook` OHNE trailing slash.** `/storybook/` → **308** (Next-
+  Trailing-Slash-Normalisierung + expliziter `redirects()`-Eintrag). `next.config.ts` hat
+  genau zwei Storybook-Einträge: `rewrites.beforeFiles` `/storybook` → `/storybook/index.html`
+  (Next löst für `public/`-Verzeichnisse **keinen** Directory-Index auf) und den 308.
+- **`src/proxy.ts` muss `/storybook*` überspringen.** Next prüft `beforeFiles`-Rewrites
+  **nach** dem Proxy; ohne Skip wird `/storybook` als unbekannter Slug lokalisiert
+  (`307 → /en/storybook`) und der Rewrite kommt nie zum Zug.
+- **Asset-Base ist absolut (`/storybook/`)**, gesetzt in `.storybook/main.ts` (`viteFinal.base`)
+  plus `<base href="/storybook/" />` via `managerHead`. Grund: der Manager schreibt seine
+  Bundles relativ (`./sb-manager/…`); unter `/storybook` (ohne Slash) würde das gegen
+  `/sb-manager/…` aufgelöst. Die `<link rel="modulepreload">`/Inline-`@font-face`-`url()`
+  stehen im Template **vor** dem `<base>` → `scripts/storybook-absolute-paths.mjs` hebt sie
+  statisch auf `/storybook/`.
+- **Eigene CSP nur für `/storybook*`** (`STORYBOOK_CSP` in `next.config.ts`): erlaubt
+  `fonts.googleapis.com`/`fonts.gstatic.com` für die Docs-Typografie. Die App-Policy bleibt
+  unverändert streng (`font-src 'self'`).
+- Der Output ist gitignored (`/src/public/storybook/`) und wandert über den Dockerfile-Copy
+  von `src/public` nach `/app/public` (≈ 7,6 MB im Image). **Nie** `staticDirs` auf
+  `src/public` setzen — der Output läge sonst in sich selbst.
+
+### Konventionen für Stories
+
+1. Datei **neben** der Komponente: `src/components/…/X.stories.tsx`, Titel `'<Gruppe>/<Name>'`
+   mit fester Sortierung `UI`, `Blocks`, `Chrome`, `Features`, `Brand`, `Projects`, `Layout`
+   (`storySorts` in `.storybook/main.ts`).
+2. `tags: ['autodocs']` ist global gesetzt — jede Story-Datei bekommt eine Docs-Seite.
+3. **Kein eigener Provider-/Theme-Wrapper in Stories.** Global laufen `withTheme`
+   (SettingsProvider + `.dark`/`.light` auf `<html>`), `withTranslations` (Fixture) und
+   `withAppShell` (Padding/Breite). Breite pro Story: `parameters: { appShell: { maxWidth: '4xl' } }`
+   — nur Schlüssel aus `MAX_WIDTH`, weil Tailwind Klassennamen als Text scannt.
+4. **States sind eigene Exports** (`Default`, `Compact`, `Empty`, `LongContent`, `De`, `En`,
+   `AllVariants` …), kein Sammel-Canvas — nur so prüft der a11y-Addon sie einzeln.
+5. Copy kommt aus `src/stories/mockTranslations.ts` (`mockTranslations` für den Context,
+   `mockCopy.<bundle>` für Block-Props) — **nie** hartkodierte Labels.
+6. Block-Fixtures liegen in `src/stories/fixtures/*.ts`, typisiert über
+   `Extract<NonNullable<Page['layout']>[number], { blockType: '…' }>` (kein `any`).
+7. **Async Server Components** (z. B. `Footer`) nicht direkt rendern: `Suspense` +
+   `use(promise)` (`src/stories/fixtures/async.tsx`), oder Story weglassen und begründen.
+   `BlockRenderer` (`src/components/blocks.tsx`) ist **nicht** storybar — er ruft
+   `'use cache'`-Queries außerhalb eines Next-Request-Kontexts.
+   `ReleaseGuard` wird gestoryt, aber **nur** mit gemocktem `/api/health` (gleiche
+   Release-ID, `beforeEach`/`afterEach`); eine Story mit abweichender ID würde
+   `window.location.reload()` auslösen → Reload-Schleife im ausgelieferten Storybook.
+8. Storybook 11 nutzt **serverseitiges Docgen** (TypeScript-Compiler-API) — es braucht das
+   Projekt-`typescript` (6.x), **nicht** `@typescript/native` (TS 7 hat keine Compiler-API).
+   `typescript.reactDocgen` ist deshalb bewusst nicht konfiguriert.
+
+### Projekte: `storybookUrl`
+
+`projects` hat ein optionales Feld `storybookUrl` (Migration
+`20261113_192301_add_project_storybook_url`, nur `ADD COLUMN`, die Enum-Churn des
+Generators wurde entfernt). Der Detail-Renderer zeigt es als dritten externen Chip
+(`ProjectExternalLink`), Copy-Key `routes.project.storybookCta` (Seed via Payload-MCP).
+`projectView.storybookUrl` ist URL-validiert (`https?://`), leere Werte rendern nichts.

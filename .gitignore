@@ -76,3 +76,7 @@ payload.db
 
 # generated at build/dev/typecheck time (scripts/build-404-critical-css.ts)
 /src/404-critical.generated.ts
+
+# Storybook-Build (wird von `npm run build` erzeugt und vom Next-Build aus
+# src/public mitgenommen; Artefakt, kein Quellcode)
+/src/public/storybook/

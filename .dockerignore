@@ -20,3 +20,6 @@ README.md
 .prettierrc
 .mcp.json
 .nvm
+# NICHT ausschließen: src/public/storybook (Storybook-Build, von `npm run build`
+# erzeugt). Das Dockerfile kopiert `src/public` nach `/app/public`, damit die
+# statische Storybook-Ausgabe unter /storybook erreichbar ist.

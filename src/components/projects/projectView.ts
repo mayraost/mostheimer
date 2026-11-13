@@ -48,6 +48,8 @@ export type ProjectView = {
   tags: { slug: string; label: string }[];
   liveUrl: string | null;
   githubUrl: string | null;
+  /** Optional component documentation (Storybook) — `null` when not provided. */
+  storybookUrl: string | null;
   /** `\n\n`-separated CMS textareas, already split into paragraphs. */
   context: string[];
   learnings: string[];
@@ -98,6 +100,7 @@ export function toProjectView(project: Project, locale: FrontendLocale): Project
     }),
     liveUrl: safeUrl(project.liveUrl),
     githubUrl: safeUrl(project.githubUrl),
+    storybookUrl: safeUrl(project.storybookUrl),
     context: paragraphs(project.context),
     learnings: paragraphs(project.learnings),
     outcome: paragraphs(project.outcome),
