@@ -216,31 +216,30 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ['file-type', 'strtok3', 'token-types', '@tokenizer/inflate'],
   experimental: {
     // global-not-found (docs: 01-app/03-api-reference/03-file-conventions/
-    // not-found.md, § "global-not-found.js (experimental)"):
-    //   "Used to define a global 404 page for unmatched routes across your
-    //    entire app. This is handled at the routing level and doesn't depend on
-    //    rendering a layout or page. [...] Next.js skips rendering and directly
-    //    returns this global page."
-    // Exactly our case per the docs: "Your root layout is defined using
-    // top-level dynamic segments (e.g. `app/[country]/layout.tsx`)" — this app
-    // has app/(frontend)/[locale]/layout.tsx.
+    // not-found.md, § "global-not-found.js (experimental)") is deliberately
+    // DISABLED.
     //
-    // Why it is REQUIRED here: with cacheComponents the [locale] shell streams
-    // (layout `connection()` inside <Suspense>), and a streamed response is
-    // fixed at 200 — docs: file-conventions/loading.md § "Status codes"
-    // ("Streaming page responses begin with a `200` status code"). notFound()
-    // from the layout, the page or generateMetadata all measured 200
-    // (05.11.2026). global-not-found bypasses that render path entirely and
-    // answers unmatched URLs with a real, prerendered 404 document.
+    // Why: with cacheComponents the [locale] shell streams (`connection()`
+    // inside <Suspense>), and a streamed response is fixed at 200 — docs:
+    // file-conventions/loading.md § "Status codes" ("Streaming page responses
+    // begin with a `200` status code"). notFound() from the layout, the page or
+    // generateMetadata all measured 200 (05.11.2026).
+    //
+    // The 404 status is therefore decided in `src/proxy.ts`
+    // (`NextResponse.next({ status: 404 })`, see AGENTS.md § "404-Handling"),
+    // before anything renders. With that change (commit 3d02102) the former
+    // `src/app/global-not-found.tsx` document became dead code and was removed
+    // on 13.11.2026.
     globalNotFound: false,
   },
   // Streaming metadata disabled (htmlLimitedBots matches every UA): otherwise
   // Next flushes the HTML head (200) before the page can reject an unknown
-  // slug with notFound(), so the status is already committed. Unknown *URLs*
-  // (no route at all) are answered by global-not-found (see experimental above);
+  // slug with notFound(), so the status is already committed. URLs without a
+  // matching route fall through to the locale catch-all, whose page calls
+  // notFound(); the proxy has already set the 404 status at that point. A
   // notFound() thrown inside the [locale] tree (e.g. by the [[...slug]] page)
-  // still renders the localized `[locale]/not-found.tsx` — that one keeps its
-  // streamed 200 + noindex, because the shell has already flushed.
+  // still renders the localized `[locale]/not-found.tsx` — that document keeps
+  // its streamed 200 + noindex, because the shell has already flushed.
   htmlLimitedBots: /.*/,
   // Global security headers (non-CSP part). X-Frame-Options SAMEORIGIN instead
   // of DENY: the Payload admin embeds the live-preview route as a same-origin

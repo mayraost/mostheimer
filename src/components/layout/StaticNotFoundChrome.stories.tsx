@@ -8,9 +8,8 @@ import { notFoundScreen } from '@/stories/fixtures/chrome';
  * Statische Chrome für das LETZTE 404-Dokument.
  *
  * Die dokumentierte Ausnahme der „keine hartkodierten Texte"-Regel: dieses
- * Modul rendert die Notfall-Dokumente (`(frontend)/not-found.tsx`,
- * `global-not-found.tsx`), die auch dann stehen müssen, wenn die Datenbank
- * weg ist. Ein CMS-Read hier würde aus „Seite nicht gefunden" ein „500, weil
+ * Modul rendert das Notfall-Dokument (`(frontend)/not-found.tsx`), das auch
+ * dann stehen muss, wenn die Datenbank weg ist. Ein CMS-Read hier würde aus „Seite nicht gefunden" ein „500, weil
  * die DB fehlt" machen.
  *
  * Folge für die Story: die Labels sind bewusst fest (DE/EN-Tabelle im Modul)

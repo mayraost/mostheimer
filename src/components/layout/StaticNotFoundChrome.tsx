@@ -13,8 +13,8 @@ import { LogoLockupMark } from '@/components/brand/LogoLockupMark';
  * ---------------------------------------------------------------------------
  * This module is the only place where visible strings stay in code, and it is
  * deliberate: it renders the LAST-RESORT 404 documents
- * (`src/app/(frontend)/not-found.tsx` and `src/app/global-not-found.tsx`),
- * which Next emits when the app shell failed. Reading the translations global
+ * (`src/app/(frontend)/not-found.tsx`), which Next emits when the app shell
+ * failed. Reading the translations global
  * here would turn "route not found" into "500 when the DB is down" — exactly
  * the scenario this file exists for.
  *
