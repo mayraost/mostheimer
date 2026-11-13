@@ -45,6 +45,29 @@ const config: StorybookConfig = {
     // würde dort auf `/assets/…` zeigen und 404 liefern.
     viteConfig.base = '/storybook/';
     viteConfig.plugins = [...(viteConfig.plugins ?? []), tailwindcss()];
+    /**
+     * `src/envConfig.ts` validiert `process.env` beim Modul-Import und wirft im
+     * Production-Runtime ohne `PAYLOAD_SECRET` (min. 32 Zeichen). Vite ersetzt
+     * `process.env.*` im Build STATISCH — ein Runtime-Shim kann das nicht mehr
+     * korrigieren (genau daran ist `Layout/SiteChrome` in der ausgelieferten
+     * Storybook-Version gescheitert). Deshalb hier Build-Time-Werte setzen:
+     * offensichtliche Attrappen, keine echten Secrets, keine DB-Verbindung.
+     */
+    const storybookEnv = {
+      'process.env.PAYLOAD_SECRET': JSON.stringify(
+        'storybook-static-build-not-a-real-secret-0123456789',
+      ),
+      'process.env.DATABASE_URL': JSON.stringify(
+        'postgresql://storybook:storybook@127.0.0.1:5432/storybook',
+      ),
+      'process.env.NEXT_PUBLIC_SERVER_URL': JSON.stringify('https://mostheimer.de'),
+      'process.env.NEXT_PUBLIC_GTM_ID': JSON.stringify(''),
+      'process.env.CLOUDFLARE_ZONE_ID': JSON.stringify(''),
+      'process.env.CLOUDFLARE_API_TOKEN': JSON.stringify(''),
+      'process.env.CLOUDFLARE_PURGE_ZONES': JSON.stringify(''),
+      'process.env.CLOUDFLARE_PURGE_ON_START': JSON.stringify('1'),
+    } as const;
+    viteConfig.define = { ...viteConfig.define, ...storybookEnv };
     return viteConfig;
   },
 };
