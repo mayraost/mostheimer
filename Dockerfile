@@ -2,14 +2,14 @@
 
 # alpine instead of bookworm-slim: ~100 MB smaller base. sharp ships musl
 # prebuilds, so npm ci pulls @img/sharp-linuxmusl-* automatically.
-FROM node:26.13.0-alpine3.24 AS deps
+FROM node:26.13.1-alpine3.24 AS deps
 WORKDIR /app
 # Package files first so the node_modules layer stays cached.
 COPY package.json package-lock.json ./
 # BuildKit cache mount keeps the npm cache between builds.
 RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 
-FROM node:26.13.0-alpine3.24 AS build
+FROM node:26.13.1-alpine3.24 AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
@@ -18,7 +18,7 @@ COPY . .
 ARG SOURCE_COMMIT=""
 RUN SOURCE_COMMIT="$SOURCE_COMMIT" npm run build
 
-FROM node:26.13.0-alpine3.24 AS runner
+FROM node:26.13.1-alpine3.24 AS runner
 WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
