@@ -138,6 +138,15 @@ const FAVICON_CACHE_CONTROL =
   'public, max-age=86400, s-maxage=86400, stale-while-revalidate=2592000, stale-if-error=2592000';
 
 /**
+ * Markdown representations. They live at a distinct internal URL
+ * (`/api/agent/markdown/<path>`) so Cloudflare can cache them as their own
+ * object; the public URL stays the page URL. 5 minutes keeps the negotiated
+ * view fresh without a second purge pipeline for the synthetic URL.
+ */
+const MARKDOWN_CACHE_CONTROL =
+  'public, max-age=0, s-maxage=300, stale-while-revalidate=3600, stale-if-error=3600';
+
+/**
  * Release identity of this build, inlined into the server bundle and served by
  * /api/health: the client-side ReleaseGuard reloads an open tab once after a
  * deploy instead of letting it navigate with the previous build's chunks.
@@ -288,13 +297,38 @@ const nextConfig: NextConfig = {
     {
       // Home of each locale: `/de` and `/en`.
       source: '/:locale(de|en)',
-      headers: [{ key: 'Cache-Control', value: PUBLIC_CACHE_CONTROL }],
+      headers: [
+        { key: 'Cache-Control', value: PUBLIC_CACHE_CONTROL },
+        // Markdown negotiation: the same URL serves HTML and text/markdown.
+        { key: 'Vary', value: 'Accept' },
+      ],
     },
     {
       // Public content pages of each locale: `/de/<slug>`. Live preview
       // (`/de/preview`) and the per-visitor settings page stay out.
       source: '/:locale(de|en)/:slug((?!preview$|settings$).*)',
-      headers: [{ key: 'Cache-Control', value: PUBLIC_CACHE_CONTROL }],
+      headers: [
+        { key: 'Cache-Control', value: PUBLIC_CACHE_CONTROL },
+        // Markdown negotiation: the same URL serves HTML and text/markdown.
+        { key: 'Vary', value: 'Accept' },
+      ],
+    },
+    {
+      // Agent discovery documents (static, no DB). OpenAPI is read by tool
+      // loaders; the well-known manifest by MCP clients. Both are public and
+      // safe to cache for an hour.
+      source: '/openapi.json',
+      headers: [
+        { key: 'Cache-Control', value: 'public, max-age=3600' },
+        { key: 'Access-Control-Allow-Origin', value: '*' },
+      ],
+    },
+    {
+      source: '/.well-known/:path*',
+      headers: [
+        { key: 'Cache-Control', value: 'public, max-age=3600' },
+        { key: 'Access-Control-Allow-Origin', value: '*' },
+      ],
     },
     {
       // Admin panel, REST/API surface and live preview: never cacheable at the
@@ -316,6 +350,14 @@ const nextConfig: NextConfig = {
       // public TTL (last entry wins for a given source + header key).
       source: '/api/media/file/:path*',
       headers: [{ key: 'Cache-Control', value: MEDIA_CACHE_CONTROL }],
+    },
+    {
+      // Negotiated Markdown representation. The edge rewrites
+      // `Accept: text/markdown` content requests here, so this URL is the
+      // cache object (separate from the HTML page URL). The generic `/api/*`
+      // no-store entry above matches first; this later entry wins.
+      source: '/api/agent/markdown/:path*',
+      headers: [{ key: 'Cache-Control', value: MARKDOWN_CACHE_CONTROL }],
     },
     {
       // Generated favicon route (HTML references it with a content hash query).
@@ -358,7 +400,14 @@ const nextConfig: NextConfig = {
   // Trailing-Slash-Normalisierung (gemessen); der `redirects()`-Eintrag ist die
   // explizite Absicherung, falls diese Normalisierung je abgeschaltet wird.
   rewrites: async () => ({
-    beforeFiles: [{ source: '/storybook', destination: '/storybook/index.html' }],
+    beforeFiles: [
+      { source: '/storybook', destination: '/storybook/index.html' },
+      // The CV page is the about page. `/about` is a stable entry point for
+      // agents and trust-anchor checks: rewrite (not redirect) so the URL
+      // returns 200 with the real career content, while the career page keeps
+      // its own canonical.
+      { source: '/:locale(de|en)/about', destination: '/:locale/career' },
+    ],
   }),
   redirects: async () => [{ source: '/storybook/', destination: '/storybook', permanent: true }],
 };

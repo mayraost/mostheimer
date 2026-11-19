@@ -26,6 +26,27 @@ import { envConfig } from '@/envConfig';
 
 const BASE_URL = envConfig.serverUrl;
 
+/**
+ * Product/focus terms used for brand discovery. They are factual (the same
+ * areas are named on the homepage and in the case studies) and appear in the
+ * JSON-LD `keywords`/`knowsAbout` fields, which is where agent audits read the
+ * site's main product terms from.
+ */
+const KNOWS_ABOUT = [
+  'Web Application Architecture',
+  'Next.js',
+  'React',
+  'TypeScript',
+  'Payload CMS',
+  'Pimcore',
+  'Composable Architecture',
+  'Edge Caching',
+  'Technical Leadership',
+] as const;
+
+/** Public keyword list (homepage JSON-LD + metadata `keywords`). */
+export const SITE_KEYWORDS: readonly string[] = KNOWS_ABOUT;
+
 export type JsonLdObject = Record<string, unknown>;
 
 /** BCP-47 tags for `inLanguage` fields. */
@@ -102,7 +123,51 @@ export function buildPerson(input: PersonIdentity): JsonLdObject {
     ...(Object.keys(address).length > 1 ? { address } : {}),
     ...(input.worksFor ? { worksFor: { '@type': 'Organization', name: input.worksFor } } : {}),
     ...(input.knowsLanguage.length > 0 ? { knowsLanguage: input.knowsLanguage } : {}),
+    knowsAbout: [...KNOWS_ABOUT],
     ...(Object.keys(contactPoint).length > 1 ? { contactPoint } : {}),
+  };
+}
+
+/**
+ * Site-level `Organization` node.
+ *
+ * The homepage used to expose only `WebSite` + `Person`; an agent asking
+ * "is this a real business and how do I contact it" had to infer the
+ * organization from `worksFor`. This node carries the same verified identity
+ * facts (address, contact point, profiles) under the organization that owns the
+ * site, so `Organization`-schema checks find `contactPoint` and `address`.
+ */
+export function buildOrganization(input: PersonIdentity): JsonLdObject {
+  const contactPoint: JsonLdObject = {
+    '@type': 'ContactPoint',
+    contactType: input.contactType || 'customer support',
+    ...(input.email ? { email: input.email } : {}),
+    ...(input.telephone ? { telephone: input.telephone } : {}),
+    ...(input.knowsLanguage.length > 0 ? { availableLanguage: input.knowsLanguage } : {}),
+  };
+
+  const address: JsonLdObject = {
+    '@type': 'PostalAddress',
+    ...(input.streetAddress ? { streetAddress: input.streetAddress } : {}),
+    ...(input.postalCode ? { postalCode: input.postalCode } : {}),
+    ...(input.addressLocality ? { addressLocality: input.addressLocality } : {}),
+    ...(input.addressCountry ? { addressCountry: input.addressCountry } : {}),
+  };
+
+  return {
+    '@type': 'Organization',
+    '@id': `${BASE_URL}/#organization`,
+    name: input.siteName || input.personName,
+    url: `${BASE_URL}${input.localePath}`,
+    ...(input.description ? { description: input.description } : {}),
+    ...(Object.keys(contactPoint).length > 1 ? { contactPoint } : {}),
+    ...(Object.keys(address).length > 1 ? { address } : {}),
+    ...(input.email ? { email: input.email } : {}),
+    ...(input.telephone ? { telephone: input.telephone } : {}),
+    ...(input.sameAs.length > 0 ? { sameAs: input.sameAs } : {}),
+    knowsAbout: [...KNOWS_ABOUT],
+    founder: personRef(),
+    employee: personRef(),
   };
 }
 
@@ -116,11 +181,13 @@ export interface SiteJsonLdInput {
   siteName: string;
   description?: string | null;
   person: JsonLdObject;
+  /** Site-level organization node (homepage only). */
+  organization?: JsonLdObject;
 }
 
 /**
- * Homepage graph: `WebSite` + `Person` in one `@graph`, wired through stable
- * `@id` references.
+ * Homepage graph: `WebSite` + `Person` (+ `Organization`) in one `@graph`,
+ * wired through stable `@id` references.
  */
 export function buildSiteJsonLd(input: SiteJsonLdInput): JsonLdObject {
   return {
@@ -134,8 +201,10 @@ export function buildSiteJsonLd(input: SiteJsonLdInput): JsonLdObject {
         inLanguage: jsonLdLanguageTag(input.locale),
         publisher: personRef(),
         ...(input.description ? { description: input.description } : {}),
+        keywords: [...KNOWS_ABOUT],
       },
       input.person,
+      ...(input.organization ? [input.organization] : []),
     ],
   };
 }

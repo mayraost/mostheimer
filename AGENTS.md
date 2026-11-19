@@ -2448,3 +2448,44 @@ Translations-Provider dort).
 - Die ungenutzten Utilities `card-industrial`, `glow-*`, `text-glow-*`,
   `ring-gauge`, `rule-accent*` wurden mit derselben Aufräumrunde aus
   `globals.css` entfernt (0 Verwendungen in `src/**`).
+
+## Agent Readiness (19.11.2026)
+
+Die maschinenlesbare Oberfläche liegt bewusst neben der Website, nicht in ihr:
+
+| URL                                    | Inhalt                                                                |
+| -------------------------------------- | --------------------------------------------------------------------- |
+| `/openapi.json`                        | OpenAPI 3.1 (`src/cms/aeo/openapi.ts`), unique operationIds, Schemas  |
+| `/api`                                 | JSON-Index mit Endpunkten + Discovery-Links (kein HTML-Fallback mehr) |
+| `/docs`, `/mcp`                        | Menschliche Doku je Locale; im Footer als „Developers"/„MCP" verlinkt |
+| `/llms.txt`                            | When-to-use, API-Links, Seitenindex                                   |
+| `/.well-known/mcp/manifest.json`       | Streamable-HTTP-Endpoint `/api/mcp`, Auth, Tool-Liste                 |
+| `/.well-known/agent-skills/index.json` | Skill-Discovery + `…/mostheimer-site/SKILL.md`                        |
+| `Accept: text/markdown`                | Markdown-Repräsentation jeder Content-URL                             |
+
+**Markdown-Negotiation:** `src/proxy.ts` prüft `wantsMarkdown()` und rewritet auf
+`/api/agent/markdown/<pfad>`; der Route Handler liest dieselben `'use cache'`-
+Queries und serialisiert über `src/cms/aeo/markdown.ts`. `Vary: Accept` setzt die
+Markdown-Route selbst; für HTML kommt es über die Cloudflare Response-Header-
+Transform-Rule (`http_response_headers_transform`, `Vary: add Accept`). Cloudflare
+kann den Cache-Key nicht nach `Accept` variieren (Free-Plan, `custom cache key`
+nicht freigeschaltet), deshalb rewritet eine Cloudflare **URL-Rewrite-Rule**
+(`http_request_transform`) Markdown-Requests am Edge auf
+`/api/agent/markdown/<pfad>` — die Client-URL bleibt die Seiten-URL, aber der
+Cache-Key ist ein eigenes Objekt. Eine Cache-Rule gibt diesen Objekten 300 s
+Edge-TTL (2xx) und `no-store` für 4xx; HTML bleibt bei 1 d. Der Origin-Proxy
+macht denselben Rewrite für lokale/Standalone-Requests.
+
+**404 für Agents:** Der Proxy antwortet bei unbekannten Slugs mit
+`NextResponse.next({ status: 404 })`; die Markdown-Route liefert für denselben
+Pfad `404` + `text/markdown` mit Links auf `/llms.txt`, `/sitemap.xml`, `/docs`
+und `/openapi.json`. Der Status bleibt 404, der Body erklärt den Fehler.
+
+**About:** `/about` ist ein `beforeFiles`-Rewrite auf `/:locale/career` (200,
+gleicher Inhalt, Career bleibt canonical). Kein Redirect, damit Trust-Anchor-
+Prüfungen eine echte Seite sehen.
+
+**Wichtig:** Die Payload-REST-Endpunkte (`/api/pages`, `/api/projects`,
+`/api/projectTags`, `/api/media`, `/api/globals/*`) sind anonym lesbar; Writes und
+MCP brauchen `Authorization: users API-Key <key>`. Das OpenAPI-Spec dokumentiert
+nur die öffentlichen Reads, keine Admin-/Write-Pfade.

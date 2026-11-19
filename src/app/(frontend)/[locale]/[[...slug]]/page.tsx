@@ -16,6 +16,7 @@ import { PROJECT_SHOWCASE_SLUG, normalizeTagSlug } from '@/cms/cache/frontend/ro
 import { loadChromeCopy, loadHeroCopy } from '@/lib/translationBundles.server';
 import {
   JsonLdScript,
+  SITE_KEYWORDS,
   buildCareerJsonLd,
   buildCaseStudiesJsonLd,
   buildProfilePageJsonLd,
@@ -26,7 +27,7 @@ import {
 import type { JsonLdObject } from '@/components/StructuredData';
 import { derivePageDescription } from '@/cms/aeo/pageMetadata';
 import { ogImageUrl } from '@/components/og/ogCard';
-import { loadPersonJsonLd } from '@/lib/identity.server';
+import { loadPersonJsonLd, loadOrganizationJsonLd } from '@/lib/identity.server';
 import { getCachedTranslation } from '@/lib/translations.server';
 import type { ProjectListingPage } from '@/cms/cache/frontend/queries';
 import type { ProjectTagDoc } from '@/cms/cache/frontend/queries';
@@ -161,11 +162,12 @@ function buildPageJsonLd(
   description: string | null,
   siteName: string,
   person: JsonLdObject,
+  organization?: JsonLdObject,
 ): JsonLdObject {
   const path = pagePath(locale, slug);
 
   if (slug === 'home') {
-    return buildSiteJsonLd({ locale, siteName, description, person });
+    return buildSiteJsonLd({ locale, siteName, description, person, organization });
   }
 
   if (PROFILE_PAGE_SLUGS.has(slug)) {
@@ -305,14 +307,20 @@ export default async function Page({ params, searchParams }: PageProps<'/[locale
           }),
           totalDocs: listingData.listing.totalDocs,
         })
-      : buildPageJsonLd(
-          slug,
-          locale,
-          page,
-          derivePageDescription(page),
-          siteSettings.siteName ?? '',
-          await loadPersonJsonLd(locale, siteSettings),
-        );
+      : await (async () => {
+          const person = await loadPersonJsonLd(locale, siteSettings);
+          const organization =
+            slug === 'home' ? await loadOrganizationJsonLd(locale, siteSettings) : undefined;
+          return buildPageJsonLd(
+            slug,
+            locale,
+            page,
+            derivePageDescription(page),
+            siteSettings.siteName ?? '',
+            person,
+            organization,
+          );
+        })();
 
   // Semantic <h1> guarantee: case-studies / tech-radar / career have no block
   // that emits one. The title renders as h1 only when no hero block exists,
@@ -434,6 +442,7 @@ function buildPageMetadata(
   return {
     title: { absolute: title },
     ...(description ? { description } : {}),
+    keywords: [...SITE_KEYWORDS],
     ...(isFilteredVariant || isMalformedPage ? { robots: { index: false, follow: true } } : {}),
     openGraph: {
       // Share cards show the same headline as the document title, so a shared

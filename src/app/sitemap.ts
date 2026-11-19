@@ -80,5 +80,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
   });
 
+  // Static developer/agent pages. They are code routes (no CMS document), so
+  // they would otherwise be missing from the sitemap even though they are the
+  // entry points agents and search engines need.
+  for (const staticPath of ['/docs', '/mcp'] as const) {
+    locales.forEach((locale) => {
+      sitemapEntries.push({
+        url: `${baseUrl}/${locale}${staticPath}`,
+        changeFrequency: 'monthly',
+        alternates: {
+          languages: {
+            en: `${baseUrl}/en${staticPath}`,
+            de: `${baseUrl}/de${staticPath}`,
+            'x-default': `${baseUrl}/de${staticPath}`,
+          },
+        },
+      });
+    });
+  }
+
   return sitemapEntries;
 }

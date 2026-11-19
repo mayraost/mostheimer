@@ -196,6 +196,9 @@ async function LayoutShell({
               brandClaim={chrome.brandClaim}
               navAria={chrome.footerNavAria}
               credits={chrome.footerCredits}
+              docsLabel={chrome.docsLabel}
+              mcpLabel={chrome.mcpLabel}
+              localePath={`/${locale}`}
             />
           }
         >

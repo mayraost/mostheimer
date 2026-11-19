@@ -77,6 +77,8 @@ export const COPY_KEYS = {
   'chrome.portraitMonogram': 'MO',
   'chrome.breadcrumbHome': 'Home',
   'chrome.notFoundCode': 'HTTP 404 · Not Found',
+  'chrome.docsLabel': 'Developers',
+  'chrome.mcpLabel': 'MCP',
 
   // -- Settings --------------------------------------------------------------
   'settings.eyebrow': 'settings',

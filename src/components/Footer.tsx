@@ -13,6 +13,9 @@ export async function Footer({
   brandClaim,
   navAria,
   credits,
+  docsLabel,
+  mcpLabel,
+  localePath,
 }: {
   /** Brand from the site-settings global (never a literal). */
   brandName: string;
@@ -31,6 +34,12 @@ export async function Footer({
   navAria?: string;
   /** Tech line (`chrome.footerCredits`); segments are split on `/`. */
   credits?: string;
+  /** Developer documentation link label (`chrome.docsLabel`). */
+  docsLabel?: string;
+  /** MCP page link label (`chrome.mcpLabel`). */
+  mcpLabel?: string;
+  /** Locale root (`/en`, `/de`) for the developer links. */
+  localePath?: string;
 }) {
   /*
    * No locale-derived fallback strings any more (rule since 08.11.2026): every
@@ -63,7 +72,7 @@ export async function Footer({
           </div>
         </div>
 
-        {navLinks && navLinks.length > 0 && (
+        {navLinks && (navLinks.length > 0 || (localePath && (docsLabel || mcpLabel))) && (
           <nav aria-label={navAria}>
             <ul className="flex flex-wrap items-center gap-x-5 gap-y-2">
               {navLinks
@@ -97,6 +106,42 @@ export async function Footer({
                     </li>
                   );
                 })}
+              {localePath && docsLabel ? (
+                <li>
+                  <Link
+                    href={`${localePath}/docs`}
+                    className={[
+                      'mono-label inline-flex items-center gap-1.5 transition-colors',
+                      isActiveNavLink(`${localePath}/docs`, pathname)
+                        ? 'text-primary'
+                        : 'text-muted-foreground hover:text-primary',
+                    ].join(' ')}
+                    aria-current={
+                      isActiveNavLink(`${localePath}/docs`, pathname) ? 'page' : undefined
+                    }
+                  >
+                    {docsLabel}
+                  </Link>
+                </li>
+              ) : null}
+              {localePath && mcpLabel ? (
+                <li>
+                  <Link
+                    href={`${localePath}/mcp`}
+                    className={[
+                      'mono-label inline-flex items-center gap-1.5 transition-colors',
+                      isActiveNavLink(`${localePath}/mcp`, pathname)
+                        ? 'text-primary'
+                        : 'text-muted-foreground hover:text-primary',
+                    ].join(' ')}
+                    aria-current={
+                      isActiveNavLink(`${localePath}/mcp`, pathname) ? 'page' : undefined
+                    }
+                  >
+                    {mcpLabel}
+                  </Link>
+                </li>
+              ) : null}
               <li>
                 {/* Client-Komponente (der Footer ist eine Server-Komponente):
                     oeffnet den Consent-Dialog ueber `CONSENT_OPEN_EVENT`. */}

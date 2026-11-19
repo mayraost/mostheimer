@@ -7,6 +7,7 @@ import {
   slugToPath,
 } from '@/cms/cache/frontend/routes';
 import type { FrontendLocale } from '@/cms/cache/frontend/routes';
+import { markdownRoutePath, wantsMarkdown } from '@/lib/agentNegotiation';
 import { publishedSlugStatus, publishedProjectStatus } from './proxy-slug-cache';
 
 const defaultLocale: FrontendLocale = 'en';
@@ -21,7 +22,7 @@ const defaultLocale: FrontendLocale = 'en';
  * `publishedProjectStatus` (see `handleLocalizedRequest`); two or more
  * children are not a route at all.
  */
-const STATIC_CHILD_ROUTES = new Set(['preview', 'settings', 'impressum']);
+const STATIC_CHILD_ROUTES = new Set(['preview', 'settings', 'impressum', 'docs', 'mcp', 'about']);
 
 /**
  * True for a one-segment child of a STATIC route (`/de/impressum/<x>`,
@@ -112,7 +113,22 @@ async function handleLocalizedRequest(request: NextRequest, locale: FrontendLoca
   const slug = pathnameToSlug(locale, pathname);
 
   // `null` = not addressable as a page (trailing slash), `''` = locale root.
-  if (slug === null || slug === '') return forward(request, pathname, locale);
+  if (slug === null) return forward(request, pathname, locale);
+
+  // Markdown content negotiation. The response is produced by the dedicated
+  // route handler from the same cached CMS data; the client keeps the original
+  // URL. Preview and the per-visitor settings page stay HTML-only (draft/auth
+  // content must never be exposed through a public representation).
+  const firstSegment = slug.split('/')[0];
+  if (
+    wantsMarkdown(request.headers.get('accept')) &&
+    firstSegment !== 'preview' &&
+    firstSegment !== 'settings'
+  ) {
+    return NextResponse.rewrite(new URL(markdownRoutePath(pathname), request.url));
+  }
+
+  if (slug === '') return forward(request, pathname, locale);
 
   // `/[locale]/projects` (the listing page) also matches, so the first
   // segment must go through the page-slug snapshot — only the one-segment child

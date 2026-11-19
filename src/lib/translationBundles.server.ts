@@ -47,6 +47,8 @@ export type ChromeCopy = {
   portraitMonogram: string;
   notFoundCode: string;
   breadcrumbHome: string;
+  docsLabel: string;
+  mcpLabel: string;
 };
 
 export async function loadChromeCopy(locale: FrontendLocale): Promise<ChromeCopy> {
@@ -67,6 +69,8 @@ export async function loadChromeCopy(locale: FrontendLocale): Promise<ChromeCopy
     portraitMonogram,
     notFoundCode,
     breadcrumbHome,
+    docsLabel,
+    mcpLabel,
   ] = await Promise.all([
     getCachedTranslation(locale, 'chrome.homeAria'),
     getCachedTranslation(locale, 'chrome.languageName'),
@@ -84,6 +88,8 @@ export async function loadChromeCopy(locale: FrontendLocale): Promise<ChromeCopy
     getCachedTranslation(locale, 'chrome.portraitMonogram'),
     getCachedTranslation(locale, 'chrome.notFoundCode'),
     getCachedTranslation(locale, 'chrome.breadcrumbHome'),
+    getCachedTranslation(locale, 'chrome.docsLabel'),
+    getCachedTranslation(locale, 'chrome.mcpLabel'),
   ]);
   return {
     homeAria,
@@ -102,6 +108,8 @@ export async function loadChromeCopy(locale: FrontendLocale): Promise<ChromeCopy
     portraitMonogram,
     notFoundCode,
     breadcrumbHome,
+    docsLabel,
+    mcpLabel,
   };
 }
 

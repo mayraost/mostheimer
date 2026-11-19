@@ -2,7 +2,7 @@ import type { SiteSetting } from '@/payload-types';
 import type { FrontendLocale } from '@/cms/cache/frontend/routes';
 import { getCachedSiteSettings } from '@/cms/cache/frontend/queries';
 import { getCachedTranslation } from './translations.server';
-import { buildPerson } from '@/components/StructuredData';
+import { buildPerson, buildOrganization } from '@/components/StructuredData';
 import type { JsonLdObject, PersonIdentity } from '@/components/StructuredData';
 
 /**
@@ -72,4 +72,16 @@ export async function loadPersonJsonLd(
 /** Convenience for callers that have not read `site-settings` yet. */
 export async function loadPersonJsonLdFor(locale: FrontendLocale): Promise<JsonLdObject> {
   return loadPersonJsonLd(locale, await getCachedSiteSettings(locale));
+}
+
+/**
+ * Organization node for the homepage graph. Same identity source as the Person
+ * node; the extra builder exists so `contactPoint` and `address` are present
+ * under the organization an agent asks about, not only under the person.
+ */
+export async function loadOrganizationJsonLd(
+  locale: FrontendLocale,
+  siteSettings: SiteSetting,
+): Promise<JsonLdObject> {
+  return buildOrganization(await loadPersonIdentity(locale, siteSettings));
 }
