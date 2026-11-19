@@ -107,10 +107,8 @@ function blockToMarkdown(block: PageBlock): string[] {
         '',
         block.subheading ?? '',
         '',
-        ...[block.ctaLabel, block.ctaLabel2, block.ctaLabel3]
-          .map((label, index) =>
-            link(label, [block.ctaLink, block.ctaLink2, block.ctaLink3][index] ?? null),
-          )
+        ...[block.ctaLabel, block.ctaLabel2]
+          .map((label, index) => link(label, [block.ctaLink, block.ctaLink2][index] ?? null))
           .filter((entry): entry is string => Boolean(entry))
           .map((entry) => `- ${entry}`),
       ].filter((line) => line !== undefined);
