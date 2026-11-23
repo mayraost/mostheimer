@@ -7,6 +7,83 @@
  */
 
 /**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "UploadTransforms".
+ */
+export type UploadTransforms = {
+  /**
+   * Time range on the original, in milliseconds. Start inclusive, end exclusive.
+   */
+  clip?: {
+    endMs: number;
+    startMs: number;
+  };
+  /**
+   * Rectangle in original-file pixels, applied before resize and encoding.
+   */
+  crop?: {
+    height: number;
+    width: number;
+    x: number;
+    y: number;
+  };
+  /**
+   * Encoding settings for the output format. Does not select the format.
+   */
+  encoding?: {
+    [k: string]: unknown;
+  };
+  /**
+   * Mirror the image on one or both axes.
+   */
+  flip?: {
+    horizontal?: boolean;
+    vertical?: boolean;
+  };
+  /**
+   * Preferred point as percentages of the original, from 0 to 100.
+   */
+  focalPoint?: {
+    x: number;
+    y: number;
+  };
+  /**
+   * Keep or remove metadata embedded in the output file.
+   */
+  metadataPolicy?: {
+    mode: 'preserve' | 'strip';
+  };
+  /**
+   * One-based, inclusive page range on the original document.
+   */
+  pageRange?: {
+    endPage: number;
+    startPage: number;
+  };
+  /**
+   * Video frame to use as the poster, in milliseconds on the original.
+   */
+  posterFrame?: {
+    timestampMs: number;
+  };
+  /**
+   * Target size for visual media.
+   */
+  resize?: {
+    fit?: 'contain' | 'cover' | 'fill' | 'inside' | 'outside';
+    height?: number;
+    width?: number;
+    withoutEnlargement?: boolean;
+  };
+  /**
+   * Clockwise rotation in degrees.
+   */
+  rotate?: {
+    angle: number;
+  };
+  [k: string]: unknown;
+} | null;
+/**
  * Supported timezones in IANA format.
  *
  * This interface was referenced by `Config`'s JSON-Schema
@@ -213,6 +290,17 @@ export interface User {
         expiresAt: string;
         refreshCount?: number | null;
         refreshedAt?: string | null;
+        label?: string | null;
+        type?: string | null;
+        metadata?:
+          | {
+              [k: string]: unknown;
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null;
       }[]
     | null;
   password?: string | null;
@@ -242,6 +330,8 @@ export interface Media {
   filesize?: number | null;
   width?: number | null;
   height?: number | null;
+  _stored?: boolean | null;
+  _transforms?: UploadTransforms;
   original?: {
     filename?: string | null;
     url?: string | null;
@@ -251,6 +341,7 @@ export interface Media {
     height?: number | null;
     prefix?: string | null;
     _objectKey?: string | null;
+    _stored?: boolean | null;
   };
   focalX?: number | null;
   focalY?: number | null;
@@ -264,6 +355,7 @@ export interface Media {
       filename?: string | null;
       prefix?: string | null;
       _objectKey?: string | null;
+      _stored?: boolean | null;
     };
     card?: {
       url?: string | null;
@@ -274,6 +366,7 @@ export interface Media {
       filename?: string | null;
       prefix?: string | null;
       _objectKey?: string | null;
+      _stored?: boolean | null;
     };
     tile?: {
       url?: string | null;
@@ -284,6 +377,7 @@ export interface Media {
       filename?: string | null;
       prefix?: string | null;
       _objectKey?: string | null;
+      _stored?: boolean | null;
     };
     tileWide?: {
       url?: string | null;
@@ -294,6 +388,7 @@ export interface Media {
       filename?: string | null;
       prefix?: string | null;
       _objectKey?: string | null;
+      _stored?: boolean | null;
     };
     hero?: {
       url?: string | null;
@@ -304,6 +399,7 @@ export interface Media {
       filename?: string | null;
       prefix?: string | null;
       _objectKey?: string | null;
+      _stored?: boolean | null;
     };
   };
 }
@@ -828,6 +924,14 @@ export interface FeatureGrid {
               | 'ArrowUpToLine'
               | 'ArrowUpWideNarrow'
               | 'ArrowUpZA'
+              | 'ArrowsFromAxisDashedHorizontal'
+              | 'ArrowsFromAxisDashedVertical'
+              | 'ArrowsFromAxisHorizontal'
+              | 'ArrowsFromAxisVertical'
+              | 'ArrowsToAxisDashedHorizontal'
+              | 'ArrowsToAxisDashedVertical'
+              | 'ArrowsToAxisHorizontal'
+              | 'ArrowsToAxisVertical'
               | 'ArrowsUpFromLine'
               | 'Asterisk'
               | 'Asterism'
@@ -964,8 +1068,12 @@ export interface FeatureGrid {
               | 'BookmarkX'
               | 'BoomBox'
               | 'Bot'
+              | 'BotCheck'
               | 'BotMessageSquare'
+              | 'BotMinus'
               | 'BotOff'
+              | 'BotPlus'
+              | 'BotX'
               | 'BottleWine'
               | 'BowArrow'
               | 'Box'
@@ -1041,6 +1149,7 @@ export interface FeatureGrid {
               | 'CandyOff'
               | 'Cannabis'
               | 'CannabisOff'
+              | 'Cap'
               | 'Captions'
               | 'CaptionsOff'
               | 'Car'
@@ -1049,6 +1158,14 @@ export interface FeatureGrid {
               | 'CarTaxiFront'
               | 'Caravan'
               | 'CardSim'
+              | 'CaretsFromAxisDashedHorizontal'
+              | 'CaretsFromAxisDashedVertical'
+              | 'CaretsFromAxisHorizontal'
+              | 'CaretsFromAxisVertical'
+              | 'CaretsToAxisDashedHorizontal'
+              | 'CaretsToAxisDashedVertical'
+              | 'CaretsToAxisHorizontal'
+              | 'CaretsToAxisVertical'
               | 'Carrot'
               | 'Carton'
               | 'CartonOff'
@@ -1108,16 +1225,25 @@ export interface FeatureGrid {
               | 'ChevronUp'
               | 'ChevronsDown'
               | 'ChevronsDownUp'
+              | 'ChevronsFromAxisDashedHorizontal'
+              | 'ChevronsFromAxisDashedVertical'
+              | 'ChevronsFromAxisHorizontal'
+              | 'ChevronsFromAxisVertical'
               | 'ChevronsLeft'
               | 'ChevronsLeftRight'
               | 'ChevronsLeftRightEllipsis'
               | 'ChevronsRight'
               | 'ChevronsRightLeft'
+              | 'ChevronsToAxisDashedHorizontal'
+              | 'ChevronsToAxisDashedVertical'
+              | 'ChevronsToAxisHorizontal'
+              | 'ChevronsToAxisVertical'
               | 'ChevronsUp'
               | 'ChevronsUpDown'
               | 'Church'
               | 'Cigarette'
               | 'CigaretteOff'
+              | 'Cinema'
               | 'Circle'
               | 'CircleArrowDown'
               | 'CircleArrowDownLeftExit'
@@ -1127,6 +1253,7 @@ export interface FeatureGrid {
               | 'CircleArrowUp'
               | 'CircleArrowUpLeftExit'
               | 'CircleArrowUpRightExit'
+              | 'CircleBounce'
               | 'CircleCheck'
               | 'CircleCheckBig'
               | 'CircleChevronDown'
@@ -1183,6 +1310,7 @@ export interface FeatureGrid {
               | 'CircleOff'
               | 'CirclePause'
               | 'CirclePercent'
+              | 'CirclePersonArmsSpread'
               | 'CirclePile'
               | 'CirclePlay'
               | 'CirclePlus'
@@ -1335,6 +1463,7 @@ export interface FeatureGrid {
               | 'Dessert'
               | 'DiagramFlowHorizontal'
               | 'DiagramFlowVertical'
+              | 'DiagramSankey'
               | 'Diameter'
               | 'Diamond'
               | 'DiamondMinus'
@@ -1357,6 +1486,7 @@ export interface FeatureGrid {
               | 'DnaOff'
               | 'Dock'
               | 'Dog'
+              | 'Doghouse'
               | 'DollarSign'
               | 'Dome'
               | 'Donut'
@@ -1504,8 +1634,6 @@ export interface FeatureGrid {
               | 'Flower'
               | 'Flower2'
               | 'Focus'
-              | 'FoldHorizontal'
-              | 'FoldVertical'
               | 'Folder'
               | 'FolderArchive'
               | 'FolderBookmark'
@@ -1601,6 +1729,7 @@ export interface FeatureGrid {
               | 'GraduationCap'
               | 'Grape'
               | 'GraphHub'
+              | 'GraphRing'
               | 'GraphStar'
               | 'Grid2x2'
               | 'Grid2x2Check'
@@ -1628,6 +1757,7 @@ export interface FeatureGrid {
               | 'HandHelping'
               | 'HandMetal'
               | 'HandPlatter'
+              | 'HandTruck'
               | 'Handbag'
               | 'HandleBottomRight'
               | 'Handshake'
@@ -1671,6 +1801,8 @@ export interface FeatureGrid {
               | 'Hourglass'
               | 'HourglassCog'
               | 'House'
+              | 'HouseArrowLeft'
+              | 'HouseArrowRight'
               | 'HouseCog'
               | 'HouseHeart'
               | 'HousePlug'
@@ -1700,6 +1832,7 @@ export interface FeatureGrid {
               | 'IterationCcw'
               | 'IterationCw'
               | 'IvBag'
+              | 'Jacket'
               | 'JapaneseYen'
               | 'Joystick'
               | 'Kanban'
@@ -1741,6 +1874,7 @@ export interface FeatureGrid {
               | 'LayoutFreeform'
               | 'LayoutGrid'
               | 'LayoutGridCircles'
+              | 'LayoutGridPlus'
               | 'LayoutList'
               | 'LayoutPanelLeft'
               | 'LayoutPanelTop'
@@ -1997,6 +2131,7 @@ export interface FeatureGrid {
               | 'Network'
               | 'Newspaper'
               | 'Nfc'
+              | 'NigerianNaira'
               | 'NonBinary'
               | 'Notebook'
               | 'NotebookDot'
@@ -2029,6 +2164,7 @@ export interface FeatureGrid {
               | 'PackageSearch'
               | 'PackageX'
               | 'PaintBucket'
+              | 'PaintGun'
               | 'PaintRoller'
               | 'Paintbrush'
               | 'PaintbrushVertical'
@@ -2381,10 +2517,12 @@ export interface FeatureGrid {
               | 'SquareArrowUpRightEnter'
               | 'SquareArrowUpRightExit'
               | 'SquareAsterisk'
+              | 'SquareAxisDashedHorizontal'
+              | 'SquareAxisDashedVertical'
+              | 'SquareAxisHorizontal'
+              | 'SquareAxisVertical'
               | 'SquareBookmark'
               | 'SquareBottomDashedScissors'
-              | 'SquareCenterlineDashedHorizontal'
-              | 'SquareCenterlineDashedVertical'
               | 'SquareChartGantt'
               | 'SquareCheck'
               | 'SquareCheckBig'
@@ -2517,6 +2655,7 @@ export interface FeatureGrid {
               | 'StrokeLineJoinBevel'
               | 'StrokeLineJoinMiter'
               | 'StrokeLineJoinRound'
+              | 'StrokeWidth'
               | 'Subscript'
               | 'Summary'
               | 'Sun'
@@ -2632,8 +2771,6 @@ export interface FeatureGrid {
               | 'TriangleDashed'
               | 'TriangleExclamationPoint'
               | 'TriangleRight'
-              | 'TrianglesCenterlineDashedHorizontal'
-              | 'TrianglesCenterlineDashedVertical'
               | 'Trophy'
               | 'Truck'
               | 'TruckElectric'
@@ -2652,8 +2789,6 @@ export interface FeatureGrid {
               | 'Undo'
               | 'Undo2'
               | 'UndoDot'
-              | 'UnfoldHorizontal'
-              | 'UnfoldVertical'
               | 'Ungroup'
               | 'University'
               | 'Unlink'
@@ -2729,6 +2864,7 @@ export interface FeatureGrid {
               | 'Wand'
               | 'WandSparkles'
               | 'Warehouse'
+              | 'WarehouseWaves'
               | 'WashingMachine'
               | 'Watch'
               | 'WavesArrowDown'
@@ -3101,6 +3237,9 @@ export interface UsersSelect<T extends boolean = true> {
         expiresAt?: T;
         refreshCount?: T;
         refreshedAt?: T;
+        label?: T;
+        type?: T;
+        metadata?: T;
       };
 }
 /**
@@ -3120,6 +3259,8 @@ export interface MediaSelect<T extends boolean = true> {
   filesize?: T;
   width?: T;
   height?: T;
+  _stored?: T;
+  _transforms?: T;
   original?:
     | T
     | {
@@ -3131,6 +3272,7 @@ export interface MediaSelect<T extends boolean = true> {
         height?: T;
         prefix?: T;
         _objectKey?: T;
+        _stored?: T;
       };
   focalX?: T;
   focalY?: T;
@@ -3148,6 +3290,7 @@ export interface MediaSelect<T extends boolean = true> {
               filename?: T;
               prefix?: T;
               _objectKey?: T;
+              _stored?: T;
             };
         card?:
           | T
@@ -3160,6 +3303,7 @@ export interface MediaSelect<T extends boolean = true> {
               filename?: T;
               prefix?: T;
               _objectKey?: T;
+              _stored?: T;
             };
         tile?:
           | T
@@ -3172,6 +3316,7 @@ export interface MediaSelect<T extends boolean = true> {
               filename?: T;
               prefix?: T;
               _objectKey?: T;
+              _stored?: T;
             };
         tileWide?:
           | T
@@ -3184,6 +3329,7 @@ export interface MediaSelect<T extends boolean = true> {
               filename?: T;
               prefix?: T;
               _objectKey?: T;
+              _stored?: T;
             };
         hero?:
           | T
@@ -3196,6 +3342,7 @@ export interface MediaSelect<T extends boolean = true> {
               filename?: T;
               prefix?: T;
               _objectKey?: T;
+              _stored?: T;
             };
       };
 }

@@ -28,6 +28,7 @@ import * as migration_20261109_180000_seed_vibe_showcase_copy from './20261109_1
 import * as migration_20261109_183000_seed_command_palette_vibe_coding from './20261109_183000_seed_command_palette_vibe_coding';
 import * as migration_20261109_190000_rename_vibe_to_project from './20261109_190000_rename_vibe_to_project';
 import * as migration_20261113_192301_add_project_storybook_url from './20261113_192301_add_project_storybook_url';
+import * as migration_20261123_161222_beta11_schema_and_icon_enum from './20261123_161222_beta11_schema_and_icon_enum';
 
 export const migrations = [
   {
@@ -178,6 +179,11 @@ export const migrations = [
   {
     up: migration_20261113_192301_add_project_storybook_url.up,
     down: migration_20261113_192301_add_project_storybook_url.down,
-    name: '20261113_192301_add_project_storybook_url'
+    name: '20261113_192301_add_project_storybook_url',
+  },
+  {
+    up: migration_20261123_161222_beta11_schema_and_icon_enum.up,
+    down: migration_20261123_161222_beta11_schema_and_icon_enum.down,
+    name: '20261123_161222_beta11_schema_and_icon_enum',
   },
 ];
