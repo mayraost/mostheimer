@@ -429,10 +429,10 @@ await payload.delete({ collection: 'posts', id: '123' });
   - Der Payload-Admin selbst (menschliche Redaktion)
 - **Warum:** Der MCP läuft durch dieselben Payload-Hooks wie der Admin (Validierung, `overrideAccess`-Semantik, Cache-Invalidierung inkl. Edge-Purge). Skripte und Seed-Routen umgehen genau diese Kette und haben in der Vergangenheit Draft-/Published- und Cache-Zustände inkonsistent gemacht (siehe „Gelernte Fehler": Draft-Default bei Seeds, verpasster OSR-Flush).
 - **Server-Bindings** (Projekt-`opencode.json`, beide `type: remote`, Header `Authorization: users API-Key {file:...}` — NICHT Bearer, Beta.6 authentifiziert Payload-native User-API-Keys):
-  - `payload` (lokal): `http://localhost:3000/api/mcp`, Secret-File `~/.config/opencode/.secrets/payload-mcp-api-key`
-  - `payload-prod` (Produktion): `https://mostheimer.de/api/mcp` (kanonische Domain; die Alt-Domains antworten nur noch mit 301), Secret-File `~/.config/opencode/.secrets/payload-mcp-prod-api-key` (nur Pfad-Referenz — Werte nie lesen/printen)
+  - `payload` (lokal): `http://localhost:3000/api/mcp`, Secret-File `~/.secrets/mostheimer-local-payload-mcp.api-key`
+  - `payload-prod` (Produktion): `https://mostheimer.de/api/mcp` (kanonische Domain; die Alt-Domains antworten nur noch mit 301), Secret-File `~/.secrets/mostheimer-prod-payload-mcp.api-key` (nur Pfad-Referenz — Werte nie lesen/printen)
 - **Plugin:** `@payloadcms/plugin-mcp` exakt `4.0.0-beta.11` (in `src/payload.config.ts`); Scope: alle Built-in-Tools ON bis auf `delete@media`; `users` read-only (`find` via `overrideResponse` redigiert `hash`/`salt`). Machtkontrolle = Permissions des Key-Owner-Users (keine per-Key-Toggles in Beta.6).
-- **Key-Erzwungene Reveal-Kette:** Key = `useAPIKey` am Owner-User (Users-Collection, `reveal: true`); Migration `20261104_165445_add_mcp_api_keys` legt `api_key`/`api_key_index`/`api_key_last4` an; Prod-Key in `~/.config/opencode/.secrets/payload-mcp-prod-api-key` (chmod 600), Secret-Files nie ins Repo.
+- **Key-Erzwungene Reveal-Kette:** Key = `useAPIKey` am Owner-User (Users-Collection, `reveal: true`); Migration `20261104_165445_add_mcp_api_keys` legt `api_key`/`api_key_index`/`api_key_last4` an; Prod-Key in `~/.secrets/mostheimer-prod-payload-mcp.api-key` (chmod 600), Secret-Files nie ins Repo.
 
 ### MCP-Write-Muster (aus der Praxis, 07.11.2026)
 
@@ -759,7 +759,7 @@ Profil „Docker/Coolify-Build ohne DB":
   ohne Default (`DATABASE_URL ?? ''`).
 - Zentrale Instanz überall (lokale Dev → `~/workspace/coolify-postgres`, DB/User
   `mostheimer`; Passwort in gitignored `.env` +
-  `~/.config/opencode/.secrets/mostheimer-local-db.password`).
+  `~/.secrets/mostheimer-local-db.password`).
 - `push: false` am postgresAdapter: Dev-Schema-Push aus → Schemaänderungen
   IMMER via `npx payload migrate:create <name>` (Snapshot-Diff,
   `DATABASE_TYPE=postgresql DATABASE_URL=postgresql://x:x@localhost:5432/x npx
