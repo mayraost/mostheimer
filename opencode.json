@@ -11,7 +11,7 @@
         // user API keys — header format `Authorization: <authCollectionSlug>
         // API-Key <value>` (verified in node_modules/payload/dist/auth/
         // strategies/apiKey.js). `Bearer` = JWT only in this version.
-        "Authorization": "users API-Key {file:/home/devagent/.config/opencode/.secrets/payload-mcp-api-key}"
+        "Authorization": "users API-Key {file:~/.secrets/mostheimer-local-payload-mcp.api-key}"
       }
     },
     // Prod-MCP: https://mostheimer.de/api/mcp (Coolify-App mostheimer).
@@ -24,7 +24,7 @@
       "url": "https://mostheimer.de/api/mcp",
       "enabled": true,
       "headers": {
-        "Authorization": "users API-Key {file:/home/devagent/.config/opencode/.secrets/payload-mcp-prod-api-key}"
+        "Authorization": "users API-Key {file:~/.secrets/mostheimer-prod-payload-mcp.api-key}"
       }
     }
   }
